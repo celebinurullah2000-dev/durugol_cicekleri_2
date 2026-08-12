@@ -1,7 +1,10 @@
 import 'package:durugol_cicekleri/Etkinlikler_Screen.dart';
 import 'package:durugol_cicekleri/Sinif_Istatistik_Siralama_Screen.dart';
 import 'package:durugol_cicekleri/ogretmen_randevu_screen.dart';
+import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
+import 'package:durugol_cicekleri/screens/teacher_chat_audit_screen.dart';
 import 'package:durugol_cicekleri/sinif_sifreleri_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'Kisisel_Sozluk_Screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -893,6 +896,105 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                               builder: (context) => HaftalikDersProgramiScreen(
                                 classId: widget.classId,
                                 isTeacher: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildHizliIslemButonu(
+                        icon: Icons.chat,
+                        label: "Sohbet & Duvar",
+                        color: Colors.lightGreenAccent,
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
+                              ),
+                            ),
+                            builder: (bottomSheetContext) => Container(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    "Öğretmen İletişim & Denetim",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Divider(),
+                                  // 1. Seçenek: Sınıf Duvarı
+                                  ListTile(
+                                    leading: const Icon(
+                                      Icons.campaign,
+                                      color: Colors.pinkAccent,
+                                      size: 30,
+                                    ),
+                                    title: const Text("Sınıf Duvarı"),
+                                    subtitle: const Text(
+                                      "Öğrencilerle ortak akış ve paylaşımlar",
+                                    ),
+                                    onTap: () {
+                                      Navigator.pop(
+                                        bottomSheetContext,
+                                      ); // Alt menüyü kapat
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ClassFeedScreen(
+                                            currentUserId:
+                                                FirebaseAuth
+                                                    .instance
+                                                    .currentUser
+                                                    ?.uid ??
+                                                "ogretmen_id",
+                                            currentUserName: "Öğretmen",
+                                            isTeacher: true,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  // 2. Seçenek: Tüm Sınıf Sohbetleri (Denetim)
+                                  ListTile(
+                                    leading: const Icon(
+                                      Icons.security,
+                                      color: Colors.indigo,
+                                      size: 30,
+                                    ),
+                                    title: const Text(
+                                      "Tüm Sınıf Sohbetleri (Denetim)",
+                                    ),
+                                    subtitle: const Text(
+                                      "Öğrenci aralarındaki bireysel ve grup sohbetleri",
+                                    ),
+                                    onTap: () {
+                                      Navigator.pop(
+                                        bottomSheetContext,
+                                      ); // Alt menüyü kapat
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              TeacherChatAuditScreen(
+                                                classId:
+                                                    "sinif_id_buraya", // Kendi sınıf ID değişkenini buraya yazabilirsin
+                                                currentUserId:
+                                                    FirebaseAuth
+                                                        .instance
+                                                        .currentUser
+                                                        ?.uid ??
+                                                    "ogretmen_id",
+                                                currentUserName: "Öğretmen",
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                           );

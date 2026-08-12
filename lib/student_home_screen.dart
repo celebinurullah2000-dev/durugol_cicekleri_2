@@ -1,6 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:durugol_cicekleri/Ogrenci_Davranis_Screen.dart';
+import 'package:durugol_cicekleri/screens/chat_list_screen.dart';
+import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
 import 'package:durugol_cicekleri/veli_randevu_screen.dart';
 import 'package:flutter/material.dart'; // Scaffold, AppBar, Text vb. temel widgetlar için
 import 'package:shared_preferences/shared_preferences.dart'; // Çıkış yaparken oturumu silmek için
@@ -353,6 +355,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       {'title': 'Çeşitli İşler', 'image': 'assets/images/cesitli_isler.png'},
       {'title': 'Oyunlar', 'image': 'assets/images/oyunlar.png'},
       {'title': 'Randevular', 'image': 'assets/images/randevular.png'},
+      {'title': 'Sohbet Odaları', 'image': 'assets/images/sohbet.png'},
     ];
 
     return Scaffold(
@@ -576,6 +579,98 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             studentId: widget.studentId,
                             classId: classId,
                             studentName: studentName,
+                          ),
+                        ),
+                      );
+                    } else if (baslik == 'Sohbet Odaları') {
+                      showModalBottomSheet(
+                        context: context,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                        ),
+                        builder: (bottomSheetContext) => Container(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "İletişim Alanı Seçin",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Divider(),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.campaign,
+                                  color: Colors.pinkAccent,
+                                  size: 30,
+                                ),
+                                title: const Text("Sınıf Duvarı"),
+                                subtitle: const Text(
+                                  "Ortak paylaşımlar ve duyurular",
+                                ),
+                                onTap: () {
+                                  Navigator.pop(
+                                    bottomSheetContext,
+                                  ); // Önce alt menüyü kapatıyoruz
+
+                                  // İstatistiği arka planda kaydedip sayfayı açıyoruz
+                                  IstatistikServisi.islemKaydet(
+                                    studentId: widget.studentId,
+                                    islemTuru: 'sinif_duvari',
+                                  );
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ClassFeedScreen(
+                                        currentUserId: widget.studentId,
+                                        currentUserName: studentName,
+                                        isTeacher: false,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.forum,
+                                  color: Colors.indigo,
+                                  size: 30,
+                                ),
+                                title: const Text("Sohbet Odaları"),
+                                subtitle: const Text(
+                                  "Bireysel ve grup mesajlaşmaları",
+                                ),
+                                onTap: () {
+                                  Navigator.pop(
+                                    bottomSheetContext,
+                                  ); // Önce alt menüyü kapatıyoruz
+
+                                  // İstatistiği arka planda kaydedip sayfayı açıyoruz
+                                  IstatistikServisi.islemKaydet(
+                                    studentId: widget.studentId,
+                                    islemTuru: 'sohbet_odalari',
+                                  );
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatListScreen(
+                                        currentUserId: widget.studentId,
+                                        classId: classId,
+                                        currentUserName: studentName,
+                                        isTeacher: false,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       );

@@ -55,10 +55,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
             itemBuilder: (context, index) {
               var classData = classes[index].data() as Map<String, dynamic>;
               String className = classData['className'] ?? 'Sınıf';
-
-              String displayInitials = className.length >= 2
-                  ? className.substring(0, 2)
-                  : className;
+              String teacherName = classData['teacherName'] ?? 'Belirtilmemiş';
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -72,14 +69,14 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                     vertical: 8,
                   ),
                   leading: CircleAvatar(
-                    radius: 25,
+                    radius: 30, // Daireyi biraz genişletebiliriz
                     backgroundColor: Colors.indigo.shade50,
                     child: Text(
-                      displayInitials,
+                      className, // Doğrudan "4/C" yazar
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.indigo,
-                        fontSize: 18,
+                        fontSize: 14, // Yazı sığması için 14-16 arası idealdir
                       ),
                     ),
                   ),
@@ -90,7 +87,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                       fontSize: 16,
                     ),
                   ),
-                  subtitle: const Text("Öğretmen: Nurullah"),
+                  subtitle: Text("Öğretmen: $teacherName"),
                   trailing: const Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
@@ -98,13 +95,68 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                   ),
                   onTap: () {
                     var classId = classes[index].id;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OgretmenAnaSayfasi(
-                          classId: classId,
-                          className: className,
+                    var classData =
+                        classes[index].data() as Map<String, dynamic>;
+                    String correctPassword = classData['password'] ?? '';
+                    String className = classData['className'] ?? 'Sınıf';
+
+                    // Şifre sorma dialogunu aç
+                    TextEditingController passwordInputController =
+                        TextEditingController();
+
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text("$className Sınıfı Şifresi"),
+                        content: TextField(
+                          controller: passwordInputController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: "Şifreyi Girin",
+                            border: OutlineInputBorder(),
+                          ),
                         ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context), // İptal
+                            child: const Text("İptal"),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              String enteredPassword = passwordInputController
+                                  .text
+                                  .trim();
+
+                              if (enteredPassword == correctPassword) {
+                                Navigator.pop(
+                                  context,
+                                ); // Şifre penceresini kapat
+
+                                // Doğruysa sınıfa giriş yap
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => OgretmenAnaSayfasi(
+                                      classId: classId,
+                                      className: className,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                // Yanlışsa hata göster
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Hatalı şifre! Lütfen tekrar deneyin.",
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Text("Giriş Yap"),
+                          ),
+                        ],
                       ),
                     );
                   },
