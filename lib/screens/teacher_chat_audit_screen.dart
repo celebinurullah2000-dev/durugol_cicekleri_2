@@ -28,9 +28,14 @@ class TeacherChatAuditScreen extends StatelessWidget {
         // Sınıftaki tüm sohbetleri çekiyoruz (öğretmenin dahil olduğu veya tüm sınıf sohbetleri)
         stream: FirebaseFirestore.instance
             .collection('chats')
-            .orderBy('lastMessageTime', descending: true)
+            .where('classId', isEqualTo: classId)
+            //.orderBy('lastMessageTime', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text("Hata: ${snapshot.error}"));
+          }
+
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -38,10 +43,10 @@ class TeacherChatAuditScreen extends StatelessWidget {
           var chats = snapshot.data!.docs;
 
           if (chats.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                "Henüz hiç sohbet başlatılmamış.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                "Bu sınıfa ait sohbet bulunamadı.",
+                textAlign: TextAlign.center,
               ),
             );
           }

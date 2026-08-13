@@ -145,6 +145,7 @@ class ChatListScreen extends StatelessWidget {
                 // En garanti yol: Tüm grup katılımcılarına eklemek.
 
                 await FirebaseFirestore.instance.collection('chats').add({
+                  'classId': classId,
                   'isGroup': true,
                   'groupName': groupNameController.text.trim(),
                   'groupAdminId': currentUserId,

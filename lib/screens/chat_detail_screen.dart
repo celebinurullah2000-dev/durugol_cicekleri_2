@@ -112,8 +112,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 .doc(widget.chatId)
                 .snapshots(),
             builder: (context, chatSnapshot) {
-              if (!chatSnapshot.hasData || !chatSnapshot.data!.exists)
+              if (!chatSnapshot.hasData || !chatSnapshot.data!.exists) {
                 return const SizedBox.shrink();
+              }
               var chatData = chatSnapshot.data!.data() as Map<String, dynamic>;
               bool isGroup = chatData['isGroup'] ?? false;
               if (!isGroup) return const SizedBox.shrink();

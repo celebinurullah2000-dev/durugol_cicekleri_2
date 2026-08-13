@@ -953,6 +953,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                 "ogretmen_id",
                                             currentUserName: "Öğretmen",
                                             isTeacher: true,
+                                            classId: widget.classId,
+                                            className: widget.className,
                                           ),
                                         ),
                                       );
@@ -980,8 +982,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                         MaterialPageRoute(
                                           builder: (context) =>
                                               TeacherChatAuditScreen(
-                                                classId:
-                                                    "sinif_id_buraya", // Kendi sınıf ID değişkenini buraya yazabilirsin
+                                                classId: widget
+                                                    .classId, // <--- DOĞRUSU BU OLMALI
                                                 currentUserId:
                                                     FirebaseAuth
                                                         .instance

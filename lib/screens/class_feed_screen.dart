@@ -7,16 +7,20 @@ class ClassFeedScreen extends StatefulWidget {
   final String currentUserId;
   final String currentUserName;
   final bool isTeacher; // Öğretmen mi öğrenci mi olduğunu anlamak için
+  final String classId; // Hangi sınıfın duvarı?
+  final String className; // Başlıkta yazacak sınıf adı (Örn: 4/C)
 
   const ClassFeedScreen({
     super.key,
     required this.currentUserId,
     required this.currentUserName,
     required this.isTeacher,
+    required this.classId,
+    required this.className,
   });
 
   @override
-  _ClassFeedScreenState createState() => _ClassFeedScreenState();
+  State<ClassFeedScreen> createState() => _ClassFeedScreenState();
 }
 
 class _ClassFeedScreenState extends State<ClassFeedScreen> {
@@ -59,6 +63,7 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
     _postController.clear();
 
     await _firestore.collection('class_feed').add({
+      'classId': widget.classId,
       'authorId': widget.currentUserId,
       'authorName': widget.currentUserName,
       'text': text,
@@ -77,7 +82,7 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Durugöl Çiçekleri Sınıf Duvarı 🌸"),
+        title: Text("${widget.className} Sınıf Duvarı 🌸"),
         backgroundColor: Colors.pinkAccent,
       ),
       body: Column(
@@ -114,11 +119,15 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
           // Akış Listesi
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
+              stream: FirebaseFirestore.instance
                   .collection('class_feed')
+                  .where('classId', isEqualTo: widget.classId)
                   .orderBy('createdAtField', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text("Hata Oluştu: ${snapshot.error}"));
+                }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }

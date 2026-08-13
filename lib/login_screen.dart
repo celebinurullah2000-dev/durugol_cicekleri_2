@@ -3,8 +3,8 @@
 import 'package:durugol_cicekleri/sinif_sec_ekle_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // FirebaseFirestore hatası için
-import 'student_home_screen.dart'; // StudentHomeScreen hatası için
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'student_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,63 +15,94 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
-  bool _isRoleSelected = false; // Başlangıçta butonlar görünecek
+  bool _isRoleSelected = false;
   bool _sifreGizli = true;
+
+  // Yeni Değişkenler: Sınıf seçimi ve cihazda kayıtlı sınıf kontrolü için
+  String? _selectedClassId;
+  String? _savedClassId;
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _classList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSavedClass();
+    _loadClasses();
+  }
+
+  // Cihazda daha önce kaydedilmiş sınıf var mı kontrol et
+  Future<void> _checkSavedClass() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _savedClassId = prefs.getString('savedClassId');
+    });
+  }
+
+  // Firestore'dan tüm sınıfları çek (Dropdown için)
+  Future<void> _loadClasses() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('classes')
+          .get();
+      setState(() {
+        _classList = snapshot.docs;
+      });
+    } catch (e) {
+      // Hata yönetimi
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. Arka Plan: Pastel geçişli bir renk paleti
       body: Container(
-        width: double.infinity, // Ekranın tamamını yatayda kapla
-        height: double.infinity, // Ekranın tamamını dikeyde kapla
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE3F2FD),
-              Color(0xFFBBDEFB),
-            ], // Hafif mavi tonları
+            colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
           ),
         ),
         child: SingleChildScrollView(
-          // Klavye açıldığında taşmayı önler
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              // 2. Başlık Alanı
               Container(
-                margin: const EdgeInsets.only(
-                  bottom: 40,
-                ), // Altına biraz boşluk bırakalım
+                margin: const EdgeInsets.only(bottom: 40),
                 child: Image.asset(
                   'assets/images/durugol_cicekleri_giris_ekrani.png',
-                  height:
-                      200, // Resminizin boyutuna göre bu değeri artırıp azaltabilirsiniz
+                  height: 200,
                   fit: BoxFit.contain,
                 ),
               ),
-              //const SizedBox(height: 5),
               _buildSinifGorseli(),
               const SizedBox(height: 40),
               if (!_isRoleSelected) ...[
                 // --- ROL SEÇİM BUTONLARI ---
-
-                // Öğretmen Butonu (Arka plan resmi ekleyebilirsin)
                 Row(
                   children: [
                     const SizedBox(width: 20),
-                    // Öğretmen Butonu (Ekranın yarısı)
                     Expanded(
                       child: _buildRoleButton(
                         "",
                         "assets/images/ogretmen.png",
-                        () => setState(() => _isRoleSelected = true),
+                        () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('userRole', 'teacher');
+                          if (!mounted) return;
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const sinifseceklescreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    const SizedBox(width: 20), // İki buton arası boşluk
-                    // Öğrenci Butonu (Ekranın yarısı)
+                    const SizedBox(width: 20),
                     Expanded(
                       child: _buildRoleButton(
                         "",
@@ -83,24 +114,64 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ] else ...[
-                // --- ŞİFRE GİRİŞ EKRANI (Butonlar seçilince görünür) ---
+                // --- ÖĞRENCİ ŞİFRE GİRİŞ EKRANI ---
                 const Text(
-                  "Şifrenizi Girin",
+                  "Öğrenci Girişi",
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.indigo,
                   ),
                 ),
-                const SizedBox(height: 30),
-                // 1. ŞİFRE KUTUSU (Sabit genişlikte)
+                const SizedBox(height: 20),
+
+                // EĞER CİHAZDA KAYITLI SINIF YOKSA SINIF SEÇME DROPDOWN'I GÖSTER
+                if (_savedClassId == null) ...[
+                  Container(
+                    width: 300,
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 5,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedClassId,
+                        hint: const Text("Sınıfınızı Seçin"),
+                        isExpanded: true,
+                        items: _classList.map((doc) {
+                          var data = doc.data();
+                          return DropdownMenuItem<String>(
+                            value: doc.id,
+                            child: Text(data['className'] ?? 'Sınıf'),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedClassId = val;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // ŞİFRE KUTUSU
                 Container(
-                  width: 300, // Sabit genişlik
+                  width: 300,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black12,
                         blurRadius: 10,
@@ -110,12 +181,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: TextField(
                     controller: _passwordController,
-                    obscureText: _sifreGizli, // <-- Değişkene bağlandı
+                    obscureText: _sifreGizli,
                     textAlign: TextAlign.center,
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       hintText: "Şifrenizi yazın",
-                      // <-- Göz ikonu eklendi
                       suffixIcon: IconButton(
                         icon: Icon(
                           _sifreGizli ? Icons.visibility_off : Icons.visibility,
@@ -132,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // 2. GİRİŞ YAP BUTONU (Arka plan resimli)
+                // GİRİŞ YAP BUTONU
                 InkWell(
                   onTap: () => _login(context),
                   child: Container(
@@ -150,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
 
-                // 3. GERİ DÖN BUTONU (Arka plan resimli)
+                // GERİ DÖN BUTONU
                 InkWell(
                   onTap: () => setState(() {
                     _isRoleSelected = false;
@@ -183,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
     VoidCallback onPressed,
   ) {
     return AspectRatio(
-      aspectRatio: 1 / 1, // Bu satır butonun her zaman KARE olmasını sağlar
+      aspectRatio: 1 / 1,
       child: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
@@ -191,8 +261,8 @@ class _LoginScreenState extends State<LoginScreen> {
             fit: BoxFit.cover,
           ),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            const BoxShadow(
+          boxShadow: const [
+            BoxShadow(
               color: Colors.black26,
               blurRadius: 4,
               offset: Offset(0, 2),
@@ -201,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(20), // Tıklama efekti için
+          borderRadius: BorderRadius.circular(20),
           child: Center(
             child: Text(
               title,
@@ -225,25 +295,17 @@ class _LoginScreenState extends State<LoginScreen> {
           .doc('genel_ayarlar')
           .snapshots(),
       builder: (context, snapshot) {
-        // 1. Bağlantı bekleniyor mu?
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const CircularProgressIndicator();
         }
-
-        // 2. Bir hata oluştu mu?
         if (snapshot.hasError) {
           return const Text("Bir hata oluştu");
         }
-
-        // 3. Veri var mı ve doküman gerçekten mevcut mu?
         if (!snapshot.hasData || snapshot.data?.data() == null) {
           return const Text("Veri bulunamadı");
         }
 
-        // 4. Güvenli bir şekilde veriyi Map'e çeviriyoruz
         final data = snapshot.data!.data() as Map<String, dynamic>;
-
-        // 5. 'sinif_gorsel_url' alanı var mı kontrol ediyoruz
         final imageUrl = data['sinif_gorsel_url'] as String?;
 
         if (imageUrl == null || imageUrl.isEmpty) {
@@ -262,23 +324,23 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // 1. Fonksiyonun kullanılmadığı uyarısını çözmek için bunu bir butonun on onPressed'ına bağlayacağız
+  // GÜNCELLENMİŞ ÖĞRENCİ GİRİŞ KONTROLÜ
   Future<void> _login(BuildContext context) async {
-    final password = _passwordController.text.trim(); // Boşlukları temizle
+    final password = _passwordController.text.trim();
     final prefs = await SharedPreferences.getInstance();
-    if (!context.mounted) return;
 
-    if (password == "123456") {
-      await prefs.setString('userRole', 'teacher');
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => sinifseceklescreen()),
+    // Hangi sınıf ID'sini arayacağımızı belirliyoruz (Önceden kayıtlı varsa onu, yoksa dropdown'dan seçileni)
+    final targetClassId = _savedClassId ?? _selectedClassId;
+
+    if (targetClassId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Lütfen önce sınıfınızı seçiniz!")),
       );
       return;
     }
 
-    // 2. ÖĞRENCİ GİRİŞİ (Tüm öğrencileri çekip güvenli filtreleme)
+    if (!context.mounted) return;
+
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('students')
@@ -288,8 +350,12 @@ class _LoginScreenState extends State<LoginScreen> {
       for (var doc in querySnapshot.docs) {
         var data = doc.data();
         String dbPassword = (data['password'] ?? '').toString().trim();
+        String dbClassId = (data['classId'] ?? '')
+            .toString()
+            .trim(); // Öğrencinin bağlı olduğu sınıf ID'si
 
-        if (dbPassword == password) {
+        // Hem şifre eşleşecek hem de öğrenci o sınıfta olacak!
+        if (dbPassword == password && dbClassId == targetClassId) {
           matchedDoc = doc;
           break;
         }
@@ -300,6 +366,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
         await prefs.setString('userRole', 'student');
         await prefs.setString('studentId', matchedDoc.id);
+        await prefs.setString(
+          'savedClassId',
+          targetClassId,
+        ); // Sınıfı cihaza kalıcı kaydediyoruz
         await prefs.setString(
           'studentName',
           "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}"
@@ -316,9 +386,13 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Hatalı Şifre!")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Hatalı Şifre veya Bu Sınıfta Böyle Bir Öğrenci Yok!",
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;

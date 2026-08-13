@@ -29,7 +29,7 @@ class StudentHomeScreen extends StatefulWidget {
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   String studentName = "Öğrenci"; // Başlangıç değeri
   String classId = ""; // Sınıf ID'sini tutmak için değişken
-
+  String className = "Sınıf"; // Sınıf adını tutmak için değişken
   String? ogrenciProfilResmiBase64;
 
   @override
@@ -167,6 +167,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   // Öğrenci bilgilerini SharedPreferences ve Firestore'dan yükleme
+  // Öğrenci bilgilerini SharedPreferences ve Firestore'dan yükleme
   Future<void> _loadStudentData() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -201,6 +202,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           );
           yerelResim = dbResim;
         }
+      }
+    }
+
+    // Doğrudan üst sınıfta tanımlı olan className değişkenini güncelliyoruz
+    if (cId.isNotEmpty) {
+      var classDoc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(cId)
+          .get();
+      if (classDoc.exists) {
+        var classData = classDoc.data() as Map<String, dynamic>;
+        className = classData['className'] ?? "Sınıf";
       }
     }
 
@@ -631,6 +644,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                                         currentUserId: widget.studentId,
                                         currentUserName: studentName,
                                         isTeacher: false,
+                                        classId: classId,
+                                        className: className,
                                       ),
                                     ),
                                   );
