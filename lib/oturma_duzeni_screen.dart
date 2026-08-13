@@ -312,36 +312,106 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
 
   // Akıllı Yerleştirme Algoritması
   // Otomatik Yerleştirme Butonuna Basıldığında Çağrılacak Fonksiyon
+  // Otomatik Yerleştirme Seçenekleri Diyaloğu
   void _otomatikYerlestirTiklandi() {
     bool gecmisleriDikkateAl = true;
+    String secilenEslesmeTuru =
+        'kiz_erkek'; // 'kiz_erkek', 'ayni_cinsiyet', 'farketmez'
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            // Switch açık veya kapalı olmasına göre dinamik başlık ve açıklamalar
+            String switchBaslik = gecmisleriDikkateAl
+                ? "Geçmiş Eşleşmeleri Dikkate Al"
+                : "Geçmiş Eşleşmeleri Dikkate Alma";
+
+            String switchAciklama = "";
+            if (gecmisleriDikkateAl) {
+              if (secilenEslesmeTuru == 'kiz_erkek') {
+                switchAciklama =
+                    "Daha önce birlikte oturan kız ve erkek öğrenciler tekrar yan yana gelmez.";
+              } else if (secilenEslesmeTuru == 'ayni_cinsiyet') {
+                switchAciklama =
+                    "Daha önce aynı sırada oturan aynı cinsiyetteki öğrenciler tekrar yan yana gelmez.";
+              } else {
+                switchAciklama =
+                    "Daha önce birlikte oturanlar tekrar yan yana gelmez.";
+              }
+            } else {
+              switchAciklama =
+                  "Daha önce birlikte oturanlar tekrar yan yana gelebilir.";
+            }
+
             return AlertDialog(
               title: const Text("Otomatik Yerleştirme Seçenekleri"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    "Sınıf oturma düzeni otomatik olarak oluşturulacak. Nasıl ilerlemek istersiniz?",
-                  ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text("Geçmiş Eşleşmeleri Dikkate Al"),
-                    subtitle: const Text(
-                      "Daha önce birlikte oturanlar tekrar yan yana gelmez.",
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Sınıf oturma düzeni otomatik olarak oluşturulacak. Tercihlerinizi belirleyin:",
                     ),
-                    value: gecmisleriDikkateAl,
-                    onChanged: (val) {
-                      setDialogState(() {
-                        gecmisleriDikkateAl = val;
-                      });
-                    },
-                  ),
-                ],
+                    const SizedBox(height: 16),
+
+                    // Eşleşme Türü Seçimi
+                    const Text(
+                      "Eşleşme Kuralı:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      initialValue: secilenEslesmeTuru,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'kiz_erkek',
+                          child: Text("Kız - Erkek Eşleştir"),
+                        ),
+                        DropdownMenuItem(
+                          value: 'ayni_cinsiyet',
+                          child: Text("Kız-Kız / Erkek-Erkek (Aynı Cinsiyet)"),
+                        ),
+                        DropdownMenuItem(
+                          value: 'farketmez',
+                          child: Text("Cinsiyet Fark Gözetme (Karışık)"),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            secilenEslesmeTuru = val;
+                          });
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(switchBaslik),
+                      subtitle: Text(
+                        switchAciklama,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      value: gecmisleriDikkateAl,
+                      onChanged: (val) {
+                        setDialogState(() {
+                          gecmisleriDikkateAl = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -351,7 +421,7 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _otomatikYerlestir(gecmisleriDikkateAl);
+                    _otomatikYerlestir(gecmisleriDikkateAl, secilenEslesmeTuru);
                   },
                   child: const Text("Başlat"),
                 ),
@@ -363,8 +433,11 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
     );
   }
 
-  // Asıl Algoritma Fonksiyonu (Parametre alacak şekilde güncellendi)
-  Future<void> _otomatikYerlestir(bool gecmisleriKoru) async {
+  // Asıl Algoritma Fonksiyonu (Cinsiyet Kuralı Parametresi Eklendi)
+  Future<void> _otomatikYerlestir(
+    bool gecmisleriKoru,
+    String eslesmeTuru,
+  ) async {
     setState(() => _isLoading = true);
 
     try {
@@ -402,7 +475,7 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
         return;
       }
 
-      // 2. Eğer geçmiş korunacaksa, geçmiş eşleşmeleri Firestore'dan çekelim
+      // 2. Geçmiş eşleşmeleri Firestore'dan çekelim
       Set<String> yasakliCiftler = {};
       if (gecmisleriKoru) {
         var gecmisSnapshot = await FirebaseFirestore.instance
@@ -421,10 +494,7 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
         }
       }
 
-      // 3. Basit ve adil bir karıştırma/eşleştirme mantığı
-      ogrenciler.shuffle(); // Rastgele karıştır
-
-      // Kız ve Erkek olarak ayıralım (1 kız / 1 erkek dengesi için)
+      // 3. Cinsiyetlerine göre listeleri ayıralım
       List<Map<String, dynamic>> kizlar = ogrenciler
           .where((o) => o['gender'] == 'K' || o['gender'] == 'KIZ')
           .toList();
@@ -436,51 +506,140 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
       erkekler.shuffle();
 
       List<Map<String, dynamic>> olusturulanSiralar = [];
-      List<Map<String, dynamic>> havuz = List.from(ogrenciler);
-
       int siraNo = 1;
-      while (havuz.length >= 2) {
-        Map<String, dynamic>? ogrenci1 = havuz.removeAt(0);
-        Map<String, dynamic>? ogrenci2;
 
-        // Uygun eş arama (Geçmişte oturmamış olanlardan)
-        int uygunIndex = -1;
-        for (int i = 0; i < havuz.length; i++) {
-          String adayId = havuz[i]['id'];
+      // Yardımcı eşleştirme fonksiyonu (Geçmiş kuralına göre aday seçer)
+      Map<String, dynamic>? uygunEsSec(
+        Map<String, dynamic> ogrenci1,
+        List<Map<String, dynamic>> adayHavuzu,
+      ) {
+        if (adayHavuzu.isEmpty) return null;
+
+        // Önce geçmişte birlikte oturmamış uygun birini arayalım
+        for (int i = 0; i < adayHavuzu.length; i++) {
+          String adayId = adayHavuzu[i]['id'];
           String ciftKey = "${ogrenci1['id']}_$adayId";
 
           if (!gecmisleriKoru || !yasakliCiftler.contains(ciftKey)) {
-            uygunIndex = i;
-            break;
+            return adayHavuzu.removeAt(i);
           }
         }
 
-        // Eğer tüm adaylar geçmişte birlikte oturmuşsa, mecburen listedekilerden ilkini al
-        if (uygunIndex != -1) {
-          ogrenci2 = havuz.removeAt(uygunIndex);
-        } else {
-          ogrenci2 = havuz.removeAt(0);
-        }
-
-        olusturulanSiralar.add({
-          'siraNo': siraNo++,
-          'ogrenci1Id': ogrenci1['id'],
-          'ogrenci1Ad': ogrenci1['adSoyad'],
-          'ogrenci2Id': ogrenci2['id'],
-          'ogrenci2Ad': ogrenci2['adSoyad'],
-        });
+        // Eğer herkes geçmişte birlikte oturmuşsa, mecburen listeden ilkini al
+        return adayHavuzu.removeAt(0);
       }
 
-      // Tek kalan öğrenci varsa son sıraya tekli olarak ekle
-      if (havuz.isNotEmpty) {
-        var tekOgrenci = havuz.removeAt(0);
-        olusturulanSiralar.add({
-          'siraNo': siraNo++,
-          'ogrenci1Id': tekOgrenci['id'],
-          'ogrenci1Ad': tekOgrenci['adSoyad'],
-          'ogrenci2Id': null,
-          'ogrenci2Ad': null,
-        });
+      if (eslesmeTuru == 'kiz_erkek') {
+        // --- KIZ & ERKEK EŞLEŞTİRME MANTIĞI ---
+        while (kizlar.isNotEmpty && erkekler.isNotEmpty) {
+          var ogrenci1 = kizlar.removeAt(0);
+
+          // Erkekler havuzundan uygun eş bulmaya çalış
+          var ogrenci2 = uygunEsSec(ogrenci1, erkekler);
+          if (ogrenci2 == null) {
+            // Eğer erkek kalmadıysa döngüden çık
+            erkekler.insert(0, ogrenci1); // Geri koy
+            break;
+          }
+
+          olusturulanSiralar.add({
+            'siraNo': siraNo++,
+            'ogrenci1Id': ogrenci1['id'],
+            'ogrenci1Ad': ogrenci1['adSoyad'],
+            'ogrenci2Id': ogrenci2['id'],
+            'ogrenci2Ad': ogrenci2['adSoyad'],
+          });
+        }
+
+        // Artan öğrencileri (açıkta kalan kız/erkek) kendi aralarında veya kalanlarla birleştir
+        List<Map<String, dynamic>> kalanlar = [...kizlar, ...erkekler];
+        kalanlar.shuffle();
+        while (kalanlar.length >= 2) {
+          var o1 = kalanlar.removeAt(0);
+          var o2 = uygunEsSec(o1, kalanlar) ?? kalanlar.removeAt(0);
+          olusturulanSiralar.add({
+            'siraNo': siraNo++,
+            'ogrenci1Id': o1['id'],
+            'ogrenci1Ad': o1['adSoyad'],
+            'ogrenci2Id': o2['id'],
+            'ogrenci2Ad': o2['adSoyad'],
+          });
+        }
+        if (kalanlar.isNotEmpty) {
+          var tek = kalanlar.removeAt(0);
+          olusturulanSiralar.add({
+            'siraNo': siraNo++,
+            'ogrenci1Id': tek['id'],
+            'ogrenci1Ad': tek['adSoyad'],
+            'ogrenci2Id': null,
+            'ogrenci2Ad': null,
+          });
+        }
+      } else if (eslesmeTuru == 'ayni_cinsiyet') {
+        // --- AYNI CİNSİYET (Kız-Kız / Erkek-Erkek) EŞLEŞTİRME MANTIĞI ---
+        for (var grup in [kizlar, erkekler]) {
+          while (grup.length >= 2) {
+            var o1 = grup.removeAt(0);
+            var o2 = uygunEsSec(o1, grup) ?? grup.removeAt(0);
+            olusturulanSiralar.add({
+              'siraNo': siraNo++,
+              'ogrenci1Id': o1['id'],
+              'ogrenci1Ad': o1['adSoyad'],
+              'ogrenci2Id': o2['id'],
+              'ogrenci2Ad': o2['adSoyad'],
+            });
+          }
+        }
+        // Eğer her gruptan birer tek kalırsa onları birleştir
+        List<Map<String, dynamic>> sonKalanlar = [...kizlar, ...erkekler];
+        if (sonKalanlar.length >= 2) {
+          var o1 = sonKalanlar.removeAt(0);
+          var o2 = sonKalanlar.removeAt(0);
+          olusturulanSiralar.add({
+            'siraNo': siraNo++,
+            'ogrenci1Id': o1['id'],
+            'ogrenci1Ad': o1['adSoyad'],
+            'ogrenci2Id': o2['id'],
+            'ogrenci2Ad': o2['adSoyad'],
+          });
+        } else if (sonKalanlar.isNotEmpty) {
+          var tek = sonKalanlar.removeAt(0);
+          olusturulanSiralar.add({
+            'siraNo': siraNo++,
+            'ogrenci1Id': tek['id'],
+            'ogrenci1Ad': tek['adSoyad'],
+            'ogrenci2Id': null,
+            'ogrenci2Ad': null,
+          });
+        }
+      } else {
+        // --- FARK ETMEZ (Cinsiyet Gözetmeksizin Karışık) ---
+        List<Map<String, dynamic>> havuz = List.from(ogrenciler);
+        havuz.shuffle();
+
+        while (havuz.length >= 2) {
+          var o1 = havuz.removeAt(0);
+          var o2 = uygunEsSec(o1, havuz) ?? havuz.removeAt(0);
+
+          olusturulanSiralar.add({
+            'siraNo': siraNo++,
+            'ogrenci1Id': o1['id'],
+            'ogrenci1Ad': o1['adSoyad'],
+            'ogrenci2Id': o2['id'],
+            'ogrenci2Ad': o2['adSoyad'],
+          });
+        }
+
+        if (havuz.isNotEmpty) {
+          var tek = havuz.removeAt(0);
+          olusturulanSiralar.add({
+            'siraNo': siraNo++,
+            'ogrenci1Id': tek['id'],
+            'ogrenci1Ad': tek['adSoyad'],
+            'ogrenci2Id': null,
+            'ogrenci2Ad': null,
+          });
+        }
       }
 
       // 4. Firestore'a yeni düzeni kaydet ve geçmişe yeni eşleşmeleri işle
@@ -490,13 +649,11 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
           .doc(widget.classId)
           .collection('oturma_duzeni');
 
-      // Eski düzeni sil
       var eskiDuzen = await oturmaRef.get();
       for (var doc in eskiDuzen.docs) {
         batch.delete(doc.reference);
       }
 
-      // Yeni düzeni yaz
       var gecmisRef = FirebaseFirestore.instance
           .collection('classes')
           .doc(widget.classId)

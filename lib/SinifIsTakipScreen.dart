@@ -13,11 +13,13 @@ class SinifIsTakipScreen extends StatefulWidget {
 }
 
 class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
+  // Her iş ve öğrenci için anlık verileri tutacağımız hafıza havuzu
   final Map<String, Map<String, String>> _isVeriHavuzlari = {};
   final Map<String, Map<String, TextEditingController>> _isControllerHavuzlari =
       {};
-  // İş ve o işe ait tüm öğrenci verilerini silen fonksiyon
+
   String? _acikolanIsId;
+
   void _isSilDialog(String isId, String isAdi, BuildContext context) {
     showDialog(
       context: context,
@@ -37,9 +39,8 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              Navigator.pop(context); // Diyalogu kapat
+              Navigator.pop(context);
 
-              // 1. Önce sınıfa ait iş dokümanını siliyoruz
               await FirebaseFirestore.instance
                   .collection('classes')
                   .doc(widget.classId)
@@ -47,7 +48,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                   .doc(isId)
                   .delete();
 
-              // 2. Bu sınıftaki öğrencilerin altındaki 'is_verileri' dokümanını temizliyoruz
               var studentsSnapshot = await FirebaseFirestore.instance
                   .collection('students')
                   .where('classId', isEqualTo: widget.classId)
@@ -60,7 +60,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                     .delete();
               }
 
-              // 3. Hafızadaki havuzlardan da bu işi temizleyelim
               _isVeriHavuzlari.remove(isId);
               _isControllerHavuzlari.remove(isId);
 
@@ -80,10 +79,9 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
     );
   }
 
-  // Yeni İş Ekle Diyaloğu
   void _yeniIsEkleDialog(BuildContext context) {
     final TextEditingController isAdiController = TextEditingController();
-    String secilenVeriTuru = 'artı_eksi'; // artı_eksi, rakam, sozel
+    String secilenVeriTuru = 'artı_eksi';
 
     showDialog(
       context: context,
@@ -143,7 +141,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                 String isAdi = isAdiController.text.trim();
                 if (isAdi.isEmpty) return;
 
-                // Sınıfa ait 'sinif_isleri' koleksiyonuna yeni işi kaydediyoruz
                 await FirebaseFirestore.instance
                     .collection('classes')
                     .doc(widget.classId)
@@ -169,13 +166,13 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
     );
   }
 
-  // Tüm sınıfa toplu değer atama fonksiyonu
   Future<void> _topluDegerAta(
     String isId,
     String veriTuru,
     BuildContext context,
   ) async {
     String varsayilanDeger = '+';
+    if (veriTuru == 'artı_eksi') varsayilanDeger = '+';
     if (veriTuru == 'rakam') varsayilanDeger = '100';
     if (veriTuru == 'sozel') varsayilanDeger = 'Tamamladı';
 
@@ -215,7 +212,12 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                   .where('classId', isEqualTo: widget.classId)
                   .get();
 
+              // Havuzları ve firebase'i güncelle
+              _isVeriHavuzlari.putIfAbsent(isId, () => {});
+              var havuz = _isVeriHavuzlari[isId]!;
+
               for (var doc in studentsSnapshot.docs) {
+                havuz[doc.id] = girilenDeger;
                 await doc.reference.collection('is_verileri').doc(isId).set({
                   'deger': girilenDeger,
                 }, SetOptions(merge: true));
@@ -245,7 +247,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Sınıfa ait eklenmiş işleri listeliyoruz
         stream: FirebaseFirestore.instance
             .collection('classes')
             .doc(widget.classId)
@@ -261,6 +262,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
             return const Center(
               child: Text(
                 "Henüz eklenmiş bir iş/etkinlik yok.\nSağ alttan 'Yeni İş Ekle' butonunu kullanın.",
+                textAlign: TextAlign.center,
               ),
             );
           }
@@ -279,19 +281,14 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ExpansionTile(
-                  // Kilit Nokta 1: Bu kartın ID'si hafızadaki açık ID ile eşleşiyorsa açık başlar
                   initiallyExpanded: _acikolanIsId == isId,
-
-                  // Kilit Nokta 2: Kart açılıp kapandığında tetiklenir
                   onExpansionChanged: (isExpanded) {
                     setState(() {
                       if (isExpanded) {
-                        _acikolanIsId =
-                            isId; // Bu kart açıldı, ID'sini kaydediyoruz
+                        _acikolanIsId = isId;
                       } else {
                         if (_acikolanIsId == isId) {
-                          _acikolanIsId =
-                              null; // Kapanan kart o an açık olan kartsa hafızayı sıfırlıyoruz
+                          _acikolanIsId = null;
                         }
                       }
                     });
@@ -305,7 +302,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      // Çöp Kutusu Silme Butonu
                       IconButton(
                         icon: const Icon(
                           Icons.delete_outline,
@@ -321,7 +317,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                     "Tür: ${veriTuru.toUpperCase()} • Detay için tıkla",
                   ),
                   children: [
-                    // Toplu değer aktarma butonu...
                     Container(
                       color: Colors.grey.shade100,
                       padding: const EdgeInsets.all(8.0),
@@ -355,7 +350,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                       ),
                     ),
 
-                    // Öğrenci Listesi
+                    // Bu işe ait öğrenci verilerini anlık dinleyen StreamBuilder
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('students')
@@ -380,11 +375,10 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                           return adA.compareTo(adB);
                         });
 
-                        // Bu işe özel havuzları haritadan al veya oluştur
                         _isVeriHavuzlari.putIfAbsent(isId, () => {});
                         _isControllerHavuzlari.putIfAbsent(isId, () => {});
                         var sinifVeriHavuzu = _isVeriHavuzlari[isId]!;
-                        _isControllerHavuzlari[isId]!;
+                        var oIsinControllerlari = _isControllerHavuzlari[isId]!;
 
                         return Column(
                           children: [
@@ -401,70 +395,50 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                         .toUpperCase();
                                 String ogrId = ogrDoc.id;
 
+                                // Her öğrenci için kendi altındaki is_verileri/isId dokümanını doğrudan okuyoruz
                                 return FutureBuilder<DocumentSnapshot>(
                                   future: ogrDoc.reference
                                       .collection('is_verileri')
                                       .doc(isId)
                                       .get(
-                                        const GetOptions(source: Source.server),
+                                        const GetOptions(
+                                          source: Source.serverAndCache,
+                                        ),
                                       ),
                                   builder: (context, veriSnap) {
-                                    String serverDeger = '-';
+                                    String serverDeger = '+'; // Varsayılan
                                     if (veriSnap.hasData &&
                                         veriSnap.data!.exists) {
                                       var vData =
                                           veriSnap.data!.data()
-                                              as Map<String, dynamic>;
-                                      serverDeger = vData['deger'] ?? '-';
-                                    }
-
-                                    // Global haritaları güvenli bir şekilde hazırla
-                                    _isVeriHavuzlari.putIfAbsent(
-                                      isId,
-                                      () => {},
-                                    );
-                                    _isControllerHavuzlari.putIfAbsent(
-                                      isId,
-                                      () => {},
-                                    );
-
-                                    var sinifVeriHavuzu =
-                                        _isVeriHavuzlari[isId]!;
-
-                                    // Doğrudan sınıf havuzundan ilgili işin controller haritasını alıyoruz
-                                    var oIsinControllerlari =
-                                        _isControllerHavuzlari[isId]!;
-
-                                    if (!sinifVeriHavuzu.containsKey(ogrId) ||
-                                        sinifVeriHavuzu[ogrId] == '-') {
-                                      if (serverDeger != '-') {
-                                        sinifVeriHavuzu[ogrId] = serverDeger;
+                                              as Map<String, dynamic>?;
+                                      if (vData != null &&
+                                          vData.containsKey('deger')) {
+                                        serverDeger = vData['deger'] ?? '+';
                                       }
                                     }
 
-                                    if (!oIsinControllerlari.containsKey(
-                                      ogrId,
-                                    )) {
-                                      String baslangicMetni =
-                                          (serverDeger == '-' ||
-                                              serverDeger == '')
-                                          ? ''
-                                          : serverDeger;
-                                      oIsinControllerlari[ogrId] =
-                                          TextEditingController(
-                                            text: baslangicMetni,
-                                          );
-                                    } else {
-                                      var ctrl = oIsinControllerlari[ogrId]!;
-                                      if (ctrl.text.isEmpty &&
-                                          serverDeger != '-' &&
-                                          serverDeger.isNotEmpty) {
-                                        ctrl.text = serverDeger;
-                                      }
-                                    }
-
+                                    // Havuzda kullanıcının anlık yaptığı lokal bir değişiklik var mı kontrol edelim
+                                    // Eğer kullanıcı henüz dokunmadıysa doğrudan veritabanından gelen serverDeger'i kullanalım
                                     String aktifDeger =
-                                        sinifVeriHavuzu[ogrId] ?? serverDeger;
+                                        sinifVeriHavuzu.containsKey(ogrId)
+                                        ? sinifVeriHavuzu[ogrId]!
+                                        : serverDeger;
+
+                                    if (veriTuru != 'artı_eksi') {
+                                      oIsinControllerlari.putIfAbsent(
+                                        ogrId,
+                                        () {
+                                          return TextEditingController(
+                                            text:
+                                                (aktifDeger == '+' ||
+                                                    aktifDeger == '-')
+                                                ? ''
+                                                : aktifDeger,
+                                          );
+                                        },
+                                      );
+                                    }
 
                                     return ListTile(
                                       dense: true,
@@ -484,7 +458,8 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                               ? null
                                               : oIsinControllerlari[ogrId],
                                           (yeniDeger) {
-                                            sinifVeriHavuzu[ogrId] = yeniDeger;
+                                            sinifVeriHavuzu[ogrId] =
+                                                yeniDeger; // Kullanıcı değiştirdiğinde hafızaya al
                                           },
                                         ),
                                       ),
@@ -511,6 +486,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                             'deger': entry.value,
                                           }, SetOptions(merge: true));
                                     }
+                                    setState(() {});
 
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -564,6 +540,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
     Function(String) onDegisti,
   ) {
     if (veriTuru == 'artı_eksi') {
+      // StatefulBuilder ekleyerek sadece bu satırın anlık olarak boyanmasını sağlıyoruz
       return StatefulBuilder(
         builder: (context, setLocalState) {
           return Row(
@@ -572,27 +549,31 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
             children: [
               ChoiceChip(
                 label: const Text("+"),
-                // Havuzdan veya dışarıdan gelen değer '+' ise seçili yap
                 selected: mevcutDeger == '+',
                 selectedColor: Colors.green.shade200,
                 onSelected: (selected) {
-                  setLocalState(() {
-                    mevcutDeger = '+';
-                  });
-                  onDegisti('+');
+                  if (selected) {
+                    setLocalState(() {
+                      mevcutDeger =
+                          '+'; // Satırın kendi görsel durumunu anında değiştirir
+                    });
+                    onDegisti('+'); // Havuzu günceller
+                  }
                 },
               ),
               const SizedBox(width: 4),
               ChoiceChip(
                 label: const Text("-"),
-                // Havuzdan veya dışarıdan gelen değer '-' (veya boş/tanımsız) ise seçili yap
-                selected: mevcutDeger == '-' || mevcutDeger.isEmpty,
+                selected: mevcutDeger == '-',
                 selectedColor: Colors.red.shade200,
                 onSelected: (selected) {
-                  setLocalState(() {
-                    mevcutDeger = '-';
-                  });
-                  onDegisti('-');
+                  if (selected) {
+                    setLocalState(() {
+                      mevcutDeger =
+                          '-'; // Satırın kendi görsel durumunu anında değiştirir
+                    });
+                    onDegisti('-'); // Havuzu günceller
+                  }
                 },
               ),
             ],
@@ -612,7 +593,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
             hintText: 'Puan',
           ),
           onChanged: (val) {
-            onDegisti(val.isEmpty ? '-' : val);
+            onDegisti(val.isEmpty ? '+' : val);
           },
         ),
       );
@@ -628,7 +609,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
             hintText: 'Yazı',
           ),
           onChanged: (val) {
-            onDegisti(val.isEmpty ? '-' : val);
+            onDegisti(val.isEmpty ? '+' : val);
           },
         ),
       );

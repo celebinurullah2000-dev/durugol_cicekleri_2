@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 margin: const EdgeInsets.only(bottom: 40),
                 child: Image.asset(
-                  'assets/images/durugol_cicekleri_giris_ekrani.png',
+                  'assets/images/durugol_ilkokulu.png',
                   height: 200,
                   fit: BoxFit.contain,
                 ),
@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(
                       child: _buildRoleButton(
                         "",
-                        "assets/images/ogretmen.png",
+                        "assets/images/ogretmen2.png",
                         () async {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setString('userRole', 'teacher');
@@ -289,6 +289,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildSinifGorseli() {
+    // BURAYI false yaparak görseli tamamen gizleyebilir,
+    // tekrar açmak istediğinde true yapabilirsin:
+    bool gorseliGoster = false;
+    if (!gorseliGoster) {
+      return const SizedBox.shrink(); // Hiçbir şey göstermez ve yer kaplamaz
+    }
+    // ignore: dead_code
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('config')

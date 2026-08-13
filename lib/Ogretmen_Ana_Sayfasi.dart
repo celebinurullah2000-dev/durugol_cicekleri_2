@@ -15,10 +15,9 @@ import 'SinifIsTakipScreen.dart';
 import 'nobetci_screen.dart';
 import 'kitap_okuma_takip_screen.dart';
 import 'student_detail_screen.dart';
-//import 'ogrenci_yukleme_screen.dart'; //geçici import
 import 'oturma_duzeni_screen.dart';
 import 'Devamsizlik_Screen.dart';
-import 'Sinif_Gorevleri_Screen.dart'; // --- EKLENEN SINIF GÖREVLERİ İMPORTU ---
+import 'Sinif_Gorevleri_Screen.dart';
 import 'Dogum_Gunleri_Screen.dart';
 import 'Haftalik_Ders_Programi_Screen.dart';
 import 'Kisisel_Deyimler_Screen.dart';
@@ -62,7 +61,6 @@ Future<Map<String, dynamic>> ogrenciDevamsizlikRaporunuGetir(
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// Bildirimleri başlatma fonksiyonu (Öğretmen ana sayfasının initState içine yazılabilir)
 void bildirimleriBaslat() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -74,7 +72,6 @@ void bildirimleriBaslat() async {
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 }
 
-// Bildirim Gösterme Fonksiyonu
 Future<void> bildirimGoster(String baslik, String aciklama) async {
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
@@ -112,119 +109,21 @@ class OgretmenAnaSayfasi extends StatefulWidget {
   State<OgretmenAnaSayfasi> createState() => _OgretmenAnaSayfasiState();
 }
 
-void dogumGunuKontrolEtVeBildir(BuildContext context, String classId) async {
-  try {
-    var snapshot = await FirebaseFirestore.instance
-        .collection('students')
-        .where('classId', isEqualTo: classId)
-        .get();
-
-    for (var doc in snapshot.docs) {
-      var data = doc.data();
-      String dogumTarihi = data['dogumTarihi'] ?? '';
-      int kalanGun = dogumGununeKalanGunHesapla(dogumTarihi);
-
-      // Doğum gününe 3 gün veya daha az kaldıysa (0 gün dahil)
-      if (kalanGun >= 0 && kalanGun <= 3) {
-        String adSoyad =
-            data['adSoyad'] ??
-            "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}";
-
-        // Bildirimin ard arda patlamaması için veya her açılışta göstermek istiyorsanız:
-        if (!context.mounted) return;
-
-        _dogumGunuDialogGoster(context, adSoyad, kalanGun);
-        break; // Birden fazla varsa önce yaklaşanı gösterip dönebiliriz
-      }
-    }
-  } catch (e) {
-    // Hata yönetimi sessiz geçilebilir
-  }
-}
-
-int dogumGununeKalanGunHesapla(String dogumTarihiStr) {
-  try {
-    List<String> parcalar = dogumTarihiStr.split('.');
-    if (parcalar.length != 3) return 999;
-    int gun = int.parse(parcalar[0]);
-    int ay = int.parse(parcalar[1]);
-
-    DateTime simdi = DateTime.now();
-    DateTime buYilDogumGunu = DateTime(simdi.year, ay, gun);
-
-    if (buYilDogumGunu.isBefore(DateTime(simdi.year, simdi.month, simdi.day))) {
-      buYilDogumGunu = DateTime(simdi.year + 1, ay, gun);
-    }
-
-    return buYilDogumGunu
-        .difference(DateTime(simdi.year, simdi.month, simdi.day))
-        .inDays;
-  } catch (e) {
-    return 999;
-  }
-}
-
-void _dogumGunuDialogGoster(
-  BuildContext context,
-  String ogrenciAdi,
-  int kalanGun,
-) {
-  String mesaj = kalanGun == 0
-      ? "Bugün $ogrenciAdi adlı arkadaşımızın doğum günü! 🎂 Birlikte nice mutlu yıllara dileyelim! 🎉"
-      : "$ogrenciAdi adlı arkadaşımızın doğum gününe $kalanGun gün kaldı! 🎈 Şimdiden hazırlıklara başlayalım! 🎁";
-
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Row(
-        children: const [
-          Icon(Icons.celebration, color: Colors.pink, size: 30),
-          SizedBox(width: 10),
-          Text("Doğum Günü Var!"),
-        ],
-      ),
-      content: Text(mesaj, style: const TextStyle(fontSize: 16)),
-      actions: [
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.pink,
-            foregroundColor: Colors.white,
-          ),
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Harika!"),
-        ),
-      ],
-    ),
-  );
-}
-
 class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   StreamSubscription<QuerySnapshot>? _randevuSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       dogumGunuKontrolEtVeBildir(context, widget.classId);
-
-      // Bildirim token kaydetme fonksiyonunu burada ÇALIŞTIRIYORUZ (çağırıyoruz)
       ogretmenBildirimTokeniniKaydet(widget.classId);
     });
     bildirimleriBaslat();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      dogumGunuKontrolEtVeBildir(context, widget.classId);
-      ogretmenBildirimTokeniniKaydet(widget.classId);
-    });
-
-    // --- YENİ: Randevuları dinleyip anlık bildirim fırlatan mekanizma ---
     _randevuDinle();
   }
 
   void _randevuDinle() {
-    // Sadece bu sınıfa ait randevuları dinliyoruz
-    // Not: İlk açılıştaki mevcut eski randevuların bildirim patlatmaması için
-    // sonradan eklenenleri yakalayabiliriz veya anlık dinleme yapabiliriz.
     _randevuSubscription = FirebaseFirestore.instance
         .collection('randevular')
         .where('classId', isEqualTo: widget.classId)
@@ -232,14 +131,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         .snapshots()
         .listen((snapshot) {
           for (var change in snapshot.docChanges) {
-            // Sadece yeni eklenen (added) randevuları yakala ki uygulama açılınca eskiler bildirim olmasın
             if (change.type == DocumentChangeType.added) {
               var data = change.doc.data() as Map<String, dynamic>;
               String ogrenciAdi = data['ogrenciAdi'] ?? 'Bir öğrenci';
               String tarih = data['tarih'] ?? '';
               String saat = data['saat'] ?? '';
 
-              // Yerel bildirimi tetikle
               bildirimGoster(
                 "Yeni Randevu Alındı! 📌",
                 "$ogrenciAdi, $tarih tarihinde saat $saat için randevu aldı.",
@@ -251,15 +148,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
   @override
   void dispose() {
-    // Sayfa kapandığında dinlemeyi sonlandırıyoruz (bellek sızıntısını önlemek için)
     _randevuSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> ogretmenBildirimTokeniniKaydet(String classId) async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-    // Bildirim izni iste
     NotificationSettings settings = await messaging.requestPermission(
       alert: true,
       badge: true,
@@ -269,7 +163,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       String? token = await messaging.getToken();
       if (token != null) {
-        // Öğretmenin token'ını sınıfa göre kaydedelim
         await FirebaseFirestore.instance
             .collection('teacher_tokens')
             .doc(classId)
@@ -280,88 +173,238 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
       }
     }
   }
-  /* Future<void> topluDogumTarihiYukle() async {
-    // Gönderdiğiniz listedeki ad-soyad ve doğum tarihi verileri
-    final Map<String, String> dogumListesi = {
-      "ASYA PATKAVAK": "30.07.2018",
-      "YUSUF ASAF BAYRAMLI": "15.10.2018",
-      "YUDUM ODABAŞ": "22.10.2018",
-      "ALYA AYDIN": "12.11.2018",
-      "ÇINAR ALP GÖZÜTOK": "15.11.2018",
-      "KUMSAL NAZ ÖNCÜ": "16.11.2018",
-      "ZEYNEP KILIÇARSLAN": "21.11.2018",
-      "GÜLCE YAĞIZOĞLU": "29.11.2018",
-      "ARDEN ODABAŞI": "03.12.2018",
-      "GÖRKEM TUNA BALCI": "14.12.2018",
-      "ASEL BEREN YONDEMİR": "02.01.2019",
-      "URAS SOĞUKSU": "04.01.2019",
-      "ÖMER DENİZ KEÇECİ": "03.02.2019",
-      "ESLEM SARE AKSU": "07.02.2019",
-      "İPEK ÖZTOPRAK": "20.02.2019",
-      "LİNA TİRYAKİ": "27.02.2019",
-      "ALİ HARUN ÜNSAL": "20.03.2019",
-      "ÖMER ASAF YAVUZARSLAN": "01.04.2019",
-      "YİĞİT ARSLAN": "10.04.2019",
-      "HAZAL DENİZ ÖZCAN": "12.04.2019",
-      "RÜZGAR GÜZELSU": "28.04.2019",
-      "UMUT ALP YAZIM": "24.05.2019",
-      "GİZEM AKÇAY": "30.05.2019",
-      "YAMAÇ ARSLAN": "10.06.2019",
-      "CANKAT İLKUTLU": "24.06.2019",
-      "ELİSA SARE YILDIRIM": "01.07.2019",
-      "GÜNEŞ KÜÇÜK": "16.08.2019",
-      "YUSUF YİĞİT AKSOY": "16.08.2019",
-      "DENİZ NİSA ARSLAN": "02.09.2019",
-      "CAN SAMSUNLU": "20.09.2019",
-      "AYŞE ELA ŞEN": "16.11.2019",
-    };
 
+  void dogumGunuKontrolEtVeBildir(BuildContext context, String classId) async {
     try {
-      // Sınıftaki öğrencileri Firestore'dan çekiyoruz
       var snapshot = await FirebaseFirestore.instance
           .collection('students')
-          .where('classId', isEqualTo: widget.classId)
+          .where('classId', isEqualTo: classId)
           .get();
-
-      int guncellenenSayisi = 0;
 
       for (var doc in snapshot.docs) {
         var data = doc.data();
-        String firstName = (data['firstName'] ?? '').trim().toUpperCase();
-        String lastName = (data['lastName'] ?? '').trim().toUpperCase();
-        String tamAd = "$firstName $lastName";
+        String dogumTarihi = data['dogumTarihi'] ?? '';
+        int kalanGun = dogumGununeKalanGunHesapla(dogumTarihi);
 
-        // Eğer listede bu öğrencinin tam adı varsa doğum tarihini güncelleyelim
-        if (dogumListesi.containsKey(tamAd)) {
-          String dogumTarihi = dogumListesi[tamAd]!;
-          await doc.reference.update({'dogumTarihi': dogumTarihi});
-          guncellenenSayisi++;
+        if (kalanGun >= 0 && kalanGun <= 3) {
+          String adSoyad =
+              data['adSoyad'] ??
+              "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}";
+
+          if (!context.mounted) return;
+
+          _dogumGunuDialogGoster(context, adSoyad, kalanGun);
+          break;
         }
       }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Başarılı! $guncellenenSayisi öğrencinin doğum tarihi yüklendi.",
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Hata oluştu: $e"), backgroundColor: Colors.red),
-      );
+      // Hata yönetimi
     }
-  }*/
+  }
+
+  int dogumGununeKalanGunHesapla(String dogumTarihiStr) {
+    try {
+      List<String> parcalar = dogumTarihiStr.split('.');
+      if (parcalar.length != 3) return 999;
+      int gun = int.parse(parcalar[0]);
+      int ay = int.parse(parcalar[1]);
+
+      DateTime simdi = DateTime.now();
+      DateTime buYilDogumGunu = DateTime(simdi.year, ay, gun);
+
+      if (buYilDogumGunu.isBefore(
+        DateTime(simdi.year, simdi.month, simdi.day),
+      )) {
+        buYilDogumGunu = DateTime(simdi.year + 1, ay, gun);
+      }
+
+      return buYilDogumGunu
+          .difference(DateTime(simdi.year, simdi.month, simdi.day))
+          .inDays;
+    } catch (e) {
+      return 999;
+    }
+  }
+
+  void _dogumGunuDialogGoster(
+    BuildContext context,
+    String ogrenciAdi,
+    int kalanGun,
+  ) {
+    String mesaj = kalanGun == 0
+        ? "Bugün $ogrenciAdi adlı arkadaşımızın doğum günü! 🎂 Birlikte nice mutlu yıllara dileyelim! 🎉"
+        : "$ogrenciAdi adlı arkadaşımızın doğum gününe $kalanGun gün kaldı! 🎈 Şimdiden hazırlıklara başlayalım! 🎁";
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: const [
+            Icon(Icons.celebration, color: Colors.pink, size: 30),
+            SizedBox(width: 10),
+            Text("Doğum Günü Var!"),
+          ],
+        ),
+        content: Text(mesaj, style: const TextStyle(fontSize: 16)),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.pink,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Harika!"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- ŞİFRE DEĞİŞTİRME DİYALOĞU ---
+  void _sifreDegistirDialogGoster(BuildContext context) {
+    final TextEditingController mevcutSifreController = TextEditingController();
+    final TextEditingController yeniSifreController = TextEditingController();
+    final TextEditingController yeniSifreTekrarController =
+        TextEditingController();
+
+    final String aktifSinifId = widget.classId;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Sınıf Şifresini Değiştir"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Lütfen mevcut şifrenizi ve yeni şifrenizi giriniz.",
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: mevcutSifreController,
+                decoration: const InputDecoration(
+                  labelText: "Mevcut Şifre",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: false,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: yeniSifreController,
+                decoration: const InputDecoration(
+                  labelText: "Yeni Şifre",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: false,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: yeniSifreTekrarController,
+                decoration: const InputDecoration(
+                  labelText: "Yeni Şifre (Tekrar)",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: false,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("İptal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              String mevcutSifre = mevcutSifreController.text.trim();
+              String yeniSifre = yeniSifreController.text.trim();
+              String yeniSifreTekrar = yeniSifreTekrarController.text.trim();
+
+              if (mevcutSifre.isEmpty ||
+                  yeniSifre.isEmpty ||
+                  yeniSifreTekrar.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Lütfen tüm alanları doldurun!"),
+                  ),
+                );
+                return;
+              }
+
+              if (yeniSifre != yeniSifreTekrar) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Yeni şifreler birbiriyle uyuşmuyor!"),
+                  ),
+                );
+                return;
+              }
+
+              try {
+                var classDoc = await FirebaseFirestore.instance
+                    .collection('classes')
+                    .doc(aktifSinifId)
+                    .get();
+
+                if (!classDoc.exists) return;
+
+                String veritabanindakiSifre =
+                    classDoc.data()?['password'] ?? '';
+
+                if (veritabanindakiSifre != mevcutSifre) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Mevcut şifrenizi yanlış girdiniz!"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                await FirebaseFirestore.instance
+                    .collection('classes')
+                    .doc(aktifSinifId)
+                    .update({'password': yeniSifre});
+
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Şifreniz başarıyla güncellendi!"),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("Hata oluştu: $e"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text("Güncelle"),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _sil(BuildContext context, String studentId) {
     FirebaseFirestore.instance.collection('students').doc(studentId).delete();
     setState(() {});
   }
 
-  // --- SÖZLÜK & DİL ARAÇLARI SEÇENEKLERİ MENÜSÜ ---
   void _showSozlukSecenekleri(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -440,7 +483,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     );
   }
 
-  // --- NÖBETÇİ & GÖREVLİ SEÇENEKLERİ MENÜSÜ ---
   void _showNobetciVeGorevliSecenekleri(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -486,10 +528,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => SinifGorevleriScreen(
-                        classId:
-                            widget.classId, // sinifId yerine classId olmalı
-                      ),
+                      builder: (context) =>
+                          SinifGorevleriScreen(classId: widget.classId),
                     ),
                   );
                 },
@@ -825,6 +865,15 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         title: Text("${widget.className} Sınıf Paneli"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.lock_reset),
+            tooltip: "Şifre Değiştir",
+            onPressed: () {
+              _sifreDegistirDialogGoster(context);
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -836,9 +885,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ==========================================
-                  // 1. SATIR BAŞLANGICI
-                  // ==========================================
                   Row(
                     children: [
                       _buildHizliIslemButonu(
@@ -926,7 +972,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     ),
                                   ),
                                   const Divider(),
-                                  // 1. Seçenek: Sınıf Duvarı
                                   ListTile(
                                     leading: const Icon(
                                       Icons.campaign,
@@ -938,9 +983,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       "Öğrencilerle ortak akış ve paylaşımlar",
                                     ),
                                     onTap: () {
-                                      Navigator.pop(
-                                        bottomSheetContext,
-                                      ); // Alt menüyü kapat
+                                      Navigator.pop(bottomSheetContext);
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -960,7 +1003,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       );
                                     },
                                   ),
-                                  // 2. Seçenek: Tüm Sınıf Sohbetleri (Denetim)
                                   ListTile(
                                     leading: const Icon(
                                       Icons.security,
@@ -974,16 +1016,13 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       "Öğrenci aralarındaki bireysel ve grup sohbetleri",
                                     ),
                                     onTap: () {
-                                      Navigator.pop(
-                                        bottomSheetContext,
-                                      ); // Alt menüyü kapat
+                                      Navigator.pop(bottomSheetContext);
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) =>
                                               TeacherChatAuditScreen(
-                                                classId: widget
-                                                    .classId, // <--- DOĞRUSU BU OLMALI
+                                                classId: widget.classId,
                                                 currentUserId:
                                                     FirebaseAuth
                                                         .instance
@@ -1004,15 +1043,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                       ),
                     ],
                   ),
-
-                  // ==========================================
-                  // 1. SATIR BİTİŞİ
-                  // ==========================================
                   const SizedBox(height: 6),
-
-                  // ==========================================
-                  // 2. SATIR BAŞLANGICI
-                  // ==========================================
                   Row(
                     children: [
                       _buildHizliIslemButonu(
@@ -1110,18 +1141,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                       ),
                     ],
                   ),
-
-                  // ==========================================
-                  // 2. SATIR BİTİŞİ
-                  // ==========================================
                   const SizedBox(height: 6),
-
-                  // ==========================================
-                  // 3. SATIR BAŞLANGICI
-                  // ==========================================
                   Row(
                     children: [
-                      // --- SÖZLÜK BUTONU (MENÜYÜ AÇAR) ---
                       _buildHizliIslemButonu(
                         icon: Icons.library_books,
                         label: "Sözlük",
@@ -1130,40 +1152,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                           _showSozlukSecenekleri(context);
                         },
                       ),
-
-                      // atasözleri ve deyimler butonları kaldırıldı.
-                      /*_buildHizliIslemButonu(
-                        icon: Icons.history_edu,
-                        label: "Atasözleri",
-                        color: Colors.teal,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => KisiselAtasozleriScreen(
-                                classId: widget.classId,
-                                isTeacher: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.auto_stories,
-                        label: "Deyimler",
-                        color: Colors.deepOrange,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => KisiselDeyimlerScreen(
-                                classId: widget.classId,
-                                isTeacher: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),*/
                       _buildHizliIslemButonu(
                         icon: Icons.auto_stories,
                         label: "Etkinlikler",
@@ -1246,14 +1234,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                       ),
                     ],
                   ),
-                  // ==========================================
-                  // 3. SATIR BİTİŞİ
-                  // ==========================================
                 ],
               ),
             ),
           ),
-
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: _getOgrenciler(),

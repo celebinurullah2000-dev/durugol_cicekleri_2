@@ -16,8 +16,10 @@ class HaftalikDersProgramiScreen extends StatefulWidget {
       _HaftalikDersProgramiScreenState();
 }
 
-class _HaftalikDersProgramiScreenState
-    extends State<HaftalikDersProgramiScreen> {
+class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
   final List<String> gunler = [
     'Pazartesi',
     'Salı',
@@ -26,7 +28,6 @@ class _HaftalikDersProgramiScreenState
     'Cuma',
   ];
 
-  // Seçilebilir Ders Listesi ("Boş / Teneffüs" yerine sadece "Teneffüs")
   final List<String> dersSecenekleri = [
     'Teneffüs',
     'Türkçe',
@@ -47,18 +48,31 @@ class _HaftalikDersProgramiScreenState
 
   late List<TextEditingController> saatControllers;
   late List<List<String>> dersMatrisi;
-
   bool yukleniyor = true;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(
+      length: widget.isTeacher ? 2 : 1,
+      vsync: this,
+    );
+
     saatControllers = List.generate(
       15,
       (index) => TextEditingController(text: "${9 + (index ~/ 2)}:00"),
     );
     dersMatrisi = List.generate(15, (_) => List.generate(5, (_) => 'Teneffüs'));
     programiGetir();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    for (var controller in saatControllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> programiGetir() async {
@@ -72,16 +86,12 @@ class _HaftalikDersProgramiScreenState
 
       if (doc.exists) {
         var data = doc.data()!;
-
-        // 1. Saatleri al
         if (data.containsKey('saatler')) {
           List<dynamic> savedSaatler = data['saatler'];
           for (int i = 0; i < savedSaatler.length && i < 15; i++) {
             saatControllers[i].text = savedSaatler[i].toString();
           }
         }
-
-        // 2. Satırları ve günleri güvenli bir şekilde matrise aktar
         if (data.containsKey('satirlar')) {
           List<dynamic> savedSatirlar = data['satirlar'];
           for (int i = 0; i < savedSatirlar.length && i < 15; i++) {
@@ -96,7 +106,7 @@ class _HaftalikDersProgramiScreenState
         }
       }
     } catch (e) {
-      // Hata durumunda konsola yazdırabilirsiniz
+      // Hata yönetimi
     }
     setState(() {
       yukleniyor = false;
@@ -110,7 +120,6 @@ class _HaftalikDersProgramiScreenState
           .map((c) => c.text.trim())
           .toList();
 
-      // Ders matrisini Firestore'un destekleyeceği şekilde güvenli Map listesine dönüştürüyoruz
       List<Map<String, dynamic>> matrisVerisi = [];
       for (int i = 0; i < dersMatrisi.length; i++) {
         List<String> satirListesi = [];
@@ -130,12 +139,11 @@ class _HaftalikDersProgramiScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Haftalık ders programı ve dersler başarıyla kaydedildi!",
-          ),
+          content: Text("Ders programı başarıyla kaydedildi!"),
           backgroundColor: Colors.green,
         ),
       );
+      _tabController.animateTo(0);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -154,291 +162,331 @@ class _HaftalikDersProgramiScreenState
         title: const Text("Haftalık Ders Programı"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
-        actions: [
-          if (widget.isTeacher)
-            IconButton(
-              icon: const Icon(Icons.save, size: 28),
-              tooltip: "Programı Kaydet",
-              onPressed: programiKaydet,
-            ),
-        ],
+        bottom: widget.isTeacher
+            ? TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.white,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white60,
+                tabs: const [
+                  Tab(
+                    icon: Icon(Icons.calendar_month),
+                    text: "Programı Görüntüle",
+                  ),
+                  Tab(
+                    icon: Icon(Icons.edit_calendar),
+                    text: "Programı Düzenle",
+                  ),
+                ],
+              )
+            : null,
       ),
       body: yukleniyor
           ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                    child: Column(
-                      children: [
-                        // Başlık Satırı
-                        Container(
-                          color: Colors.indigo.shade50,
+          : widget.isTeacher
+          ? TabBarView(
+              controller: _tabController,
+              // physics'i kapatarak sekme kaydırma çakışmalarını önlüyoruz
+              physics: const NeverScrollableScrollPhysics(),
+              children: [_buildGoruntulemeSekmesi(), _buildDuzenlemeSekmesi()],
+            )
+          : _buildGoruntulemeSekmesi(),
+    );
+  }
+
+  // --- 1. SEKME: PROGRAMI GÖRÜNTÜLE ---
+  // --- 1. SEKME: PROGRAMI GÖRÜNTÜLE (Mobil Uyumlu Gün Kartları Yapısı) ---
+  Widget _buildGoruntulemeSekmesi() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: 5, // 5 gün (Pazartesi - Cuma)
+      itemBuilder: (context, gunIndex) {
+        return Card(
+          elevation: 2,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: ExpansionTile(
+            // Varsayılan olarak bugünün günü açık gelebilir veya hepsi kapalı olabilir
+            initiallyExpanded: gunIndex == 0,
+            title: Text(
+              gunler[gunIndex],
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.indigo,
+              ),
+            ),
+            subtitle: const Text("Günlük ders programını görmek için dokunun"),
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Column(
+                  children: [
+                    for (int i = 0; i < 15; i++)
+                      () {
+                        bool isTenOrOgle =
+                            (i == 1 ||
+                            i == 3 ||
+                            i == 5 ||
+                            i == 7 ||
+                            i == 9 ||
+                            i == 11 ||
+                            i == 13);
+
+                        if (isTenOrOgle) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              i == 7
+                                  ? "--- ÖĞLE ARASI ---"
+                                  : "--- TENEFFÜS ---",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: i == 7 ? Colors.deepOrange : Colors.grey,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          );
+                        }
+
+                        String dersAdi = dersMatrisi[i][gunIndex];
+
+                        return Container(
                           padding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 4,
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.grey.shade200),
                           ),
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const SizedBox(
-                                width: 65,
-                                child: Text(
-                                  "Saatler",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.indigo,
-                                    fontSize: 12,
-                                  ),
-                                  textAlign: TextAlign.center,
+                              // Saat
+                              Text(
+                                saatControllers[i].text,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black54,
                                 ),
                               ),
-                              for (var gun in gunler)
-                                Expanded(
-                                  child: Text(
-                                    gun,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.indigo,
-                                      fontSize: 12,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                              // Ders Adı
+                              Text(
+                                dersAdi,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: dersAdi == 'Teneffüs'
+                                      ? Colors.grey
+                                      : Colors.black87,
                                 ),
+                              ),
                             ],
                           ),
+                        );
+                      }(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // --- 2. SEKME: PROGRAMI DÜZENLE ---
+  Widget _buildDuzenlemeSekmesi() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            elevation: 2,
+            child: ExpansionTile(
+              title: const Text(
+                "Ders Saatlerini Düzenle",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigo,
+                ),
+              ),
+              subtitle: const Text(
+                "Ders başlangıç ve bitiş saatlerini değiştirebilirsiniz.",
+              ),
+              children: [
+                for (int i = 0; i < 15; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          "${i + 1}. Ders/Etkinlik: ",
+                          style: const TextStyle(fontSize: 12),
                         ),
-                        const Divider(height: 1, color: Colors.grey),
-                        // 15 Satırlık İçerik
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: 15,
-                          itemBuilder: (context, i) {
-                            bool isTeneffusSatiri =
-                                (i == 1 ||
-                                i == 3 ||
-                                i == 5 ||
-                                i == 9 ||
-                                i == 11 ||
-                                i == 13);
-                            bool isOgleArasi = (i == 7);
-                            bool isTenOrOgle = isTeneffusSatiri || isOgleArasi;
-
-                            return Container(
-                              height: isTenOrOgle ? 30 : 52,
-                              decoration: BoxDecoration(
-                                color: isTenOrOgle
-                                    ? Colors.grey.shade100
-                                    : Colors.white,
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Colors.grey.shade300,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  // Saatler Sütunu
-                                  SizedBox(
-                                    width: 120,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 2,
-                                      ),
-                                      child: widget.isTeacher
-                                          ? TextField(
-                                              controller: saatControllers[i],
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              decoration: const InputDecoration(
-                                                border: InputBorder.none,
-                                                isDense: true,
-                                              ),
-                                            )
-                                          : Text(
-                                              saatControllers[i].text,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 10,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                    ),
-                                  ),
-                                  Container(
-                                    width: 1,
-                                    color: Colors.grey.shade300,
-                                  ),
-
-                                  // Teneffüs Satırları
-                                  if (isTeneffusSatiri)
-                                    Expanded(
-                                      child: Container(
-                                        alignment: Alignment.center,
-                                        child: const Text(
-                                          "T   E   N   E   F   F   Ü   S",
-                                          style: TextStyle(
-                                            letterSpacing: 2.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  // Öğle Arası Satırı
-                                  else if (isOgleArasi)
-                                    Expanded(
-                                      child: Container(
-                                        alignment: Alignment.center,
-                                        child: const Text(
-                                          "Ö   Ğ   L   E      A   R   A   S   I",
-                                          style: TextStyle(
-                                            letterSpacing: 2.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.deepOrange,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  // Ders Satırları (Ekranı tam kaplayan 5 gün sütunu)
-                                  else
-                                    for (
-                                      int gunIndex = 0;
-                                      gunIndex < 5;
-                                      gunIndex++
-                                    )
-                                      Expanded(
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              right: BorderSide(
-                                                color: Colors.grey.shade200,
-                                              ),
-                                            ),
-                                          ),
-                                          child: widget.isTeacher
-                                              ? Padding(
-                                                  // Öğretmen için Dropdown kodları...
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 1,
-                                                      ),
-                                                  child: DropdownButtonHideUnderline(
-                                                    child: DropdownButton<String>(
-                                                      isExpanded: true,
-                                                      value:
-                                                          dersSecenekleri.contains(
-                                                            dersMatrisi[i][gunIndex],
-                                                          )
-                                                          ? dersMatrisi[i][gunIndex]
-                                                          : 'Teneffüs',
-                                                      items: dersSecenekleri.map((
-                                                        String ders,
-                                                      ) {
-                                                        return DropdownMenuItem<
-                                                          String
-                                                        >(
-                                                          value: ders,
-                                                          child: Text(
-                                                            ders,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                            style: TextStyle(
-                                                              fontSize: 9.5,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              color:
-                                                                  ders ==
-                                                                      'Teneffüs'
-                                                                  ? Colors.grey
-                                                                  : Colors
-                                                                        .black87,
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }).toList(),
-                                                      onChanged:
-                                                          (String? yeniDeger) {
-                                                            if (yeniDeger !=
-                                                                null) {
-                                                              setState(() {
-                                                                dersMatrisi[i][gunIndex] =
-                                                                    yeniDeger;
-                                                              });
-                                                            }
-                                                          },
-                                                    ),
-                                                  ),
-                                                )
-                                              : Center(
-                                                  // ÖĞRENCİ İÇİN: Salt okunur, sade metin görünümü
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 1,
-                                                        ),
-                                                    child: Text(
-                                                      dersMatrisi[i][gunIndex],
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color:
-                                                            dersMatrisi[i][gunIndex] ==
-                                                                'Teneffüs'
-                                                            ? Colors.grey
-                                                            : Colors.black87,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                        ),
-                                      ),
-                                ],
-                              ),
-                            );
-                          },
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 120,
+                          child: TextField(
+                            controller: saatControllers[i],
+                            textAlign: TextAlign.center,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
+                const SizedBox(height: 10),
+              ],
             ),
-      bottomNavigationBar: widget.isTeacher
-          ? Container(
-              padding: const EdgeInsets.all(10),
-              color: Colors.white,
-              child: ElevatedButton(
-                onPressed: programiKaydet,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "Günlere Göre Ders Atama:",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 5),
+          for (int gunIndex = 0; gunIndex < 5; gunIndex++)
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              child: ExpansionTile(
+                title: Text(
+                  gunler[gunIndex],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text(
-                  "Değişiklikleri ve Programı Kaydet",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                subtitle: const Text(
+                  "Bu günün ders programını ayarlamak için dokunun",
+                ),
+                children: _buildGunDersSecimListesi(gunIndex),
+              ),
+            ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: programiKaydet,
+              icon: const Icon(Icons.save),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-            )
-          : null,
+              label: const Text(
+                "Değişiklikleri ve Programı Kaydet",
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
     );
+  }
+
+  List<Widget> _buildGunDersSecimListesi(int gunIndex) {
+    List<Widget> liste = [];
+
+    for (int i = 0; i < 15; i++) {
+      bool isTenOrOgle =
+          (i == 1 ||
+          i == 3 ||
+          i == 5 ||
+          i == 7 ||
+          i == 9 ||
+          i == 11 ||
+          i == 13);
+
+      if (isTenOrOgle) {
+        liste.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+            child: Text(
+              i == 7 ? "--- ÖĞLE ARASI ---" : "--- TENEFFÜS ---",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        );
+      } else {
+        liste.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    saatControllers[i].text,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue:
+                        dersSecenekleri.contains(dersMatrisi[i][gunIndex])
+                        ? dersMatrisi[i][gunIndex]
+                        : 'Teneffüs',
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: dersSecenekleri.map((String ders) {
+                      return DropdownMenuItem<String>(
+                        value: ders,
+                        child: Text(ders, style: const TextStyle(fontSize: 13)),
+                      );
+                    }).toList(),
+                    onChanged: (String? yeniDeger) {
+                      if (yeniDeger != null) {
+                        setState(() {
+                          dersMatrisi[i][gunIndex] = yeniDeger;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    liste.add(const SizedBox(height: 10));
+    return liste;
   }
 }

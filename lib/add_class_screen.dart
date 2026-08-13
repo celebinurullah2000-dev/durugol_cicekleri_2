@@ -124,9 +124,10 @@ class _AddClassScreenState extends State<AddClassScreen> {
                 hintText: "Örn: Ahmet Yılmaz",
               ),
             ),
+            const SizedBox(height: 24),
             TextField(
               controller: _passwordController,
-              obscureText: true, // Şifrenin görünmemesi için
+              obscureText: false, // Şifrenin görünmemesi için
               decoration: const InputDecoration(
                 labelText: "Sınıf Şifresi",
                 border: OutlineInputBorder(),
@@ -136,43 +137,46 @@ class _AddClassScreenState extends State<AddClassScreen> {
             const SizedBox(height: 24),
 
             // Kaydet Butonu
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              onPressed: () async {
-                // Sınıf adını otomatik birleştiriyoruz (Örn: "3/A")
-                String finalClassName = "$_selectedGrade/$_selectedBranch";
-                String teacherName = _teacherNameController.text.trim();
+            SizedBox(
+              width: 50, // Veya sabit bir piksel değeri (örn: 250)
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () async {
+                  // Sınıf adını otomatik birleştiriyoruz (Örn: "3/A")
+                  String finalClassName = "$_selectedGrade/$_selectedBranch";
+                  String teacherName = _teacherNameController.text.trim();
 
-                if (teacherName.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Lütfen öğretmen adını giriniz."),
-                    ),
-                  );
-                  return;
-                }
+                  if (teacherName.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Lütfen öğretmen adını giriniz."),
+                      ),
+                    );
+                    return;
+                  }
 
-                // 1. İşlem başlamadan önce referansı kaydet
-                final navigator = Navigator.of(context);
+                  // 1. İşlem başlamadan önce referansı kaydet
+                  final navigator = Navigator.of(context);
 
-                // 2. Firestore'a sınıfı ve öğretmen adını kaydet
-                await FirebaseFirestore.instance.collection('classes').add({
-                  'className': finalClassName, // Örn: "3/A"
-                  'grade': _selectedGrade,
-                  'branch': _selectedBranch,
-                  'teacherName': teacherName,
-                  'password': _passwordController.text.trim(),
-                  'teacherId': 'current_teacher_id',
-                });
+                  // 2. Firestore'a sınıfı ve öğretmen adını kaydet
+                  await FirebaseFirestore.instance.collection('classes').add({
+                    'className': finalClassName, // Örn: "3/A"
+                    'grade': _selectedGrade,
+                    'branch': _selectedBranch,
+                    'teacherName': teacherName,
+                    'password': _passwordController.text.trim(),
+                    'teacherId': 'current_teacher_id',
+                  });
 
-                // 3. Kaydedilen referansı güvenle kullan
-                navigator.pop();
-              },
-              child: const Text(
-                "Sınıfı Kaydet",
-                style: TextStyle(fontSize: 16),
+                  // 3. Kaydedilen referansı güvenle kullan
+                  navigator.pop();
+                },
+                child: const Text(
+                  "Sınıfı Kaydet",
+                  style: TextStyle(fontSize: 16),
+                ),
               ),
             ),
           ],
