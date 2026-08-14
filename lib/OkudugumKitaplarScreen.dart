@@ -115,131 +115,137 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Okuduğum Kitaplar")),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('students')
-            .doc(widget.studentId)
-            .collection('okunan_kitaplar')
-            .orderBy('tarih', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Column(
+        children: [
+          // 1. LOTTIE ANİMASYONU (Artık StreamBuilder'ın dışında, sabit duruyor)
+          SizedBox(
+            height: 120,
+            child: Lottie.asset(
+              'assets/animations/Cute astronaut read book on planet cartoon.json',
+              fit: BoxFit.contain,
+              repeat: false,
+              animate: true,
+            ),
+          ),
 
-          var docs = snapshot.data!.docs;
-          int toplamKitap = docs.length;
-          int toplamSayfa = 0;
-
-          // Toplam sayfa sayısını hesapla
-          for (var doc in docs) {
-            toplamSayfa += (doc['sayfaSayisi'] as num).toInt();
-          }
-
-          String mevcutOdul = Oyunlastirma.getOdul(toplamSayfa);
-          String mevcutUnvan = Oyunlastirma.getUnvan(toplamSayfa);
-
-          return Column(
-            children: [
-              // 1. LOTTIE ANİMASYONU (Buraya ekledik)
-              SizedBox(
-                height: 120,
-                child: Lottie.asset(
-                  'assets/animations/story icon.json',
-                  fit: BoxFit.contain,
-                  repeat: true,
+          // 2. KİTAP EKLEME ALANI (Üste almak kullanım açısından da daha kolay olur)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _kitapAdiController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(labelText: "Kitap Adı"),
+                  ),
                 ),
-              ),
-
-              // 2. DİNAMİK ÖZET KARTI
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.shade50,
-                  borderRadius: BorderRadius.circular(20),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 80,
+                  child: TextField(
+                    controller: _sayfaSayisiController,
+                    decoration: const InputDecoration(labelText: "Sayfa"),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                IconButton(
+                  icon: const Icon(
+                    Icons.add_circle,
+                    color: Colors.indigo,
+                    size: 30,
+                  ),
+                  onPressed: _kitapEkle,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 3. LİSTE VE ÖZET KARTI (Veriye bağlı kısımlar StreamBuilder içinde)
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('students')
+                  .doc(widget.studentId)
+                  .collection('okunan_kitaplar')
+                  .orderBy('tarih', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                var docs = snapshot.data!.docs;
+                int toplamKitap = docs.length;
+                int toplamSayfa = 0;
+
+                for (var doc in docs) {
+                  toplamSayfa += (doc['sayfaSayisi'] as num).toInt();
+                }
+
+                String mevcutOdul = Oyunlastirma.getOdul(toplamSayfa);
+                String mevcutUnvan = Oyunlastirma.getUnvan(toplamSayfa);
+
+                return Column(
                   children: [
-                    _ozetBilgi("Kitap", "$toplamKitap"),
-                    _ozetBilgi("Sayfa", "$toplamSayfa"),
-                    _ozetBilgi("Ünvan", mevcutUnvan),
-                    _ozetBilgi("Ödül", mevcutOdul),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // 3. KİTAP EKLEME ALANI
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _kitapAdiController,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          labelText: "Kitap Adı",
-                        ),
+                    // DİNAMİK ÖZET KARTI
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      width: 80,
-                      child: TextField(
-                        controller: _sayfaSayisiController,
-                        decoration: const InputDecoration(labelText: "Sayfa"),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.add_circle,
-                        color: Colors.indigo,
-                        size: 30,
-                      ),
-                      onPressed: _kitapEkle,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // 4. LİSTELEME
-              Expanded(
-                child: ListView.builder(
-                  itemCount: toplamKitap,
-                  itemBuilder: (context, index) {
-                    var doc = docs[index];
-                    DateTime tarih = (doc['tarih'] as Timestamp).toDate();
-                    String tarihStr =
-                        "${tarih.day}.${tarih.month}.${tarih.year}";
-
-                    return ListTile(
-                      title: Text(doc['kitapAdi']),
-                      subtitle: Text(tarihStr),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          Text("${doc['sayfaSayisi']} S."),
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.indigo),
-                            onPressed: () => _kitapDuzenle(context, doc),
-                          ),
+                          _ozetBilgi("Kitap", "$toplamKitap"),
+                          _ozetBilgi("Sayfa", "$toplamSayfa"),
+                          _ozetBilgi("Ünvan", mevcutUnvan),
+                          _ozetBilgi("Ödül", mevcutOdul),
                         ],
                       ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
+                    ),
+                    const SizedBox(height: 10),
+
+                    // LİSTELEME
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: toplamKitap,
+                        itemBuilder: (context, index) {
+                          var doc = docs[index];
+                          DateTime tarih = (doc['tarih'] as Timestamp).toDate();
+                          String tarihStr =
+                              "${tarih.day}.${tarih.month}.${tarih.year}";
+
+                          return ListTile(
+                            title: Text(doc['kitapAdi']),
+                            subtitle: Text(tarihStr),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text("${doc['sayfaSayisi']} S."),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.indigo,
+                                  ),
+                                  onPressed: () => _kitapDuzenle(context, doc),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

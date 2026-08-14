@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
@@ -9,8 +11,6 @@ class AddClassScreen extends StatefulWidget {
   State<AddClassScreen> createState() => _AddClassScreenState();
 }
 
-final TextEditingController _passwordController = TextEditingController();
-
 class _AddClassScreenState extends State<AddClassScreen> {
   // Seçilen sınıf seviyesi (1 ile 4 arası)
   String? _selectedGrade = '1';
@@ -18,10 +18,11 @@ class _AddClassScreenState extends State<AddClassScreen> {
   // Seçilen şube (Ğ harfi hariç A-I arası)
   String? _selectedBranch = 'A';
 
-  // Öğretmen adı için controller
+  // Controller'lar artık doğru yerde (State içinde) tanımlandı
   final TextEditingController _teacherNameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
-  // Şube listesi (Ğ hariç A'dan I'ya toplam 10 şube)
+  // Şube listesi (Ğ hariç A'dan J'ye kadar)
   final List<String> _branches = [
     'A',
     'B',
@@ -84,7 +85,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 2. Şube Dropdown (A'dan I'ya, Ğ hariç)
+            // 2. Şube Dropdown
             DropdownButtonFormField<String>(
               initialValue: _selectedBranch,
               decoration: const InputDecoration(
@@ -105,11 +106,10 @@ class _AddClassScreenState extends State<AddClassScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 3. Öğretmen Adı Yazma Kutusu (Otomatik baş harf büyütme özellikli)
+            // 3. Öğretmen Adı Yazma Kutusu
             TextField(
               controller: _teacherNameController,
-              textCapitalization: TextCapitalization
-                  .words, // Klavyede de kelime başlarını büyük yapar
+              textCapitalization: TextCapitalization.words,
               inputFormatters: [
                 TextInputFormatter.withFunction((oldValue, newValue) {
                   return TextEditingValue(
@@ -124,10 +124,12 @@ class _AddClassScreenState extends State<AddClassScreen> {
                 hintText: "Örn: Ahmet Yılmaz",
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // 4. Sınıf Şifresi Kutusu
             TextField(
               controller: _passwordController,
-              obscureText: false, // Şifrenin görünmemesi için
+              obscureText: false,
               decoration: const InputDecoration(
                 labelText: "Sınıf Şifresi",
                 border: OutlineInputBorder(),
@@ -138,13 +140,11 @@ class _AddClassScreenState extends State<AddClassScreen> {
 
             // Kaydet Butonu
             SizedBox(
-              width: 50, // Veya sabit bir piksel değeri (örn: 250)
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: () async {
-                  // Sınıf adını otomatik birleştiriyoruz (Örn: "3/A")
                   String finalClassName = "$_selectedGrade/$_selectedBranch";
                   String teacherName = _teacherNameController.text.trim();
 
@@ -157,12 +157,50 @@ class _AddClassScreenState extends State<AddClassScreen> {
                     return;
                   }
 
-                  // 1. İşlem başlamadan önce referansı kaydet
+                  // 1. ÖNCE AYNI SINIFIN DAHA ÖNCE EKLENİP EKLENMEDİĞİNİ KONTROL ET
+                  var existingClassQuery = await FirebaseFirestore.instance
+                      .collection('classes')
+                      .where('className', isEqualTo: finalClassName)
+                      .get();
+
+                  if (!context.mounted) return;
+
+                  // Eğer bu isimde bir sınıf zaten varsa uyarı dialogu göster
+                  if (existingClassQuery.docs.isNotEmpty) {
+                    bool? devamEtsinMi = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Sınıf Zaten Mevcut"),
+                        content: Text(
+                          "$finalClassName sınıfı daha önce eklenmiş. Yine de eklemek istediğinize emin misiniz?",
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context, false), // Vazgeç
+                            child: const Text("İptal"),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                            ),
+                            onPressed: () =>
+                                Navigator.pop(context, true), // Yine de Ekle
+                            child: const Text("Eminiz / Ekle"),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    // Kullanıcı "İptal" derse işlemi durdur
+                    if (devamEtsinMi != true) return;
+                  }
+
                   final navigator = Navigator.of(context);
 
                   // 2. Firestore'a sınıfı ve öğretmen adını kaydet
                   await FirebaseFirestore.instance.collection('classes').add({
-                    'className': finalClassName, // Örn: "3/A"
+                    'className': finalClassName,
                     'grade': _selectedGrade,
                     'branch': _selectedBranch,
                     'teacherName': teacherName,
@@ -170,7 +208,6 @@ class _AddClassScreenState extends State<AddClassScreen> {
                     'teacherId': 'current_teacher_id',
                   });
 
-                  // 3. Kaydedilen referansı güvenle kullan
                   navigator.pop();
                 },
                 child: const Text(
