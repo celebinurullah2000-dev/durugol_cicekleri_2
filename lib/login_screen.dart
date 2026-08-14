@@ -18,9 +18,26 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isRoleSelected = false;
   bool _sifreGizli = true;
 
-  String? _selectedClassId;
+  String? _selectedGradeLevel; // Seçilen sınıf seviyesi (1, 2, 3, 4)
+  String? _selectedBranch; // Seçilen şube harfi (A, B, C, D, E, F, G, H, I, J)
+  String? _selectedClassId; // Oluşan veya eşleşen Firestore sınıf ID'si
   String? _savedClassId;
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _classList = [];
+
+  // İstenen şube listesi (Ç ve Ğ hariç)
+  final List<String> _branchList = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+  ];
+  final List<String> _gradeLevels = ['1', '2', '3', '4'];
 
   void _masterSifreSor() {
     TextEditingController masterController = TextEditingController();
@@ -105,11 +122,68 @@ class _LoginScreenState extends State<LoginScreen> {
       final snapshot = await FirebaseFirestore.instance
           .collection('classes')
           .get();
+
+      // Sınıfları alfabetik olarak (className değerine göre) sıralama
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> sortedDocs = List.from(
+        snapshot.docs,
+      );
+      sortedDocs.sort((a, b) {
+        var nameA = (a.data()['className'] ?? '').toString();
+        var nameB = (b.data()['className'] ?? '').toString();
+        return nameA.compareTo(nameB);
+      });
+
       setState(() {
-        _classList = snapshot.docs;
+        _classList = sortedDocs;
       });
     } catch (e) {
       // Hata yönetimi
+    }
+  }
+
+  // Seçilen sınıf seviyesi ve şubeye göre Firestore'daki sınıfın doküman ID'sini bulur
+  void _updateSelectedClassId() {
+    if (_selectedGradeLevel != null && _selectedBranch != null) {
+      "$_selectedGradeLevel-İ$_selectedBranch" // Projenizdeki isimlendirme formatına göre uyarlanabilir, örn: "1/A" veya doğrudan birleştirme
+          .replaceAll(
+            'İ',
+            '',
+          ); // Eğer format farklıysa burayı düzenleyebilirsiniz
+
+      // Alternatif olarak standart adlandırma kontrolü (Örn: "1 A", "1-A" vb. veritabanı yapınıza göre)
+      // Burada doğrudan "className" alanının "1 A" veya "1/A" gibi geldiğini varsayarak eşleştiriyoruz:
+      try {
+        // Kullanıcının seçtiği kombinasyonu içeren sınıfı bulmaya çalışalım (Örn: "1" ve "A" -> "1 A" veya "1-A")
+        var matchedDoc = _classList.firstWhere(
+          (doc) {
+            String cName = (doc.data()['className'] ?? '')
+                .toString()
+                .replaceAll(' ', '')
+                .replaceAll('/', '')
+                .replaceAll('-', '');
+            String target1 = "$_selectedGradeLevel$_selectedBranch";
+            return cName.toUpperCase() == target1.toUpperCase();
+          },
+          orElse: () => _classList.first,
+        ); // Bulamazsa ilkini veya null bırakır
+
+        if (matchedDoc.exists &&
+            (_selectedGradeLevel != null && _selectedBranch != null)) {
+          // Gerçek eşleşmeyi kontrol et
+          for (var doc in _classList) {
+            String cName = (doc.data()['className'] ?? '').toString();
+            if (cName.contains(_selectedGradeLevel!) &&
+                cName.contains(_selectedBranch!)) {
+              setState(() {
+                _selectedClassId = doc.id;
+              });
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        _selectedClassId = null;
+      }
     }
   }
 
@@ -149,8 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: _buildRoleButton(
                         "",
                         "assets/images/ogretmen2.png",
-                        () =>
-                            _normalOgretmenGiris(), // Kısa tıklama: Normal giriş
+                        () => _normalOgretmenGiris(),
                       ),
                     ),
                     const SizedBox(width: 20),
@@ -176,38 +249,85 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
 
                 if (_savedClassId == null) ...[
-                  Container(
-                    width: 300,
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 5,
-                          spreadRadius: 1,
+                  // Yan yana 2 adet Dropdown (Sınıf Seviyesi ve Şube)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        // 1'den 4'e Sınıf Seçimi
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 5,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedGradeLevel,
+                                hint: const Text("Sınıf"),
+                                isExpanded: true,
+                                items: _gradeLevels.map((level) {
+                                  return DropdownMenuItem<String>(
+                                    value: level,
+                                    child: Text("$level. Sınıf"),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedGradeLevel = val;
+                                    _updateSelectedClassId();
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        // A'dan J'ye Şube Seçimi
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 5,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedBranch,
+                                hint: const Text("Şube"),
+                                isExpanded: true,
+                                items: _branchList.map((branch) {
+                                  return DropdownMenuItem<String>(
+                                    value: branch,
+                                    child: Text("$branch Şubesi"),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedBranch = val;
+                                    _updateSelectedClassId();
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                       ],
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedClassId,
-                        hint: const Text("Sınıfınızı Seçin"),
-                        isExpanded: true,
-                        items: _classList.map((doc) {
-                          var data = doc.data();
-                          return DropdownMenuItem<String>(
-                            value: doc.id,
-                            child: Text(data['className'] ?? 'Sınıf'),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedClassId = val;
-                          });
-                        },
-                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -317,8 +437,8 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onPressed, // Kısa basınca normal giriş çalışır
-            onLongPress: () => _masterSifreSor(), // Uzun basınca şifre sorar
+            onTap: onPressed,
+            onLongPress: () => _masterSifreSor(),
             borderRadius: BorderRadius.circular(20),
             child: Center(
               child: Text(
@@ -384,7 +504,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (targetClassId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Lütfen önce sınıfınızı seçiniz!")),
+        const SnackBar(
+          content: Text("Lütfen önce sınıf seviyesi ve şube seçiniz!"),
+        ),
       );
       return;
     }

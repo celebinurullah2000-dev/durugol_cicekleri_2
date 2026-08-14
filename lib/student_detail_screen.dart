@@ -1,7 +1,9 @@
 // ignore_for_file: avoid_print
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,7 +35,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   late final TextEditingController _kardesleriController;
 
   bool _isSaving = false;
-  String? ogrenciResmiBase64; // <-- Öğrenci resmini tutacağımız değişken
+  String?
+  ogrenciProfilResmiUrl; // <-- Öğrenci resminin URL'sini tutacağımız değişken
 
   @override
   void initState() {
@@ -65,8 +68,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       text: widget.studentData['kardesleri'] ?? '',
     );
 
-    // Var olan resmi değişkene aktarıyoruz
-    ogrenciResmiBase64 = widget.studentData['resimBase64'];
+    // Yeni sistemde profileImageUrl önceliklidir, eski kayıtlar için resimBase64 kontrolü de desteklenir
+    ogrenciProfilResmiUrl =
+        widget.studentData['profileImageUrl'] ??
+        widget.studentData['resimBase64'];
   }
 
   @override
@@ -84,7 +89,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   }
 
   void _resmiTamBoyutGoster() {
-    if (ogrenciResmiBase64 == null || ogrenciResmiBase64!.isEmpty) return;
+    if (ogrenciProfilResmiUrl == null || ogrenciProfilResmiUrl!.isEmpty) return;
 
     showDialog(
       context: context,
@@ -98,10 +103,15 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               InteractiveViewer(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(
-                    base64Decode(ogrenciResmiBase64!),
-                    fit: BoxFit.contain,
-                  ),
+                  child: ogrenciProfilResmiUrl!.startsWith('http')
+                      ? Image.network(
+                          ogrenciProfilResmiUrl!,
+                          fit: BoxFit.contain,
+                        )
+                      : Image.memory(
+                          base64Decode(ogrenciProfilResmiUrl!),
+                          fit: BoxFit.contain,
+                        ),
                 ),
               ),
               Positioned(
@@ -120,49 +130,57 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     );
   }
 
-  // Resim seçme ve güncelleme fonksiyonu
+  // Resim seçme ve Firebase Storage'a yükleme fonksiyonu
   Future<void> _resimSecveGuncelle(String studentId) async {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 30, // Boyutu küçültmek için kaliteyi biraz düşürelim
+        imageQuality: 50,
       );
 
       if (image != null) {
-        // Web ve mobil uyumlu olması için doğrudan readAsBytes kullanıyoruz
-        Uint8List bytes = await image.readAsBytes();
-        String base64String = base64Encode(bytes);
+        // Firebase Storage referansı
+        final ref = FirebaseStorage.instance.ref().child(
+          'profile_images/$studentId.jpg',
+        );
 
-        // Firestore'a kaydetmeyi deniyoruz
+        // Web ve Mobil uyumlu yükleme
+        if (kIsWeb) {
+          var bytes = await image.readAsBytes();
+          await ref.putData(bytes);
+        } else {
+          await ref.putFile(File(image.path));
+        }
+
+        // İndirme URL'sini al
+        final String downloadUrl = await ref.getDownloadURL();
+
+        // Firestore'da profileImageUrl alanını güncelle
         await FirebaseFirestore.instance
             .collection('students')
             .doc(studentId)
-            .update({'resimBase64': base64String});
+            .update({'profileImageUrl': downloadUrl});
 
         // Yerel önbelleği güncelle
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('studentProfileImage_$studentId', base64String);
+        await prefs.setString('profileImageUrl_$studentId', downloadUrl);
 
         if (!mounted) return;
 
         setState(() {
-          ogrenciResmiBase64 = base64String;
+          ogrenciProfilResmiUrl = downloadUrl;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              "Öğrenci resmi başarıyla güncellendi ve Firestore'a kaydedildi!",
-            ),
+            content: Text("Öğrenci profil resmi başarıyla güncellendi!"),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      print(
-        "RESİM YÜKLEME HATASI: $e",
-      ); // Debug konsolunda hatayı görebilmek için
+      print("RESİM YÜKLEME HATASI: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -224,7 +242,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // --- PROFIL FOTOĞRAFI ALANI BURAYA EKLENDİ ---
+            // --- PROFİL FOTOĞRAFI ALANI ---
             Center(
               child: Stack(
                 children: [
@@ -235,13 +253,18 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       radius: 50,
                       backgroundColor: Colors.indigo.shade100,
                       backgroundImage:
-                          (ogrenciResmiBase64 != null &&
-                              ogrenciResmiBase64!.isNotEmpty)
-                          ? MemoryImage(base64Decode(ogrenciResmiBase64!))
+                          (ogrenciProfilResmiUrl != null &&
+                              ogrenciProfilResmiUrl!.isNotEmpty)
+                          ? (ogrenciProfilResmiUrl!.startsWith('http')
+                                ? NetworkImage(ogrenciProfilResmiUrl!)
+                                      as ImageProvider
+                                : MemoryImage(
+                                    base64Decode(ogrenciProfilResmiUrl!),
+                                  ))
                           : null,
                       child:
-                          (ogrenciResmiBase64 == null ||
-                              ogrenciResmiBase64!.isEmpty)
+                          (ogrenciProfilResmiUrl == null ||
+                              ogrenciProfilResmiUrl!.isEmpty)
                           ? const Icon(
                               Icons.person,
                               size: 50,
@@ -250,7 +273,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                           : null,
                     ),
                   ),
-                  // Sadece kamera ikonuna tıklayınca YENİ RESİM SEÇME AÇILIR
+                  // Kamera ikonuna tıklayınca YENİ RESİM SEÇME AÇILIR
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -272,7 +295,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ---------------------------------------------
             TextField(
               controller: _tcController,
               decoration: const InputDecoration(labelText: "T.C. Kimlik No"),

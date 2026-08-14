@@ -16,7 +16,10 @@ import 'Dogum_Gunleri_Screen.dart';
 import 'Ogrenci_Denemeler_Screen.dart';
 import 'package:lottie/lottie.dart';
 import 'istatistik_servisi.dart';
-import 'dart:convert';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   final String studentId;
@@ -31,6 +34,59 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   String classId = ""; // Sınıf ID'sini tutmak için değişken
   String className = "Sınıf"; // Sınıf adını tutmak için değişken
   String? ogrenciProfilResmiBase64;
+
+  Future<void> _profilResmiDegistir() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+    );
+
+    if (image == null) return;
+
+    try {
+      final ref = FirebaseStorage.instance.ref().child(
+        'profile_images/${widget.studentId}.jpg',
+      );
+
+      // Web ve Mobil uyumlu yükleme yöntemi:
+      if (kIsWeb) {
+        // Web için byte olarak oku ve yükle
+        var bytes = await image.readAsBytes();
+        await ref.putData(bytes);
+      } else {
+        // Mobil (Android / iOS) için dosya olarak yükle
+        await ref.putFile(File(image.path));
+      }
+
+      // İndirme URL'sini alma
+      final String downloadUrl = await ref.getDownloadURL();
+
+      // Firestore'da ilgili öğrenci dokümanını güncelleme
+      await FirebaseFirestore.instance
+          .collection('students')
+          .doc(widget.studentId)
+          .update({'profileImageUrl': downloadUrl});
+
+      // SharedPreferences ve State'i güncelleme
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profileImageUrl_${widget.studentId}', downloadUrl);
+
+      setState(() {
+        ogrenciProfilResmiBase64 = downloadUrl;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profil resmi başarıyla güncellendi!")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Resim yüklenirken hata oluştu: $e")),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -55,8 +111,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               InteractiveViewer(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(
-                    base64Decode(ogrenciProfilResmiBase64!),
+                  child: Image.network(
+                    ogrenciProfilResmiBase64!, // URL kullanılıyor
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -174,12 +230,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     String isim = prefs.getString('studentName') ?? "Öğrenci";
     String cId = prefs.getString('classId') ?? "";
 
-    // Önce telefonda kayıtlı resim var mı bakalım (Hızlı yükleme)
-    String? yerelResim = prefs.getString(
-      'studentProfileImage_${widget.studentId}',
+    // Önce telefonda kayıtlı resim URL'si var mı bakalım
+    String? yerelResimUrl = prefs.getString(
+      'profileImageUrl_${widget.studentId}',
     );
 
-    if (cId.isEmpty || yerelResim == null || yerelResim.isEmpty) {
+    if (cId.isEmpty || yerelResimUrl == null) {
       // Telefonda yoksa Firestore'dan çekelim
       var studentDoc = await FirebaseFirestore.instance
           .collection('students')
@@ -190,22 +246,21 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         var data = studentDoc.data() as Map<String, dynamic>;
         cId = data['classId'] ?? "";
         isim = "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}".trim();
-        String dbResim = data['resimBase64'] ?? "";
+        String dbResimUrl = data['profileImageUrl'] ?? "";
 
         await prefs.setString('classId', cId);
         await prefs.setString('studentName', isim);
 
-        if (dbResim.isNotEmpty) {
+        if (dbResimUrl.isNotEmpty) {
           await prefs.setString(
-            'studentProfileImage_${widget.studentId}',
-            dbResim,
+            'profileImageUrl_${widget.studentId}',
+            dbResimUrl,
           );
-          yerelResim = dbResim;
+          yerelResimUrl = dbResimUrl;
         }
       }
     }
 
-    // Doğrudan üst sınıfta tanımlı olan className değişkenini güncelliyoruz
     if (cId.isNotEmpty) {
       var classDoc = await FirebaseFirestore.instance
           .collection('classes')
@@ -220,7 +275,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     setState(() {
       studentName = isim.isNotEmpty ? isim : "Öğrenci";
       classId = cId;
-      ogrenciProfilResmiBase64 = yerelResim;
+      ogrenciProfilResmiBase64 =
+          yerelResimUrl; // Değişken adını korumak için buraya URL atıyoruz (isterseniz değişken adını profileImageUrl yapabilirsiniz)
 
       if (cId.isNotEmpty && mounted) {
         dogumGunuKontrolEtVeBildir(context, cId);
@@ -375,30 +431,75 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       appBar: AppBar(
         title: Row(
           children: [
+            // --- PROFİL FOTOĞRAFI VE KAMERA İKONU ---
             GestureDetector(
-              onTap:
-                  _resmiTamBoyutGoster, // <-- Tıklama özelliği buraya eklendi
-              child: CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.white,
-                backgroundImage:
-                    (ogrenciProfilResmiBase64 != null &&
-                        ogrenciProfilResmiBase64!.isNotEmpty)
-                    ? MemoryImage(base64Decode(ogrenciProfilResmiBase64!))
-                    : null,
-                child:
-                    (ogrenciProfilResmiBase64 == null ||
-                        ogrenciProfilResmiBase64!.isEmpty)
-                    ? const Icon(Icons.person, color: Colors.indigo)
-                    : null,
+              onTap: () {
+                // Normal tıklamada resim varsa tam boy göster, yoksa galeri aç
+                if (ogrenciProfilResmiBase64 != null &&
+                    ogrenciProfilResmiBase64!.isNotEmpty) {
+                  _resmiTamBoyutGoster();
+                } else {
+                  _profilResmiDegistir();
+                }
+              },
+              onLongPress:
+                  _profilResmiDegistir, // İsteyen yine uzun basarak değiştirebilir
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.white,
+                    backgroundImage:
+                        (ogrenciProfilResmiBase64 != null &&
+                            ogrenciProfilResmiBase64!.isNotEmpty)
+                        ? NetworkImage(ogrenciProfilResmiBase64!)
+                        : null,
+                    child:
+                        (ogrenciProfilResmiBase64 == null ||
+                            ogrenciProfilResmiBase64!.isEmpty)
+                        ? const Icon(Icons.person, color: Colors.indigo)
+                        : null,
+                  ),
+                  // Sağ alt köşeye eklenen minik kamera ikonu
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.indigoAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        size: 10,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+            // ----------------------------------------
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                "Merhaba, $studentName",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Merhaba, $studentName",
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    "Resmi değiştirmek için basılı tut",
+                    style: TextStyle(fontSize: 11, color: Colors.white70),
+                  ),
+                ],
               ),
             ),
           ],
