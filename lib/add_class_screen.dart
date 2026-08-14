@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, camel_case_types
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,7 +18,10 @@ class _AddClassScreenState extends State<AddClassScreen> {
   // Seçilen şube (Ğ harfi hariç A-I arası)
   String? _selectedBranch = 'A';
 
-  // Controller'lar artık doğru yerde (State içinde) tanımlandı
+  // Yeni eklenen: Kullanıcı / Öğretmen Rolü ('classroom_teacher', 'branch_teacher', 'admin')
+  String _selectedRole = 'classroom_teacher';
+
+  // Controller'lar
   final TextEditingController _teacherNameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -58,55 +61,85 @@ class _AddClassScreenState extends State<AddClassScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Sınıf Ekle")),
-      body: Padding(
+      appBar: AppBar(title: const Text("Sınıf ve Yetkili Ekle")),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Sınıf Seviyesi Dropdown (1'den 4'e)
+            // 0. Yeni Eklenen: Kullanıcı / Öğretmen Türü Seçimi
             DropdownButtonFormField<String>(
-              initialValue: _selectedGrade,
+              initialValue: _selectedRole,
               decoration: const InputDecoration(
-                labelText: "Sınıf Seviyesi",
+                labelText: "Kullanıcı / Görev Türü",
                 border: OutlineInputBorder(),
               ),
-              items: ['1', '2', '3', '4'].map((grade) {
-                return DropdownMenuItem(
-                  value: grade,
-                  child: Text("$grade. Sınıf"),
-                );
-              }).toList(),
+              items: const [
+                DropdownMenuItem(
+                  value: 'classroom_teacher',
+                  child: Text("Sınıf Öğretmeni (Tek Sınıf)"),
+                ),
+                DropdownMenuItem(
+                  value: 'branch_teacher',
+                  child: Text("Branş Öğretmeni (Çoklu Sınıf Seçebilir)"),
+                ),
+                DropdownMenuItem(
+                  value: 'admin',
+                  child: Text("İdareci (Tüm Sınıfları Görür)"),
+                ),
+              ],
               onChanged: (value) {
                 setState(() {
-                  _selectedGrade = value;
+                  _selectedRole = value!;
                 });
               },
             ),
             const SizedBox(height: 16),
 
-            // 2. Şube Dropdown
-            DropdownButtonFormField<String>(
-              initialValue: _selectedBranch,
-              decoration: const InputDecoration(
-                labelText: "Şube Seçimi",
-                border: OutlineInputBorder(),
+            // SADECE SINIF ÖĞRETMENİ SEÇİLDİĞİNDE SINIF VE ŞUBE DROPDOWN'LARINI GÖSTER
+            if (_selectedRole == 'classroom_teacher') ...[
+              DropdownButtonFormField<String>(
+                initialValue: _selectedGrade,
+                decoration: const InputDecoration(
+                  labelText: "Sınıf Seviyesi",
+                  border: OutlineInputBorder(),
+                ),
+                items: ['1', '2', '3', '4'].map((grade) {
+                  return DropdownMenuItem(
+                    value: grade,
+                    child: Text("$grade. Sınıf"),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedGrade = value;
+                  });
+                },
               ),
-              items: _branches.map((branch) {
-                return DropdownMenuItem(
-                  value: branch,
-                  child: Text("$branch Şubesi"),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedBranch = value;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // 3. Öğretmen Adı Yazma Kutusu
+              // 2. Şube Dropdown
+              DropdownButtonFormField<String>(
+                initialValue: _selectedBranch,
+                decoration: const InputDecoration(
+                  labelText: "Şube Seçimi",
+                  border: OutlineInputBorder(),
+                ),
+                items: _branches.map((branch) {
+                  return DropdownMenuItem(
+                    value: branch,
+                    child: Text("$branch Şubesi"),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedBranch = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+            // 3. Öğretmen / Kullanıcı Adı Yazma Kutusu
             TextField(
               controller: _teacherNameController,
               textCapitalization: TextCapitalization.words,
@@ -119,21 +152,21 @@ class _AddClassScreenState extends State<AddClassScreen> {
                 }),
               ],
               decoration: const InputDecoration(
-                labelText: "Öğretmen Adı Soyadı",
+                labelText: "Öğretmen / Yetkili Adı Soyadı",
                 border: OutlineInputBorder(),
                 hintText: "Örn: Ahmet Yılmaz",
               ),
             ),
             const SizedBox(height: 16),
 
-            // 4. Sınıf Şifresi Kutusu
+            // 4. Şifre Kutusu
             TextField(
               controller: _passwordController,
               obscureText: false,
               decoration: const InputDecoration(
-                labelText: "Sınıf Şifresi",
+                labelText: "Giriş Şifresi",
                 border: OutlineInputBorder(),
-                hintText: "Sınıf için bir şifre belirleyin",
+                hintText: "Kullanıcı için bir şifre belirleyin",
               ),
             ),
             const SizedBox(height: 24),
@@ -145,73 +178,77 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: () async {
-                  String finalClassName = "$_selectedGrade/$_selectedBranch";
                   String teacherName = _teacherNameController.text.trim();
 
                   if (teacherName.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text("Lütfen öğretmen adını giriniz."),
+                        content: Text("Lütfen öğretmen/yetkili adını giriniz."),
                       ),
                     );
                     return;
                   }
 
-                  // 1. ÖNCE AYNI SINIFIN DAHA ÖNCE EKLENİP EKLENMEDİĞİNİ KONTROL ET
-                  var existingClassQuery = await FirebaseFirestore.instance
-                      .collection('classes')
-                      .where('className', isEqualTo: finalClassName)
-                      .get();
+                  String finalClassName;
+                  if (_selectedRole == 'admin') {
+                    finalClassName = "İdareci: $teacherName";
+                  } else if (_selectedRole == 'branch_teacher') {
+                    finalClassName = "Branş Öğretmeni: $teacherName";
+                  } else {
+                    finalClassName = "$_selectedGrade/$_selectedBranch";
 
-                  if (!context.mounted) return;
+                    // Sadece sınıf öğretmenleri için çakışma kontrolü
+                    var existingClassQuery = await FirebaseFirestore.instance
+                        .collection('classes')
+                        .where('className', isEqualTo: finalClassName)
+                        .get();
 
-                  // Eğer bu isimde bir sınıf zaten varsa uyarı dialogu göster
-                  if (existingClassQuery.docs.isNotEmpty) {
-                    bool? devamEtsinMi = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text("Sınıf Zaten Mevcut"),
-                        content: Text(
-                          "$finalClassName sınıfı daha önce eklenmiş. Yine de eklemek istediğinize emin misiniz?",
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(context, false), // Vazgeç
-                            child: const Text("İptal"),
+                    if (!context.mounted) return;
+
+                    if (existingClassQuery.docs.isNotEmpty) {
+                      bool? devamEtsinMi = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text("Sınıf Zaten Mevcut"),
+                          content: Text(
+                            "$finalClassName sınıfı daha önce eklenmiş.",
                           ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text("İptal"),
                             ),
-                            onPressed: () =>
-                                Navigator.pop(context, true), // Yine de Ekle
-                            child: const Text("Eminiz / Ekle"),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    // Kullanıcı "İptal" derse işlemi durdur
-                    if (devamEtsinMi != true) return;
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text("Eminiz / Ekle"),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (devamEtsinMi != true) return;
+                    }
                   }
 
                   final navigator = Navigator.of(context);
 
-                  // 2. Firestore'a sınıfı ve öğretmen adını kaydet
                   await FirebaseFirestore.instance.collection('classes').add({
                     'className': finalClassName,
-                    'grade': _selectedGrade,
-                    'branch': _selectedBranch,
+                    'grade': _selectedRole == 'classroom_teacher'
+                        ? _selectedGrade
+                        : '',
+                    'branch': _selectedRole == 'classroom_teacher'
+                        ? _selectedBranch
+                        : '',
                     'teacherName': teacherName,
                     'password': _passwordController.text.trim(),
-                    'teacherId': 'current_teacher_id',
+                    'userRole': _selectedRole,
+                    'assignedClassIds': [],
                   });
 
                   navigator.pop();
                 },
                 child: const Text(
-                  "Sınıfı Kaydet",
+                  "Sınıfı ve Yetkiliyi Kaydet",
                   style: TextStyle(fontSize: 16),
                 ),
               ),

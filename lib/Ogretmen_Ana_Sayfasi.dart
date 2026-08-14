@@ -1,5 +1,6 @@
 import 'package:durugol_cicekleri/Etkinlikler_Screen.dart';
 import 'package:durugol_cicekleri/Sinif_Istatistik_Siralama_Screen.dart';
+import 'package:durugol_cicekleri/branch_teacher_class_select_screen.dart';
 import 'package:durugol_cicekleri/ogretmen_randevu_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
 import 'package:durugol_cicekleri/screens/teacher_chat_audit_screen.dart';
@@ -98,11 +99,15 @@ Future<void> bildirimGoster(String baslik, String aciklama) async {
 class OgretmenAnaSayfasi extends StatefulWidget {
   final String classId;
   final String className;
+  final String userRole; // Rol ('classroom_teacher', 'branch_teacher', 'admin')
+  final List<String> assignedClassIds; // Seçilen/Atanan sınıf ID'leri
 
   const OgretmenAnaSayfasi({
     super.key,
     required this.classId,
     required this.className,
+    this.userRole = 'classroom_teacher',
+    this.assignedClassIds = const [],
   });
 
   @override
@@ -111,6 +116,22 @@ class OgretmenAnaSayfasi extends StatefulWidget {
 
 class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   StreamSubscription<QuerySnapshot>? _randevuSubscription;
+
+  // Filtreleme için durum değişkenleri (İdareci ve Branş Öğretmenleri için)
+  String? _filtreliGrade = '1';
+  String? _filtreliBranch = 'A';
+  final List<String> _branchListesi = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+  ];
 
   @override
   void initState() {
@@ -274,7 +295,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Sınıf Şifresini Değiştir"),
+        title: const Text("Şifreyi Değiştir"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -831,14 +852,41 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   }
 
   Future<List<Map<String, dynamic>>> _getOgrenciler() async {
-    var studentsQuery = await FirebaseFirestore.instance
-        .collection('students')
-        .where('classId', isEqualTo: widget.classId)
-        .get();
-
     List<Map<String, dynamic>> ogrenciListesi = [];
-    for (var doc in studentsQuery.docs) {
-      ogrenciListesi.add({'id': doc.id, ...doc.data()});
+
+    // İdareci veya branş öğretmeniyse seçilen sınıf seviyesi ve şubeye göre filtrele
+    if (widget.userRole == 'admin' || widget.userRole == 'branch_teacher') {
+      String arananClassName = "$_filtreliGrade/$_filtreliBranch";
+
+      var classQuery = await FirebaseFirestore.instance
+          .collection('classes')
+          .where('className', isEqualTo: arananClassName)
+          .get();
+
+      if (classQuery.docs.isEmpty) {
+        return [];
+      }
+
+      String hedefClassId = classQuery.docs.first.id;
+
+      var studentsQuery = await FirebaseFirestore.instance
+          .collection('students')
+          .where('classId', isEqualTo: hedefClassId)
+          .get();
+
+      for (var doc in studentsQuery.docs) {
+        ogrenciListesi.add({'id': doc.id, ...doc.data()});
+      }
+    } else {
+      // Normal sınıf öğretmeniyse doğrudan kendi sınıfı
+      var studentsQuery = await FirebaseFirestore.instance
+          .collection('students')
+          .where('classId', isEqualTo: widget.classId)
+          .get();
+
+      for (var doc in studentsQuery.docs) {
+        ogrenciListesi.add({'id': doc.id, ...doc.data()});
+      }
     }
 
     ogrenciListesi.sort((a, b) {
@@ -860,12 +908,36 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
   @override
   Widget build(BuildContext context) {
+    bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
+    bool isYetkili =
+        widget.userRole == 'admin' || widget.userRole == 'branch_teacher';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text("${widget.className} Sınıf Paneli"),
+        title: Text("${widget.className} Paneli"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
+          // Eğer kullanıcı idareci veya branş öğretmeniyse, sınıflarını değiştirebileceği buton görünür
+          /*if (widget.userRole == 'admin' || widget.userRole == 'branch_teacher')
+            IconButton(
+              icon: const Icon(Icons.class_),
+              tooltip: "Dersine Girdiğim Sınıfları Seç",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BranchTeacherClassSelectScreen(
+                      teacherId: widget.classId,
+                      teacherName: widget.className,
+                    ),
+                  ),
+                ).then((_) {
+                  // Geri döndüğünde sayfayı yenileyip güncel sınıfları yükleyebiliriz
+                  setState(() {});
+                });
+              },
+            ),*/
           IconButton(
             icon: const Icon(Icons.lock_reset),
             tooltip: "Şifre Değiştir",
@@ -877,6 +949,70 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
       ),
       body: Column(
         children: [
+          // EĞER İDARECİ VEYA BRANŞ ÖĞRETMENİYSE ÜST KISIMDA SINIF/ŞUBE SEÇME FİLTRESİ
+          if (isYetkili)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.indigo.shade100,
+              child: Row(
+                children: [
+                  const Text(
+                    "Sınıf Filtrele: ",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _filtreliGrade,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: ['1', '2', '3', '4'].map((grade) {
+                        return DropdownMenuItem(
+                          value: grade,
+                          child: Text("$grade. Sınıf"),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _filtreliGrade = val;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _filtreliBranch,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: _branchListesi.map((branch) {
+                        return DropdownMenuItem(
+                          value: branch,
+                          child: Text("$branch Şubesi"),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _filtreliBranch = val;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             color: Colors.indigo.shade50,
@@ -1301,15 +1437,23 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () =>
-                                  _duzenle(context, student['id'], student),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _sil(context, student['id']),
-                            ),
+                            if (isSinifOgretmeni) ...[
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.blue,
+                                ),
+                                onPressed: () =>
+                                    _duzenle(context, student['id'], student),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _sil(context, student['id']),
+                              ),
+                            ],
                             const Icon(
                               Icons.chevron_right,
                               color: Colors.indigo,
@@ -1325,16 +1469,19 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddStudentScreen()),
-          );
-          setState(() {});
-        },
-        child: const Icon(Icons.person_add),
-      ),
+      // SADECE SINIF ÖĞRETMENİ İSE ÖĞRENCİ EKLEME BUTONU GÖRÜNÜR
+      floatingActionButton: isSinifOgretmeni
+          ? FloatingActionButton(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddStudentScreen()),
+                );
+                setState(() {});
+              },
+              child: const Icon(Icons.person_add),
+            )
+          : null,
     );
   }
 
