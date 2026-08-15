@@ -86,10 +86,30 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
     super.initState();
     _tabController = TabController(length: widget.canEdit ? 2 : 1, vsync: this);
 
+    // Belirttiğiniz tam 15 ders ve ara saatleri listesi
+    final List<String> sabitSaatler = [
+      "09:00 - 09:40", // 1. Ders
+      "09:40 - 09:55", // Teneffüs
+      "09:55 - 10:35", // 2. Ders
+      "10:35 - 10:55", // Teneffüs
+      "10:55 - 11:35", // 3. Ders
+      "11:35 - 11:50", // Teneffüs
+      "11:50 - 12:30", // 4. Ders
+      "12:30 - 13:00", // Öğle Arası
+      "13:00 - 13:40", // 5. Ders
+      "13:40 - 13:55", // Teneffüs
+      "13:55 - 14:35", // 6. Ders
+      "14:35 - 14:50", // Teneffüs
+      "14:50 - 15:30", // 7. Ders
+      "15:30 - 15:40", // Teneffüs
+      "15:40 - 16:20", // 8. Ders
+    ];
+
     saatControllers = List.generate(
       15,
-      (index) => TextEditingController(text: "${9 + (index ~/ 2)}:00"),
+      (index) => TextEditingController(text: sabitSaatler[index]),
     );
+
     dersMatrisi = List.generate(15, (_) => List.generate(5, (_) => 'Boş'));
 
     // Eğer branş programı ise şubeleri Firebase'den çek
@@ -125,33 +145,26 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
         String? className = data['className']; // Örn: "2/A", "4/B"
 
         if (className != null && className.isNotEmpty) {
-          // --- BURASI EKLENDİ / GÜNCELLENDİ ---
-          // Sadece gerçek sınıf/şube isimlerini almak için içinde "/" geçip geçmediğini
-          // ve "Branş" veya "İdareci" gibi ifadeler içermediğini kontrol ediyoruz.
           if (className.contains('/') &&
               !className.contains('Öğretmen') &&
               !className.contains('İdareci')) {
             if (widget.scheduleDocId == 'branch_religion') {
-              // Sadece 4. sınıflar
               if (className.startsWith('4/')) {
                 subeler.add(className);
               }
             } else if (widget.scheduleDocId == 'branch_english') {
-              // 2, 3 ve 4. sınıflar
               if (className.startsWith('2/') ||
                   className.startsWith('3/') ||
                   className.startsWith('4/')) {
                 subeler.add(className);
               }
             } else {
-              // Kişisel branş programı için tüm geçerli sınıflar
               subeler.add(className);
             }
           }
         }
       }
 
-      // Şube listesini sıralama
       subeler.sort();
 
       setState(() {
@@ -204,6 +217,8 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
             }
           }
         }
+      } else {
+        dersMatrisi = List.generate(15, (_) => List.generate(5, (_) => 'Boş'));
       }
     } catch (e) {
       // Hata yönetimi
@@ -528,7 +543,6 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
   List<Widget> _buildGunDersSecimListesi(int gunIndex) {
     List<Widget> liste = [];
 
-    // Hangi listenin seçileceğini belirliyoruz (Sınıf için dersSecenekleri, Branş için dinamikSubeler)
     List<String> seceneklerListesi = widget.isBranchSchedule
         ? dinamikSubeler
         : dersSecenekleri;

@@ -87,6 +87,10 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   value: 'admin',
                   child: Text("İdareci (Tüm Sınıfları Görür)"),
                 ),
+                DropdownMenuItem(
+                  value: 'guidance_teacher',
+                  child: Text('Rehber Öğretmen'),
+                ),
               ],
               onChanged: (value) {
                 setState(() {
@@ -190,14 +194,18 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   }
 
                   String finalClassName;
+
+                  // 1. İdareci, Branş Öğretmeni ve Rehber Öğretmen için sınıf çakışması aranmaz
                   if (_selectedRole == 'admin') {
                     finalClassName = "İdareci: $teacherName";
                   } else if (_selectedRole == 'branch_teacher') {
                     finalClassName = "Branş Öğretmeni: $teacherName";
+                  } else if (_selectedRole == 'guidance_teacher') {
+                    finalClassName = "Rehber Öğretmen: $teacherName";
                   } else {
+                    // Sadece Sınıf Öğretmeni (classroom_teacher) için sınıf/şube çakışması kontrol edilir
                     finalClassName = "$_selectedGrade/$_selectedBranch";
 
-                    // Sadece sınıf öğretmenleri için çakışma kontrolü
                     var existingClassQuery = await FirebaseFirestore.instance
                         .collection('classes')
                         .where('className', isEqualTo: finalClassName)

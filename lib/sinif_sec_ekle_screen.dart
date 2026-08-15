@@ -269,7 +269,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Sınıflarım ve Yetkililer"),
+        title: const Text("Kullanıcı Girişi"),
         actions: [
           // SÜPER ADMIN (MASTER) İSENİZ GÖRÜNEN "YETKİ TANIMLA" DÜĞMESİ
           if (widget.isTeacherMaster)
@@ -320,6 +320,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           };
           List<QueryDocumentSnapshot> admins = [];
           List<QueryDocumentSnapshot> branchTeachers = [];
+          List<QueryDocumentSnapshot> guidanceTeachers = [];
 
           for (var doc in allDocs) {
             var data = doc.data() as Map<String, dynamic>;
@@ -329,6 +330,8 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               admins.add(doc);
             } else if (userRole == 'branch_teacher') {
               branchTeachers.add(doc);
+            } else if (userRole == 'guidance_teacher') {
+              guidanceTeachers.add(doc);
             } else {
               String grade = data['grade'] ?? '1';
               if (groupedClasses.containsKey(grade)) {
@@ -352,6 +355,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               seviyeler.length +
               (admins.isNotEmpty ? 1 : 0) +
               (branchTeachers.isNotEmpty ? 1 : 0);
+          (guidanceTeachers.isNotEmpty ? 1 : 0);
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -618,10 +622,149 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               }
 
-              // 3. Normal Sınıf Seviyeleri (1, 2, 3, 4)
-              int offset =
+              // 3. Rehber Öğretmenler Kartı
+              int guidanceCardIndex =
                   (admins.isNotEmpty ? 1 : 0) +
                   (branchTeachers.isNotEmpty ? 1 : 0);
+              if (guidanceTeachers.isNotEmpty && index == guidanceCardIndex) {
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 4,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ExpansionTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.teal.shade50,
+                      child: const Icon(
+                        Icons.support_agent,
+                        color: Colors.teal,
+                      ),
+                    ),
+                    title: const Text(
+                      "Rehber Öğretmenler",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.teal,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "${guidanceTeachers.length} rehber öğretmen kayıtlı",
+                    ),
+                    children: guidanceTeachers.map((doc) {
+                      var guidanceData = doc.data() as Map<String, dynamic>;
+                      String guidanceId = doc.id;
+                      String guidanceName =
+                          guidanceData['teacherName'] ?? 'Rehber Öğretmen';
+                      String correctPassword = guidanceData['password'] ?? '';
+                      String userRole =
+                          guidanceData['userRole'] ?? 'guidance_teacher';
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.teal.shade100),
+                        ),
+                        child: ListTile(
+                          title: Row(
+                            children: [
+                              Text(
+                                guidanceName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Text(
+                                " (Rehber Öğretmen)",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: const Text("Rehberlik Servisi"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  _sifreDogrulaVaIslemYap(
+                                    context,
+                                    correctPassword,
+                                    guidanceName,
+                                    () {
+                                      _sinifDuzenleDialog(
+                                        context,
+                                        guidanceId,
+                                        '',
+                                        '',
+                                        guidanceName,
+                                        userRole,
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  _sifreDogrulaVaIslemYap(
+                                    context,
+                                    correctPassword,
+                                    guidanceName,
+                                    () {
+                                      _sinifSil(
+                                        context,
+                                        guidanceId,
+                                        guidanceName,
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            _sifreDogrulaVeIslemYardimcisi(
+                              context,
+                              correctPassword,
+                              guidanceName,
+                              guidanceId,
+                              userRole,
+                            );
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              }
+
+              // 4. Normal Sınıf Seviyeleri (1, 2, 3, 4)
+              int offset =
+                  (admins.isNotEmpty ? 1 : 0) +
+                  (branchTeachers.isNotEmpty ? 1 : 0) +
+                  (guidanceTeachers.isNotEmpty ? 1 : 0);
               int gradeIndex = index - offset;
               String gradeVal = seviyeler[gradeIndex];
               List<QueryDocumentSnapshot> siniflar = groupedClasses[gradeVal]!;
@@ -803,7 +946,9 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               if (passwordInputController.text.trim() == correctPassword) {
                 Navigator.pop(context);
 
-                if (userRole == 'branch_teacher' || userRole == 'admin') {
+                if (userRole == 'branch_teacher' ||
+                    userRole == 'admin' ||
+                    userRole == 'guidance_teacher') {
                   // İdareci ve branş öğretmeni direkt ana sayfaya girer
                   Navigator.push(
                     context,

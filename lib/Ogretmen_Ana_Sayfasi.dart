@@ -932,7 +932,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   Future<List<Map<String, dynamic>>> _getOgrenciler() async {
     List<Map<String, dynamic>> ogrenciListesi = [];
 
-    if (widget.userRole == 'admin' || widget.userRole == 'branch_teacher') {
+    if (widget.userRole == 'admin' ||
+        widget.userRole == 'branch_teacher' ||
+        widget.userRole == 'guidance_teacher') {
       String arananClassName = "$_filtreliGrade/$_filtreliBranch";
 
       var classQuery = await FirebaseFirestore.instance
@@ -1007,7 +1009,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   Widget build(BuildContext context) {
     bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
     bool isYetkili =
-        widget.userRole == 'admin' || widget.userRole == 'branch_teacher';
+        widget.userRole == 'admin' ||
+        widget.userRole == 'branch_teacher' ||
+        widget.userRole == 'guidance_teacher';
 
     return Scaffold(
       appBar: AppBar(
@@ -1278,8 +1282,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                             ),
                                             onTap: () {
                                               Navigator.pop(context);
+
+                                              // BURASI DÜZELTİLDİ: Her branş öğretmeninin kendi unique classId'si onun program anahtarı olur
                                               String ogretmenProgramKey =
-                                                  "branch_${FirebaseAuth.instance.currentUser?.uid ?? 'default'}";
+                                                  widget.classId;
+
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
@@ -1290,12 +1297,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                         userRole:
                                                             widget.userRole,
                                                         scheduleDocId:
-                                                            ogretmenProgramKey,
+                                                            ogretmenProgramKey, // Artık her öğretmenin kendi ID'si olacak
                                                         sayfaBasligi:
                                                             "Kişisel Branş Programım",
                                                         canEdit: true,
-                                                        isBranchSchedule:
-                                                            true, // <-- BURASI ÖNEMLİ: Şube listesi açılır
+                                                        isBranchSchedule: true,
                                                       ),
                                                 ),
                                               );
@@ -1307,7 +1313,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                   );
                                 }
                                 // 3. DURUM: İdareci (Admin) ise 3 seçenekli alt menü aç
-                                else if (widget.userRole == 'admin') {
+                                else if (widget.userRole == 'admin' ||
+                                    widget.userRole == 'guidance_teacher') {
+                                  // Yükleniyor göstergesi ile modal açalım
                                   showModalBottomSheet(
                                     context: context,
                                     shape: const RoundedRectangleBorder(
@@ -1320,9 +1328,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Text(
-                                            "İdareci Ders Programı Görüntüleme",
-                                            style: TextStyle(
+                                          Text(
+                                            widget.userRole == 'admin'
+                                                ? "İdareci Ders Programı Görüntüleme"
+                                                : "Rehberlik Ders Programı Görüntüleme",
+                                            style: const TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -1352,74 +1362,118 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                         sayfaBasligi:
                                                             "Seçili Sınıf Programı",
                                                         canEdit: false,
-                                                        isBranchSchedule:
-                                                            false, // Sınıf programı
+                                                        isBranchSchedule: false,
                                                       ),
                                                 ),
                                               );
                                             },
                                           ),
-                                          ListTile(
-                                            leading: const Icon(
-                                              Icons.language,
-                                              color: Colors.blue,
+                                          const SizedBox(height: 10),
+                                          const Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              "Branş Öğretmenleri Programları:",
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey,
+                                              ),
                                             ),
-                                            title: const Text(
-                                              "İngilizce Programı",
-                                            ),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      HaftalikDersProgramiScreen(
-                                                        classId: hedefClassId,
-                                                        isTeacher: true,
-                                                        userRole:
-                                                            widget.userRole,
-                                                        scheduleDocId:
-                                                            'branch_english',
-                                                        sayfaBasligi:
-                                                            "İngilizce Programı",
-                                                        canEdit: false,
-                                                        isBranchSchedule:
-                                                            true, // <-- BURASI ÖNEMLİ: 2-4. sınıf şubelerini listeler
-                                                      ),
-                                                ),
-                                              );
-                                            },
                                           ),
-                                          ListTile(
-                                            leading: const Icon(
-                                              Icons.menu_book,
-                                              color: Colors.orange,
-                                            ),
-                                            title: const Text(
-                                              "Din Kültürü ve Ahlak Bilgisi Programı",
-                                            ),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      HaftalikDersProgramiScreen(
-                                                        classId: hedefClassId,
-                                                        isTeacher: true,
-                                                        userRole:
-                                                            widget.userRole,
-                                                        scheduleDocId:
-                                                            'branch_religion',
-                                                        sayfaBasligi:
-                                                            "Din Kültürü Programı",
-                                                        canEdit: false,
-                                                        isBranchSchedule:
-                                                            true, // <-- BURASI ÖNEMLİ: Sadece 4. sınıf şubelerini listeler
+                                          const SizedBox(height: 5),
+                                          // Firestore'dan branch_teacher olanları dinamik çekelim
+                                          Expanded(
+                                            child: FutureBuilder<QuerySnapshot>(
+                                              future: FirebaseFirestore.instance
+                                                  .collection('classes')
+                                                  .where(
+                                                    'userRole',
+                                                    isEqualTo: 'branch_teacher',
+                                                  )
+                                                  .get(),
+                                              builder: (context, snapshot) {
+                                                if (snapshot.connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return const Center(
+                                                    child:
+                                                        CircularProgressIndicator(),
+                                                  );
+                                                }
+
+                                                if (!snapshot.hasData ||
+                                                    snapshot
+                                                        .data!
+                                                        .docs
+                                                        .isEmpty) {
+                                                  return const Padding(
+                                                    padding: EdgeInsets.all(
+                                                      8.0,
+                                                    ),
+                                                    child: Text(
+                                                      "Kayıtlı branş öğretmeni bulunamadı.",
+                                                    ),
+                                                  );
+                                                }
+
+                                                var ogretmenDocs =
+                                                    snapshot.data!.docs;
+
+                                                return ListView.builder(
+                                                  shrinkWrap: true,
+                                                  itemCount:
+                                                      ogretmenDocs.length,
+                                                  itemBuilder: (context, index) {
+                                                    var doc =
+                                                        ogretmenDocs[index];
+                                                    var data =
+                                                        doc.data()
+                                                            as Map<
+                                                              String,
+                                                              dynamic
+                                                            >;
+                                                    String ogretmenAdi =
+                                                        data['teacherName'] ??
+                                                        data['className'] ??
+                                                        'Branş Öğretmeni';
+                                                    String docId = doc
+                                                        .id; // Bu öğretmenin programının kaydedileceği doküman ID'si
+
+                                                    return ListTile(
+                                                      leading: const Icon(
+                                                        Icons.person,
+                                                        color: Colors.teal,
                                                       ),
-                                                ),
-                                              );
-                                            },
+                                                      title: Text(ogretmenAdi),
+                                                      subtitle: const Text(
+                                                        "Programı Görüntüle",
+                                                      ),
+                                                      onTap: () {
+                                                        Navigator.pop(context);
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                            builder: (context) => HaftalikDersProgramiScreen(
+                                                              classId:
+                                                                  hedefClassId,
+                                                              isTeacher: true,
+                                                              userRole: widget
+                                                                  .userRole,
+                                                              scheduleDocId:
+                                                                  docId, // Öğretmene özel doküman ID'si
+                                                              sayfaBasligi:
+                                                                  "$ogretmenAdi Programı",
+                                                              canEdit:
+                                                                  false, // İdareci sadece görür
+                                                              isBranchSchedule:
+                                                                  true, // Şube seçmeli liste açılır
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                            ),
                                           ),
                                         ],
                                       ),

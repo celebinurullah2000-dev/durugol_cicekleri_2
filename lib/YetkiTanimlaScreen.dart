@@ -34,6 +34,7 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
   final Map<String, List<String>> _rolePermissions = {
     'admin': [],
     'branch_teacher': [],
+    'guidance_teacher': [], // Rehber Öğretmen eklendi[cite: 7]
   };
   bool _isLoading = true;
 
@@ -57,6 +58,9 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
           _rolePermissions['branch_teacher'] = List<String>.from(
             data['branch_teacher'] ?? [],
           );
+          _rolePermissions['guidance_teacher'] = List<String>.from(
+            data['guidance_teacher'] ?? [],
+          );
           _isLoading = false;
         });
       } else {
@@ -79,6 +83,7 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
           .set({
             'admin': _rolePermissions['admin'],
             'branch_teacher': _rolePermissions['branch_teacher'],
+            'guidance_teacher': _rolePermissions['guidance_teacher'],
           });
 
       if (!mounted) return;
@@ -95,8 +100,29 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
     }
   }
 
+  // Toplu seçme/kaldırma yardımcısı
+  bool _tumunuSecebilirMi(String roleKey) {
+    return _rolePermissions[roleKey]!.length == _menuButonlari.length;
+  }
+
+  void _tumunuDegistir(String roleKey, bool? value) {
+    setState(() {
+      if (value == true) {
+        _rolePermissions[roleKey] = _menuButonlari
+            .map((m) => m['key']!)
+            .toList();
+      } else {
+        _rolePermissions[roleKey] = [];
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    bool adminTumuSecili = _tumunuSecebilirMi('admin');
+    bool branchTumuSecili = _tumunuSecebilirMi('branch_teacher');
+    bool guidanceTumuSecili = _tumunuSecebilirMi('guidance_teacher');
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Rol Bazlı Yetki Tanımla"),
@@ -110,10 +136,105 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
                 const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Text(
-                    "İdareci ve Branş öğretmenlerinin ana sayfada hangi butonları görebileceğini buradan seçebilirsiniz.",
+                    "İdareci, Branş ve Rehber öğretmenlerin ana sayfada hangi butonları görebileceğini buradan seçebilirsiniz.",
                     style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ),
+                // --- TOPLU DEĞER ATAMA (HIZLI SEÇİM) KUTUSU ---
+                Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.indigo.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Tüm Menüler İçin\nToplu Seç / Kaldır",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      Wrap(
+                        spacing: 12,
+                        children: [
+                          // İdareci Toplu Checkbox
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "İdareci Tümü",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.purple,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Checkbox(
+                                activeColor: Colors.purple,
+                                value: adminTumuSecili,
+                                onChanged: (val) =>
+                                    _tumunuDegistir('admin', val),
+                              ),
+                            ],
+                          ),
+                          // Branş Öğr. Toplu Checkbox
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "Branş Tümü",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Checkbox(
+                                activeColor: Colors.orange,
+                                value: branchTumuSecili,
+                                onChanged: (val) =>
+                                    _tumunuDegistir('branch_teacher', val),
+                              ),
+                            ],
+                          ),
+                          // Rehber Öğr. Toplu Checkbox
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "Rehber Tümü",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Checkbox(
+                                activeColor: Colors.teal,
+                                value: guidanceTumuSecili,
+                                onChanged: (val) =>
+                                    _tumunuDegistir('guidance_teacher', val),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
                 Expanded(
                   child: ListView.builder(
                     itemCount: _menuButonlari.length,
@@ -127,6 +248,8 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
                       );
                       bool branchGorebilir = _rolePermissions['branch_teacher']!
                           .contains(key);
+                      bool guidanceGorebilir =
+                          _rolePermissions['guidance_teacher']!.contains(key);
 
                       return Card(
                         margin: const EdgeInsets.symmetric(
@@ -139,7 +262,7 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           trailing: Wrap(
-                            spacing: 20,
+                            spacing: 12,
                             children: [
                               // İdareci Checkbox
                               Column(
@@ -190,6 +313,34 @@ class _YetkiTanimlaScreenState extends State<YetkiTanimlaScreen> {
                                               .add(key);
                                         } else {
                                           _rolePermissions['branch_teacher']!
+                                              .remove(key);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              // Rehber Öğretmen Checkbox
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    "Rehber Öğr.",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.teal,
+                                    ),
+                                  ),
+                                  Checkbox(
+                                    activeColor: Colors.teal,
+                                    value: guidanceGorebilir,
+                                    onChanged: (bool? value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          _rolePermissions['guidance_teacher']!
+                                              .add(key);
+                                        } else {
+                                          _rolePermissions['guidance_teacher']!
                                               .remove(key);
                                         }
                                       });
