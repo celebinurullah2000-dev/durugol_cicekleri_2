@@ -7,16 +7,18 @@ class ChatDetailScreen extends StatefulWidget {
   final String chatId;
   final String chatTitle;
   final String currentUserId;
-  final String currentUserName; // <--- Burada tanımlı olmalı
+  final String currentUserName;
   final bool isTeacher;
+  final String userRole; // <--- Kullanıcının rolü eklendi
 
   const ChatDetailScreen({
     Key? key,
     required this.chatId,
     required this.chatTitle,
     required this.currentUserId,
-    required this.currentUserName, // <--- Burada required olmalı
+    required this.currentUserName,
     required this.isTeacher,
+    this.userRole = 'classroom_teacher', // Varsayılan rol
   }) : super(key: key);
 
   @override
@@ -84,7 +86,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  // Uygunsuz Mesajı Silme (Öğretmen veya kendi mesajıysa)
+  // Mesajı Silme Fonksiyonu
   void _deleteMessage(String messageId) async {
     await _firestore
         .collection('chats')
@@ -105,7 +107,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       body: Column(
         children: [
           // --- GRUP ÜYELERİ BİLGİ ÇUBUĞU (Sadece gruplarda görünür) ---
-          // --- GRUP ÜYELERİ BİLGİ ÇUBUĞU ---
           StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('chats')
@@ -185,14 +186,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     var data = doc.data() as Map<String, dynamic>;
                     String messageId = doc.id;
                     String senderId = data['senderId'] ?? '';
-                    String senderName =
-                        data['senderName'] ?? 'Biri'; // <--- BURASI EKLENDİ
+                    String senderName = data['senderName'] ?? 'Biri';
                     String text = data['text'] ?? '';
                     String date = data['formattedDate'] ?? '';
                     String time = data['formattedTime'] ?? '';
 
                     bool isMe = senderId == widget.currentUserId;
-                    bool canDelete = widget.isTeacher || isMe;
+
+                    // SİLME YETKİSİ GÜNCELLENDİ:
+                    // Sadece Sınıf Öğretmeni (classroom_teacher) ise veya mesajı kendi attıysa silebilir.
+                    // İdareci, Branş veya Rehber öğretmen artık silme yetkisine sahip değil.
+                    bool canDelete = (widget.userRole == 'classroom_teacher');
 
                     return Align(
                       alignment: isMe

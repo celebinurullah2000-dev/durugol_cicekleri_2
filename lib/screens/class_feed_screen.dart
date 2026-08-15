@@ -9,6 +9,8 @@ class ClassFeedScreen extends StatefulWidget {
   final bool isTeacher; // Öğretmen mi öğrenci mi olduğunu anlamak için
   final String classId; // Hangi sınıfın duvarı?
   final String className; // Başlıkta yazacak sınıf adı (Örn: 4/C)
+  final String
+  userRole; // Kullanıcının rolü (classroom_teacher, admin vb.)[cite: 5]
 
   const ClassFeedScreen({
     super.key,
@@ -17,6 +19,7 @@ class ClassFeedScreen extends StatefulWidget {
     required this.isTeacher,
     required this.classId,
     required this.className,
+    this.userRole = 'classroom_teacher', // Varsayılan değer[cite: 5]
   });
 
   @override
@@ -73,7 +76,7 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
     });
   }
 
-  // Gönderi Silme (Öğretmen veya Kendi Gönderisi)
+  // Gönderi Silme
   void _deletePost(String postId) async {
     await _firestore.collection('class_feed').doc(postId).delete();
   }
@@ -148,15 +151,15 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
                     var doc = docs[index];
                     var data = doc.data() as Map<String, dynamic>;
                     String postId = doc.id;
-                    String authorId = data['authorId'] ?? '';
                     String authorName = data['authorName'] ?? 'İsimsiz';
                     String text = data['text'] ?? '';
                     String date = data['formattedDate'] ?? '';
                     String time = data['formattedTime'] ?? '';
 
-                    // Silme yetkisi: Öğretmense veya kendi postuysa silebilir
-                    bool canDelete =
-                        widget.isTeacher || (widget.currentUserId == authorId);
+                    // SİLME YETKİSİ GÜNCELLENDİ:
+                    // Sadece Sınıf Öğretmeni (classroom_teacher) ise veya gönderiyi yazan kendi kişisiyse silebilir.
+                    // İdareci, Branş veya Rehber öğretmen artık silme yetkisine sahip değil.[cite: 5]
+                    bool canDelete = (widget.userRole == 'classroom_teacher');
 
                     return Card(
                       margin: const EdgeInsets.symmetric(

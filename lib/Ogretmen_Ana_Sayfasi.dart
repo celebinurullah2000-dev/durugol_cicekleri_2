@@ -1542,6 +1542,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                       classId: hedefClassId,
                                                       className:
                                                           widget.className,
+                                                      userRole: widget.userRole,
                                                     ),
                                               ),
                                             );
@@ -1575,6 +1576,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                           "ogretmen_id",
                                                       currentUserName:
                                                           "Öğretmen",
+                                                      userRole: widget
+                                                          .userRole, // <--- Rolü buraya da ekleyin
                                                     ),
                                               ),
                                             );

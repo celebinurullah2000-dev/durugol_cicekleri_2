@@ -8,12 +8,14 @@ class TeacherChatAuditScreen extends StatelessWidget {
   final String classId;
   final String currentUserId;
   final String currentUserName;
+  final String userRole; // <--- Rol parametresi
 
   const TeacherChatAuditScreen({
     Key? key,
     required this.classId,
     required this.currentUserId,
     required this.currentUserName,
+    this.userRole = 'admin',
   }) : super(key: key);
 
   @override
@@ -25,11 +27,9 @@ class TeacherChatAuditScreen extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Sınıftaki tüm sohbetleri çekiyoruz (öğretmenin dahil olduğu veya tüm sınıf sohbetleri)
         stream: FirebaseFirestore.instance
             .collection('chats')
             .where('classId', isEqualTo: classId)
-            //.orderBy('lastMessageTime', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -43,7 +43,7 @@ class TeacherChatAuditScreen extends StatelessWidget {
           var chats = snapshot.data!.docs;
 
           if (chats.isEmpty) {
-            return Center(
+            return const Center(
               child: Text(
                 "Bu sınıfa ait sohbet bulunamadı.",
                 textAlign: TextAlign.center,
@@ -84,7 +84,6 @@ class TeacherChatAuditScreen extends StatelessWidget {
                   ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    // Öğretmen bu sohbetin içine girip tüm mesajları okuyabilir ve silebilir
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -93,8 +92,9 @@ class TeacherChatAuditScreen extends StatelessWidget {
                           chatTitle: title,
                           currentUserId: currentUserId,
                           currentUserName: currentUserName,
-                          isTeacher:
-                              true, // Öğretmen yetkisiyle girer (istediği mesajı silebilir)
+                          isTeacher: true,
+                          userRole:
+                              userRole, // <--- Burada 'widget.' yerine doğrudan 'userRole' kullanılıyor
                         ),
                       ),
                     );

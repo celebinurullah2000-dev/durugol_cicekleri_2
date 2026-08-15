@@ -99,13 +99,18 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(
-                userRole == 'admin' ? "İdareciyi Düzenle" : "Sınıfı Düzenle",
+                userRole == 'admin'
+                    ? "İdareciyi Düzenle"
+                    : (userRole == 'guidance_teacher'
+                          ? "Rehber Öğretmeni Düzenle"
+                          : "Sınıfı Düzenle"),
               ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (userRole != 'admin') ...[
+                    if (userRole != 'admin' &&
+                        userRole != 'guidance_teacher') ...[
                       DropdownButtonFormField<String>(
                         initialValue: selectedGrade,
                         decoration: const InputDecoration(
@@ -155,7 +160,9 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                       decoration: InputDecoration(
                         labelText: userRole == 'admin'
                             ? "İdareci Adı Soyadı"
-                            : "Öğretmen Adı Soyadı",
+                            : (userRole == 'guidance_teacher'
+                                  ? "Rehber Öğretmen Adı Soyadı"
+                                  : "Öğretmen Adı Soyadı"),
                         border: const OutlineInputBorder(),
                       ),
                     ),
@@ -174,7 +181,9 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
 
                     String yeniClassName = userRole == 'admin'
                         ? "İdareci: $yeniTeacherName"
-                        : "$selectedGrade/$selectedBranch";
+                        : (userRole == 'guidance_teacher'
+                              ? "Rehber Öğretmen: $yeniTeacherName"
+                              : "$selectedGrade/$selectedBranch");
 
                     bool? onay = await showDialog<bool>(
                       context: context,
@@ -202,8 +211,16 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                           .doc(classId)
                           .update({
                             'className': yeniClassName,
-                            'grade': userRole == 'admin' ? '' : selectedGrade,
-                            'branch': userRole == 'admin' ? '' : selectedBranch,
+                            'grade':
+                                (userRole == 'admin' ||
+                                    userRole == 'guidance_teacher')
+                                ? ''
+                                : selectedGrade,
+                            'branch':
+                                (userRole == 'admin' ||
+                                    userRole == 'guidance_teacher')
+                                ? ''
+                                : selectedBranch,
                             'teacherName': yeniTeacherName,
                           });
 
@@ -271,7 +288,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
       appBar: AppBar(
         title: const Text("Kullanıcı Girişi"),
         actions: [
-          // SÜPER ADMIN (MASTER) İSENİZ GÖRÜNEN "YETKİ TANIMLA" DÜĞMESİ
           if (widget.isTeacherMaster)
             IconButton(
               icon: const Icon(Icons.security, color: Colors.amberAccent),
@@ -283,8 +299,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               },
             ),
-
-          // Çıkış Butonu
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -351,11 +365,14 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           }
 
           List<String> seviyeler = ['1', '2', '3', '4'];
+
+          // DOĞRU DİZİN VE KART SAYISI HESAPLAMASI
+          int adminCount = admins.isNotEmpty ? 1 : 0;
+          int branchCount = branchTeachers.isNotEmpty ? 1 : 0;
+          int guidanceCount = guidanceTeachers.isNotEmpty ? 1 : 0;
+
           int totalItemCount =
-              seviyeler.length +
-              (admins.isNotEmpty ? 1 : 0) +
-              (branchTeachers.isNotEmpty ? 1 : 0);
-          (guidanceTeachers.isNotEmpty ? 1 : 0);
+              adminCount + branchCount + guidanceCount + seviyeler.length;
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -489,7 +506,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               }
 
               // 2. Branş Öğretmenleri Kartı
-              int branchTeacherCardIndex = admins.isNotEmpty ? 1 : 0;
+              int branchTeacherCardIndex = adminCount;
               if (branchTeachers.isNotEmpty &&
                   index == branchTeacherCardIndex) {
                 return Card(
@@ -623,9 +640,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               }
 
               // 3. Rehber Öğretmenler Kartı
-              int guidanceCardIndex =
-                  (admins.isNotEmpty ? 1 : 0) +
-                  (branchTeachers.isNotEmpty ? 1 : 0);
+              int guidanceCardIndex = adminCount + branchCount;
               if (guidanceTeachers.isNotEmpty && index == guidanceCardIndex) {
                 return Card(
                   elevation: 3,
@@ -761,142 +776,152 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               }
 
               // 4. Normal Sınıf Seviyeleri (1, 2, 3, 4)
-              int offset =
-                  (admins.isNotEmpty ? 1 : 0) +
-                  (branchTeachers.isNotEmpty ? 1 : 0) +
-                  (guidanceTeachers.isNotEmpty ? 1 : 0);
+              int offset = adminCount + branchCount + guidanceCount;
               int gradeIndex = index - offset;
-              String gradeVal = seviyeler[gradeIndex];
-              List<QueryDocumentSnapshot> siniflar = groupedClasses[gradeVal]!;
 
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ExpansionTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.indigo.shade50,
-                    child: Text(
-                      "$gradeVal.",
+              if (gradeIndex >= 0 && gradeIndex < seviyeler.length) {
+                String gradeVal = seviyeler[gradeIndex];
+                List<QueryDocumentSnapshot> siniflar =
+                    groupedClasses[gradeVal] ?? [];
+
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 4,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ExpansionTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.indigo.shade50,
+                      child: Text(
+                        "$gradeVal.",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      "$gradeVal. Sınıflar",
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
+                        fontSize: 16,
                         color: Colors.indigo,
                       ),
                     ),
-                  ),
-                  title: Text(
-                    "$gradeVal. Sınıflar",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.indigo,
-                    ),
-                  ),
-                  subtitle: Text("${siniflar.length} kayıtlı öğe"),
-                  children: [
-                    if (siniflar.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          "Bu seviyede henüz kayıt yok.",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    else
-                      ...siniflar.map((doc) {
-                        var classData = doc.data() as Map<String, dynamic>;
-                        String classId = doc.id;
-                        String className = classData['className'] ?? 'Sınıf';
-                        String teacherName =
-                            classData['teacherName'] ?? 'Belirtilmemiş';
-                        String correctPassword = classData['password'] ?? '';
-                        String grade = classData['grade'] ?? '1';
-                        String branch = classData['branch'] ?? 'A';
-                        String userRole =
-                            classData['userRole'] ?? 'classroom_teacher';
+                    subtitle: Text("${siniflar.length} kayıtlı öğe"),
+                    children: [
+                      if (siniflar.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            "Bu seviyede henüz kayıt yok.",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      else
+                        ...siniflar.map((doc) {
+                          var classData = doc.data() as Map<String, dynamic>;
+                          String classId = doc.id;
+                          String className = classData['className'] ?? 'Sınıf';
+                          String teacherName =
+                              classData['teacherName'] ?? 'Belirtilmemiş';
+                          String correctPassword = classData['password'] ?? '';
+                          String grade = classData['grade'] ?? '1';
+                          String branch = classData['branch'] ?? 'A';
+                          String userRole =
+                              classData['userRole'] ?? 'classroom_teacher';
 
-                        return Container(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: ListTile(
-                            title: Text(
-                              className,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          return Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
                             ),
-                            subtitle: Text("Yetkili: $teacherName"),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.blue,
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    _sifreDogrulaVaIslemYap(
-                                      context,
-                                      correctPassword,
-                                      className,
-                                      () {
-                                        _sinifDuzenleDialog(
-                                          context,
-                                          classId,
-                                          grade,
-                                          branch,
-                                          teacherName,
-                                          userRole,
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    _sifreDogrulaVaIslemYap(
-                                      context,
-                                      correctPassword,
-                                      className,
-                                      () {
-                                        _sinifSil(context, classId, className);
-                                      },
-                                    );
-                                  },
-                                ),
-                              ],
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
                             ),
-                            onTap: () {
-                              _sifreDogrulaVeIslemYardimcisi(
-                                context,
-                                correctPassword,
+                            child: ListTile(
+                              title: Text(
                                 className,
-                                classId,
-                                userRole,
-                              );
-                            },
-                          ),
-                        );
-                      }),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              );
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text("Yetkili: $teacherName"),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.blue,
+                                      size: 20,
+                                    ),
+                                    onPressed: () {
+                                      _sifreDogrulaVaIslemYap(
+                                        context,
+                                        correctPassword,
+                                        className,
+                                        () {
+                                          _sinifDuzenleDialog(
+                                            context,
+                                            classId,
+                                            grade,
+                                            branch,
+                                            teacherName,
+                                            userRole,
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    onPressed: () {
+                                      _sifreDogrulaVaIslemYap(
+                                        context,
+                                        correctPassword,
+                                        className,
+                                        () {
+                                          _sinifSil(
+                                            context,
+                                            classId,
+                                            className,
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                              onTap: () {
+                                _sifreDogrulaVeIslemYardimcisi(
+                                  context,
+                                  correctPassword,
+                                  className,
+                                  classId,
+                                  userRole,
+                                );
+                              },
+                            ),
+                          );
+                        }),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                );
+              }
+
+              return const SizedBox.shrink();
             },
           );
         },
@@ -949,7 +974,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 if (userRole == 'branch_teacher' ||
                     userRole == 'admin' ||
                     userRole == 'guidance_teacher') {
-                  // İdareci ve branş öğretmeni direkt ana sayfaya girer
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -957,13 +981,11 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                         classId: classId,
                         className: className,
                         userRole: userRole,
-                        assignedClassIds:
-                            [], // İlk girişte boş gelebilir, ana sayfada Firestore'dan okunur
+                        assignedClassIds: [],
                       ),
                     ),
                   );
                 } else {
-                  // Klasik Sınıf Öğretmeni
                   Navigator.push(
                     context,
                     MaterialPageRoute(
