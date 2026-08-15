@@ -4,11 +4,22 @@ import 'package:flutter/material.dart';
 class HaftalikDersProgramiScreen extends StatefulWidget {
   final String classId;
   final bool isTeacher;
+  final String userRole;
+  final String scheduleDocId; // Firebase'den okunacak yol/doküman adı
+  final String sayfaBasligi; // AppBar başlığı
+  final bool canEdit; // Düzenleme yetkisi var mı?
+  final bool
+  isBranchSchedule; // true ise ders adı yerine şube (2/A vb.) seçilir
 
   const HaftalikDersProgramiScreen({
     super.key,
     required this.classId,
     required this.isTeacher,
+    this.userRole = 'classroom_teacher',
+    this.scheduleDocId = 'haftalik',
+    this.sayfaBasligi = "Haftalık Ders Programı",
+    this.canEdit = false,
+    this.isBranchSchedule = false,
   });
 
   @override
@@ -28,7 +39,9 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
     'Cuma',
   ];
 
+  // Sınıf programları için standart ders listesi (Boş ve Teneffüs dahil)
   final List<String> dersSecenekleri = [
+    'Boş',
     'Teneffüs',
     'Türkçe',
     'Matematik',
@@ -39,12 +52,30 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
     'Beden Eğitimi ve Oyun',
     'Serbest Etkinlikler',
     'Oyun ve Fiziki Etkinlikler',
-    'Modern Dans',
-    'Halk Oyunları',
-    'Zeka Oyunları',
-    'Flüt',
-    'Ödev',
+    'Etüt: Modern Dans',
+    'Etüt: Halk Oyunları',
+    'Etüt: Zeka Oyunları',
+    'Etüt: Ödev',
+    'Etüt: Satranç',
+    'Etüt: Drama',
+    'Etüt: Resim',
+    'Etüt: Müzik & Ritm',
+    'Etüt: Müzik & Enstrüman',
+    'Etüt: Kodlama',
+    'Etüt: Robotik',
+    'Etüt: Yüzme',
+    'Etüt: Jimnastik',
+    'Etüt: Basketbol',
+    'Etüt: Voleybol',
+    'Etüt: Futbol',
+    'Etüt: Tenis',
+    'Etüt: Atletizm',
+    'Etüt: Masa Tenisi',
   ];
+
+  // Branş/Şube programları için veritabanından dinamik olarak çekilecek şube listesi
+  List<String> dinamikSubeler = ['Boş', 'Teneffüs'];
+  bool subelerYukleniyor = true;
 
   late List<TextEditingController> saatControllers;
   late List<List<String>> dersMatrisi;
@@ -53,16 +84,21 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: widget.isTeacher ? 2 : 1,
-      vsync: this,
-    );
+    _tabController = TabController(length: widget.canEdit ? 2 : 1, vsync: this);
 
     saatControllers = List.generate(
       15,
       (index) => TextEditingController(text: "${9 + (index ~/ 2)}:00"),
     );
-    dersMatrisi = List.generate(15, (_) => List.generate(5, (_) => 'Teneffüs'));
+    dersMatrisi = List.generate(15, (_) => List.generate(5, (_) => 'Boş'));
+
+    // Eğer branş programı ise şubeleri Firebase'den çek
+    if (widget.isBranchSchedule) {
+      _subeleriGetir();
+    } else {
+      subelerYukleniyor = false;
+    }
+
     programiGetir();
   }
 
@@ -75,31 +111,95 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
     super.dispose();
   }
 
-  Future<void> programiGetir() async {
+  // Firebase'den classes koleksiyonundaki className değerlerini çekme
+  Future<void> _subeleriGetir() async {
     try {
-      var doc = await FirebaseFirestore.instance
+      var querySnapshot = await FirebaseFirestore.instance
           .collection('classes')
-          .doc(widget.classId)
-          .collection('program')
-          .doc('haftalik')
           .get();
 
-      if (doc.exists) {
-        var data = doc.data()!;
-        if (data.containsKey('saatler')) {
-          List<dynamic> savedSaatler = data['saatler'];
-          for (int i = 0; i < savedSaatler.length && i < 15; i++) {
-            saatControllers[i].text = savedSaatler[i].toString();
+      List<String> subeler = ['Boş', 'Teneffüs'];
+
+      for (var doc in querySnapshot.docs) {
+        var data = doc.data();
+        String? className = data['className']; // Örn: "2/A", "4/B"
+
+        if (className != null && className.isNotEmpty) {
+          // --- BURASI EKLENDİ / GÜNCELLENDİ ---
+          // Sadece gerçek sınıf/şube isimlerini almak için içinde "/" geçip geçmediğini
+          // ve "Branş" veya "İdareci" gibi ifadeler içermediğini kontrol ediyoruz.
+          if (className.contains('/') &&
+              !className.contains('Öğretmen') &&
+              !className.contains('İdareci')) {
+            if (widget.scheduleDocId == 'branch_religion') {
+              // Sadece 4. sınıflar
+              if (className.startsWith('4/')) {
+                subeler.add(className);
+              }
+            } else if (widget.scheduleDocId == 'branch_english') {
+              // 2, 3 ve 4. sınıflar
+              if (className.startsWith('2/') ||
+                  className.startsWith('3/') ||
+                  className.startsWith('4/')) {
+                subeler.add(className);
+              }
+            } else {
+              // Kişisel branş programı için tüm geçerli sınıflar
+              subeler.add(className);
+            }
           }
         }
-        if (data.containsKey('satirlar')) {
-          List<dynamic> savedSatirlar = data['satirlar'];
-          for (int i = 0; i < savedSatirlar.length && i < 15; i++) {
-            var satirItem = savedSatirlar[i];
-            if (satirItem is Map && satirItem.containsKey('gunler')) {
-              List<dynamic> gunlerListesi = satirItem['gunler'];
-              for (int j = 0; j < gunlerListesi.length && j < 5; j++) {
-                dersMatrisi[i][j] = gunlerListesi[j].toString();
+      }
+
+      // Şube listesini sıralama
+      subeler.sort();
+
+      setState(() {
+        dinamikSubeler = subeler;
+        subelerYukleniyor = false;
+      });
+    } catch (e) {
+      setState(() {
+        subelerYukleniyor = false;
+      });
+    }
+  }
+
+  Future<void> programiGetir() async {
+    try {
+      DocumentReference docRef;
+      if (widget.scheduleDocId == 'haftalik') {
+        docRef = FirebaseFirestore.instance
+            .collection('classes')
+            .doc(widget.classId)
+            .collection('program')
+            .doc(widget.scheduleDocId);
+      } else {
+        docRef = FirebaseFirestore.instance
+            .collection('branch_schedules')
+            .doc(widget.scheduleDocId);
+      }
+
+      var doc = await docRef.get();
+
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          if (data.containsKey('saatler')) {
+            List<dynamic> savedSaatler = data['saatler'];
+            for (int i = 0; i < savedSaatler.length && i < 15; i++) {
+              saatControllers[i].text = savedSaatler[i].toString();
+            }
+          }
+          if (data.containsKey('satirlar')) {
+            List<dynamic> savedSatirlar = data['satirlar'];
+            for (int i = 0; i < savedSatirlar.length && i < 15; i++) {
+              var satirItem = savedSatirlar[i];
+              if (satirItem is Map && satirItem.containsKey('gunler')) {
+                List<dynamic> gunlerListesi = satirItem['gunler'];
+                for (int j = 0; j < gunlerListesi.length && j < 5; j++) {
+                  dersMatrisi[i][j] = gunlerListesi[j].toString();
+                }
               }
             }
           }
@@ -129,12 +229,20 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
         matrisVerisi.add({'gunler': satirListesi});
       }
 
-      await FirebaseFirestore.instance
-          .collection('classes')
-          .doc(widget.classId)
-          .collection('program')
-          .doc('haftalik')
-          .set({'saatler': saatlerListesi, 'satirlar': matrisVerisi});
+      DocumentReference docRef;
+      if (widget.scheduleDocId == 'haftalik') {
+        docRef = FirebaseFirestore.instance
+            .collection('classes')
+            .doc(widget.classId)
+            .collection('program')
+            .doc(widget.scheduleDocId);
+      } else {
+        docRef = FirebaseFirestore.instance
+            .collection('branch_schedules')
+            .doc(widget.scheduleDocId);
+      }
+
+      await docRef.set({'saatler': saatlerListesi, 'satirlar': matrisVerisi});
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -159,10 +267,10 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Haftalık Ders Programı"),
+        title: Text(widget.sayfaBasligi),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
-        bottom: widget.isTeacher
+        bottom: widget.canEdit
             ? TabBar(
                 controller: _tabController,
                 indicatorColor: Colors.white,
@@ -181,12 +289,11 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
               )
             : null,
       ),
-      body: yukleniyor
+      body: (yukleniyor || subelerYukleniyor)
           ? const Center(child: CircularProgressIndicator())
-          : widget.isTeacher
+          : widget.canEdit
           ? TabBarView(
               controller: _tabController,
-              // physics'i kapatarak sekme kaydırma çakışmalarını önlüyoruz
               physics: const NeverScrollableScrollPhysics(),
               children: [_buildGoruntulemeSekmesi(), _buildDuzenlemeSekmesi()],
             )
@@ -195,17 +302,15 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
   }
 
   // --- 1. SEKME: PROGRAMI GÖRÜNTÜLE ---
-  // --- 1. SEKME: PROGRAMI GÖRÜNTÜLE (Mobil Uyumlu Gün Kartları Yapısı) ---
   Widget _buildGoruntulemeSekmesi() {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
-      itemCount: 5, // 5 gün (Pazartesi - Cuma)
+      itemCount: 5,
       itemBuilder: (context, gunIndex) {
         return Card(
           elevation: 2,
           margin: const EdgeInsets.symmetric(vertical: 6),
           child: ExpansionTile(
-            // Varsayılan olarak bugünün günü açık gelebilir veya hepsi kapalı olabilir
             initiallyExpanded: gunIndex == 0,
             title: Text(
               gunler[gunIndex],
@@ -246,14 +351,15 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
                               style: TextStyle(
                                 color: i == 7 ? Colors.deepOrange : Colors.grey,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                                letterSpacing: 2,
+                                fontSize: 10,
+                                letterSpacing: 1.5,
                               ),
                             ),
                           );
                         }
 
-                        String dersAdi = dersMatrisi[i][gunIndex];
+                        String deger = dersMatrisi[i][gunIndex];
+                        bool bosMu = (deger == 'Boş' || deger.isEmpty);
 
                         return Container(
                           padding: const EdgeInsets.symmetric(
@@ -262,33 +368,39 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
                           ),
                           margin: const EdgeInsets.symmetric(vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
+                            color: bosMu ? Colors.white : Colors.grey.shade50,
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(color: Colors.grey.shade200),
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Saat
-                              Text(
-                                saatControllers[i].text,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black54,
+                              SizedBox(
+                                width: 75,
+                                child: Text(
+                                  saatControllers[i].text,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black54,
+                                  ),
                                 ),
                               ),
-                              // Ders Adı
-                              Text(
-                                dersAdi,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: dersAdi == 'Teneffüs'
-                                      ? Colors.grey
-                                      : Colors.black87,
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    bosMu ? "-" : deger.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: bosMu
+                                          ? Colors.grey.shade400
+                                          : Colors.black87,
+                                    ),
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 75),
                             ],
                           ),
                         );
@@ -356,9 +468,11 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            "Günlere Göre Ders Atama:",
-            style: TextStyle(
+          Text(
+            widget.isBranchSchedule
+                ? "Günlere Göre Şube Atama:"
+                : "Günlere Göre Ders Atama:",
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
               color: Colors.grey,
@@ -377,8 +491,10 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
                     fontSize: 15,
                   ),
                 ),
-                subtitle: const Text(
-                  "Bu günün ders programını ayarlamak için dokunun",
+                subtitle: Text(
+                  widget.isBranchSchedule
+                      ? "Bu günün şube programını ayarlamak için dokunun"
+                      : "Bu günün ders programını ayarlamak için dokunun",
                 ),
                 children: _buildGunDersSecimListesi(gunIndex),
               ),
@@ -411,6 +527,11 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
 
   List<Widget> _buildGunDersSecimListesi(int gunIndex) {
     List<Widget> liste = [];
+
+    // Hangi listenin seçileceğini belirliyoruz (Sınıf için dersSecenekleri, Branş için dinamikSubeler)
+    List<String> seceneklerListesi = widget.isBranchSchedule
+        ? dinamikSubeler
+        : dersSecenekleri;
 
     for (int i = 0; i < 15; i++) {
       bool isTenOrOgle =
@@ -456,18 +577,18 @@ class _HaftalikDersProgramiScreenState extends State<HaftalikDersProgramiScreen>
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue:
-                        dersSecenekleri.contains(dersMatrisi[i][gunIndex])
+                        seceneklerListesi.contains(dersMatrisi[i][gunIndex])
                         ? dersMatrisi[i][gunIndex]
-                        : 'Teneffüs',
+                        : 'Boş',
                     isExpanded: true,
                     decoration: const InputDecoration(
                       isDense: true,
                       border: OutlineInputBorder(),
                     ),
-                    items: dersSecenekleri.map((String ders) {
+                    items: seceneklerListesi.map((String item) {
                       return DropdownMenuItem<String>(
-                        value: ders,
-                        child: Text(ders, style: const TextStyle(fontSize: 13)),
+                        value: item,
+                        child: Text(item, style: const TextStyle(fontSize: 13)),
                       );
                     }).toList(),
                     onChanged: (String? yeniDeger) {

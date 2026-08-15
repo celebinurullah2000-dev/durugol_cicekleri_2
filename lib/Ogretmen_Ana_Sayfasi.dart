@@ -1195,16 +1195,237 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     await _getAktifHedefClassId();
                                 if (hedefClassId == null) return;
                                 if (!mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        HaftalikDersProgramiScreen(
-                                          classId: hedefClassId,
-                                          isTeacher: true,
-                                        ),
-                                  ),
-                                );
+
+                                // 1. DURUM: Sınıf Öğretmeni ise doğrudan 2 sekmeli sınıf programına git
+                                if (widget.userRole == 'classroom_teacher') {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          HaftalikDersProgramiScreen(
+                                            classId: hedefClassId,
+                                            isTeacher: true,
+                                            userRole: widget.userRole,
+                                            scheduleDocId: 'haftalik',
+                                            sayfaBasligi: "Sınıf Ders Programı",
+                                            canEdit: true,
+                                            isBranchSchedule:
+                                                false, // Sınıf programı ders listesi kullanır
+                                          ),
+                                    ),
+                                  );
+                                }
+                                // 2. DURUM: Branş Öğretmeni ise 2 seçenekli alt menü aç
+                                else if (widget.userRole == 'branch_teacher') {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(20),
+                                      ),
+                                    ),
+                                    builder: (context) => Container(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            "Ders Programı Seçimi",
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const Divider(),
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.class_,
+                                              color: Colors.indigo,
+                                            ),
+                                            title: const Text(
+                                              "Seçili Sınıfın Ders Programını Gör",
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      HaftalikDersProgramiScreen(
+                                                        classId: hedefClassId,
+                                                        isTeacher: true,
+                                                        userRole:
+                                                            widget.userRole,
+                                                        scheduleDocId:
+                                                            'haftalik',
+                                                        sayfaBasligi:
+                                                            "Seçili Sınıf Programı",
+                                                        canEdit: false,
+                                                        isBranchSchedule:
+                                                            false, // Sınıf programı
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.person,
+                                              color: Colors.teal,
+                                            ),
+                                            title: const Text(
+                                              "Kendi Programını Gör / Düzenle",
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              String ogretmenProgramKey =
+                                                  "branch_${FirebaseAuth.instance.currentUser?.uid ?? 'default'}";
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      HaftalikDersProgramiScreen(
+                                                        classId: hedefClassId,
+                                                        isTeacher: true,
+                                                        userRole:
+                                                            widget.userRole,
+                                                        scheduleDocId:
+                                                            ogretmenProgramKey,
+                                                        sayfaBasligi:
+                                                            "Kişisel Branş Programım",
+                                                        canEdit: true,
+                                                        isBranchSchedule:
+                                                            true, // <-- BURASI ÖNEMLİ: Şube listesi açılır
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+                                // 3. DURUM: İdareci (Admin) ise 3 seçenekli alt menü aç
+                                else if (widget.userRole == 'admin') {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(20),
+                                      ),
+                                    ),
+                                    builder: (context) => Container(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            "İdareci Ders Programı Görüntüleme",
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const Divider(),
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.class_,
+                                              color: Colors.indigo,
+                                            ),
+                                            title: const Text(
+                                              "Seçili Sınıfın Programı",
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      HaftalikDersProgramiScreen(
+                                                        classId: hedefClassId,
+                                                        isTeacher: true,
+                                                        userRole:
+                                                            widget.userRole,
+                                                        scheduleDocId:
+                                                            'haftalik',
+                                                        sayfaBasligi:
+                                                            "Seçili Sınıf Programı",
+                                                        canEdit: false,
+                                                        isBranchSchedule:
+                                                            false, // Sınıf programı
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.language,
+                                              color: Colors.blue,
+                                            ),
+                                            title: const Text(
+                                              "İngilizce Programı",
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      HaftalikDersProgramiScreen(
+                                                        classId: hedefClassId,
+                                                        isTeacher: true,
+                                                        userRole:
+                                                            widget.userRole,
+                                                        scheduleDocId:
+                                                            'branch_english',
+                                                        sayfaBasligi:
+                                                            "İngilizce Programı",
+                                                        canEdit: false,
+                                                        isBranchSchedule:
+                                                            true, // <-- BURASI ÖNEMLİ: 2-4. sınıf şubelerini listeler
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.menu_book,
+                                              color: Colors.orange,
+                                            ),
+                                            title: const Text(
+                                              "Din Kültürü ve Ahlak Bilgisi Programı",
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      HaftalikDersProgramiScreen(
+                                                        classId: hedefClassId,
+                                                        isTeacher: true,
+                                                        userRole:
+                                                            widget.userRole,
+                                                        scheduleDocId:
+                                                            'branch_religion',
+                                                        sayfaBasligi:
+                                                            "Din Kültürü Programı",
+                                                        canEdit: false,
+                                                        isBranchSchedule:
+                                                            true, // <-- BURASI ÖNEMLİ: Sadece 4. sınıf şubelerini listeler
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
                               },
                             ),
                             _buildYetkiliHizliIslemButonu(
