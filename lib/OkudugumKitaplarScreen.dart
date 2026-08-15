@@ -117,7 +117,7 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
       appBar: AppBar(title: const Text("Okuduğum Kitaplar")),
       body: Column(
         children: [
-          // 1. LOTTIE ANİMASYONU (Artık StreamBuilder'ın dışında, sabit duruyor)
+          // 1. LOTTIE ANİMASYONU
           SizedBox(
             height: 120,
             child: Lottie.asset(
@@ -128,7 +128,7 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
             ),
           ),
 
-          // 2. KİTAP EKLEME ALANI (Üste almak kullanım açısından da daha kolay olur)
+          // 2. KİTAP EKLEME ALANI
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
@@ -163,7 +163,7 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
           ),
           const SizedBox(height: 10),
 
-          // 3. LİSTE VE ÖZET KARTI (Veriye bağlı kısımlar StreamBuilder içinde)
+          // 3. LİSTE VE ÖZET KARTI
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -173,6 +173,11 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
                   .orderBy('tarih', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
+                // Bağlantı kopuksa veya veri henüz gelmediyse yükleniyor göster
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -182,7 +187,11 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
                 int toplamSayfa = 0;
 
                 for (var doc in docs) {
-                  toplamSayfa += (doc['sayfaSayisi'] as num).toInt();
+                  toplamSayfa +=
+                      ((doc.data() as Map<String, dynamic>)['sayfaSayisi']
+                                  as num? ??
+                              0)
+                          .toInt();
                 }
 
                 String mevcutOdul = Oyunlastirma.getOdul(toplamSayfa);
@@ -216,17 +225,25 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
                         itemCount: toplamKitap,
                         itemBuilder: (context, index) {
                           var doc = docs[index];
-                          DateTime tarih = (doc['tarih'] as Timestamp).toDate();
-                          String tarihStr =
-                              "${tarih.day}.${tarih.month}.${tarih.year}";
+                          var data = doc.data() as Map<String, dynamic>;
+
+                          // Tarih alanı serverTimestamp olduğu için ilk eklemede anlık null gelebilir.
+                          // Bu kontrol ile uygulamanın patlaması engellenir.
+                          Timestamp? timestamp = data['tarih'] as Timestamp?;
+                          String tarihStr = "Yükleniyor...";
+                          if (timestamp != null) {
+                            DateTime tarih = timestamp.toDate();
+                            tarihStr =
+                                "${tarih.day}.${tarih.month}.${tarih.year}";
+                          }
 
                           return ListTile(
-                            title: Text(doc['kitapAdi']),
+                            title: Text(data['kitapAdi'] ?? ''),
                             subtitle: Text(tarihStr),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text("${doc['sayfaSayisi']} S."),
+                                Text("${data['sayfaSayisi'] ?? 0} S."),
                                 IconButton(
                                   icon: const Icon(
                                     Icons.edit,

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -6,12 +8,15 @@ class NobetciScreen extends StatefulWidget {
   final String studentId;
   final String classId;
   final bool isTeacher;
+  final String
+  userRole; // Yeni eklenen rol parametresi ('classroom_teacher', 'branch_teacher', 'admin')
 
   const NobetciScreen({
     super.key,
     required this.studentId,
     required this.classId,
     this.isTeacher = false,
+    this.userRole = 'classroom_teacher',
   });
 
   @override
@@ -190,7 +195,6 @@ class _NobetciScreenState extends State<NobetciScreen>
     super.dispose();
   }
 
-  // Bugün için nöbetçi kontrolü ve otomatik atama algoritması
   Future<void> _checkAndAssignDuty() async {
     setState(() => _isLoading = true);
 
@@ -221,7 +225,6 @@ class _NobetciScreenState extends State<NobetciScreen>
       return;
     }
     try {
-      // 1. Aktif görevli öğrenci ID'lerini çekelim (aktifGorevliler/mevcut)
       DocumentSnapshot aktifGorevDoc = await FirebaseFirestore.instance
           .collection('classes')
           .doc(widget.classId)
@@ -245,7 +248,6 @@ class _NobetciScreenState extends State<NobetciScreen>
         }
       }
 
-      // 2. Bugün için daha önce nöbetçi atanmış mı kontrol et
       DocumentReference dutyDocRef = FirebaseFirestore.instance
           .collection('classes')
           .doc(widget.classId)
@@ -261,7 +263,6 @@ class _NobetciScreenState extends State<NobetciScreen>
         _bugunKizNovetciAdi = data['girlName'];
         _bugunErkekNovetciAdi = data['boyName'];
       } else {
-        // 3. Kayıt yok, sıradaki uygun kız ve erkeği seç
         QuerySnapshot studentSnapshot = await FirebaseFirestore.instance
             .collection('students')
             .where('classId', isEqualTo: widget.classId)
@@ -382,11 +383,14 @@ class _NobetciScreenState extends State<NobetciScreen>
     String bugunTarihStr =
         "${DateTime.now().day}.${DateTime.now().month}.${DateTime.now().year}";
 
+    // Sadece sınıf öğretmeni ise takvim düğmesi görünsün (İdareci ve Branş Öğretmeninde gizlenir)
+    bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Nöbetçi Öğrenci Takibi"),
         actions: [
-          if (widget.isTeacher)
+          if (widget.isTeacher && isSinifOgretmeni)
             IconButton(
               icon: const Icon(Icons.calendar_month),
               tooltip: "Nöbet Tatil Takvimi",

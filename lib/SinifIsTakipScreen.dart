@@ -5,15 +5,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SinifIsTakipScreen extends StatefulWidget {
   final String classId;
+  final String userRole;
 
-  const SinifIsTakipScreen({super.key, required this.classId});
+  const SinifIsTakipScreen({
+    super.key,
+    required this.classId,
+    this.userRole = 'classroom_teacher',
+  });
 
   @override
   State<SinifIsTakipScreen> createState() => _SinifIsTakipScreenState();
 }
 
 class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
-  // Her iş ve öğrenci için anlık verileri tutacağımız hafıza havuzu
   final Map<String, Map<String, String>> _isVeriHavuzlari = {};
   final Map<String, Map<String, TextEditingController>> _isControllerHavuzlari =
       {};
@@ -212,7 +216,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                   .where('classId', isEqualTo: widget.classId)
                   .get();
 
-              // Havuzları ve firebase'i güncelle
               _isVeriHavuzlari.putIfAbsent(isId, () => {});
               var havuz = _isVeriHavuzlari[isId]!;
 
@@ -240,6 +243,8 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
 
   @override
   Widget build(BuildContext context) {
+    bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("İş Takibi"),
@@ -259,9 +264,11 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
           }
 
           if (!isSnapshot.hasData || isSnapshot.data!.docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                "Henüz eklenmiş bir iş/etkinlik yok.\nSağ alttan 'Yeni İş Ekle' butonunu kullanın.",
+                isSinifOgretmeni
+                    ? "Henüz eklenmiş bir iş/etkinlik yok.\nSağ alttan 'Yeni İş Ekle' butonunu kullanın."
+                    : "Henüz eklenmiş bir iş/etkinlik yok.",
                 textAlign: TextAlign.center,
               ),
             );
@@ -302,55 +309,55 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                          size: 20,
+                      if (isSinifOgretmeni)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          tooltip: "Bu İşi Sil",
+                          onPressed: () => _isSilDialog(isId, isAdi, context),
                         ),
-                        tooltip: "Bu İşi Sil",
-                        onPressed: () => _isSilDialog(isId, isAdi, context),
-                      ),
                     ],
                   ),
                   subtitle: Text(
                     "Tür: ${veriTuru.toUpperCase()} • Detay için tıkla",
                   ),
                   children: [
-                    Container(
-                      color: Colors.grey.shade100,
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "Tüm Sınıfa Toplu Değer Ver:",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                    if (isSinifOgretmeni)
+                      Container(
+                        color: Colors.grey.shade100,
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Tüm Sınıfa Toplu Değer Ver:",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () =>
-                                _topluDegerAta(isId, veriTuru, context),
-                            icon: const Icon(
-                              Icons.playlist_add_check,
-                              size: 16,
+                            ElevatedButton.icon(
+                              onPressed: () =>
+                                  _topluDegerAta(isId, veriTuru, context),
+                              icon: const Icon(
+                                Icons.playlist_add_check,
+                                size: 16,
+                              ),
+                              label: const Text(
+                                "Toplu Ata",
+                                style: TextStyle(fontSize: 11),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.indigo,
+                                foregroundColor: Colors.white,
+                              ),
                             ),
-                            label: const Text(
-                              "Toplu Ata",
-                              style: TextStyle(fontSize: 11),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.indigo,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-
-                    // Bu işe ait öğrenci verilerini anlık dinleyen StreamBuilder
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('students')
@@ -395,7 +402,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                         .toUpperCase();
                                 String ogrId = ogrDoc.id;
 
-                                // Her öğrenci için kendi altındaki is_verileri/isId dokümanını doğrudan okuyoruz
                                 return FutureBuilder<DocumentSnapshot>(
                                   future: ogrDoc.reference
                                       .collection('is_verileri')
@@ -406,7 +412,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                         ),
                                       ),
                                   builder: (context, veriSnap) {
-                                    String serverDeger = '+'; // Varsayılan
+                                    String serverDeger = '+';
                                     if (veriSnap.hasData &&
                                         veriSnap.data!.exists) {
                                       var vData =
@@ -418,8 +424,6 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                       }
                                     }
 
-                                    // Havuzda kullanıcının anlık yaptığı lokal bir değişiklik var mı kontrol edelim
-                                    // Eğer kullanıcı henüz dokunmadıysa doğrudan veritabanından gelen serverDeger'i kullanalım
                                     String aktifDeger =
                                         sinifVeriHavuzu.containsKey(ogrId)
                                         ? sinifVeriHavuzu[ogrId]!
@@ -458,9 +462,9 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                               ? null
                                               : oIsinControllerlari[ogrId],
                                           (yeniDeger) {
-                                            sinifVeriHavuzu[ogrId] =
-                                                yeniDeger; // Kullanıcı değiştirdiğinde hafızaya al
+                                            sinifVeriHavuzu[ogrId] = yeniDeger;
                                           },
+                                          isSinifOgretmeni,
                                         ),
                                       ),
                                     );
@@ -468,49 +472,51 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                 );
                               },
                             ),
+                            if (isSinifOgretmeni)
+                              Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      for (var entry
+                                          in sinifVeriHavuzu.entries) {
+                                        await FirebaseFirestore.instance
+                                            .collection('students')
+                                            .doc(entry.key)
+                                            .collection('is_verileri')
+                                            .doc(isId)
+                                            .set({
+                                              'deger': entry.value,
+                                            }, SetOptions(merge: true));
+                                      }
+                                      setState(() {});
 
-                            // Kaydet Butonu
-                            Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    for (var entry in sinifVeriHavuzu.entries) {
-                                      await FirebaseFirestore.instance
-                                          .collection('students')
-                                          .doc(entry.key)
-                                          .collection('is_verileri')
-                                          .doc(isId)
-                                          .set({
-                                            'deger': entry.value,
-                                          }, SetOptions(merge: true));
-                                    }
-                                    setState(() {});
-
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          "Tüm girişler başarıyla kaydedildi!",
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "Tüm girişler başarıyla kaydedildi!",
+                                          ),
                                         ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.save),
+                                    label: const Text(
+                                      "Bu İşin Girişlerini Kaydet",
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.indigo,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
                                       ),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.save),
-                                  label: const Text(
-                                    "Bu İşin Girişlerini Kaydet",
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.indigo,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
                           ],
                         );
                       },
@@ -522,59 +528,82 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _yeniIsEkleDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text("Yeni İş Ekle"),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-      ),
+      floatingActionButton: isSinifOgretmeni
+          ? FloatingActionButton.extended(
+              onPressed: () => _yeniIsEkleDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text("Yeni İş Ekle"),
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+            )
+          : null,
     );
   }
 
-  // Veri türüne göre arayüz elemanı oluşturan yardımcı widget
   Widget _buildGirisWidgeti(
     String veriTuru,
     String mevcutDeger,
     TextEditingController? controller,
     Function(String) onDegisti,
+    bool isSinifOgretmeni,
   ) {
     if (veriTuru == 'artı_eksi') {
-      // StatefulBuilder ekleyerek sadece bu satırın anlık olarak boyanmasını sağlıyoruz
       return StatefulBuilder(
         builder: (context, setLocalState) {
           return Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              ChoiceChip(
-                label: const Text("+"),
-                selected: mevcutDeger == '+',
-                selectedColor: Colors.green.shade200,
-                onSelected: (selected) {
-                  if (selected) {
-                    setLocalState(() {
-                      mevcutDeger =
-                          '+'; // Satırın kendi görsel durumunu anında değiştirir
-                    });
-                    onDegisti('+'); // Havuzu günceller
-                  }
-                },
+              InkWell(
+                onTap: isSinifOgretmeni
+                    ? () {
+                        setLocalState(() => mevcutDeger = '+');
+                        onDegisti('+');
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: mevcutDeger == '+'
+                        ? Colors.green.shade200
+                        : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: const Text(
+                    "+",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
-              const SizedBox(width: 4),
-              ChoiceChip(
-                label: const Text("-"),
-                selected: mevcutDeger == '-',
-                selectedColor: Colors.red.shade200,
-                onSelected: (selected) {
-                  if (selected) {
-                    setLocalState(() {
-                      mevcutDeger =
-                          '-'; // Satırın kendi görsel durumunu anında değiştirir
-                    });
-                    onDegisti('-'); // Havuzu günceller
-                  }
-                },
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: isSinifOgretmeni
+                    ? () {
+                        setLocalState(() => mevcutDeger = '-');
+                        onDegisti('-');
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: mevcutDeger == '-'
+                        ? Colors.red.shade200
+                        : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: const Text(
+                    "-",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           );
@@ -585,6 +614,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
         width: 80,
         child: TextField(
           controller: controller,
+          readOnly: !isSinifOgretmeni,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           decoration: const InputDecoration(
@@ -593,7 +623,9 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
             hintText: 'Puan',
           ),
           onChanged: (val) {
-            onDegisti(val.isEmpty ? '+' : val);
+            if (isSinifOgretmeni) {
+              onDegisti(val.isEmpty ? '+' : val);
+            }
           },
         ),
       );
@@ -602,6 +634,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
         width: 100,
         child: TextField(
           controller: controller,
+          readOnly: !isSinifOgretmeni,
           textAlign: TextAlign.center,
           decoration: const InputDecoration(
             isDense: true,
@@ -609,7 +642,9 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
             hintText: 'Yazı',
           ),
           onChanged: (val) {
-            onDegisti(val.isEmpty ? '+' : val);
+            if (isSinifOgretmeni) {
+              onDegisti(val.isEmpty ? '+' : val);
+            }
           },
         ),
       );

@@ -5,11 +5,13 @@ import 'utils.dart';
 class StudentDetailScreen extends StatelessWidget {
   final Map<String, dynamic> studentData;
   final String studentId;
+  final String userRole; // <-- 1. Rol parametresi eklendi
 
   const StudentDetailScreen({
     super.key,
     required this.studentData,
     required this.studentId,
+    this.userRole = 'classroom_teacher', // Varsayılan değer
   });
 
   // Öğretmenin öğrenci ödev durumunu değiştirmesi için fonksiyon (Kırmızı kilitleme / Yeşil yapma)
@@ -38,6 +40,9 @@ class StudentDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Yönetici (admin) mi kontrolü
+    bool isAdmin = userRole == 'admin';
+
     return DefaultTabController(
       length: 2, // 2 Sekme: 1. Okunan Kitaplar, 2. Ödevler & Takip
       child: Scaffold(
@@ -185,7 +190,6 @@ class StudentDetailScreen extends StatelessWidget {
 
                 var odevler = snapshot.data!.docs;
 
-                // --- KİTAP BAZLI DOĞRU İSTATİSTİK HESAPLAMA ---
                 int toplamOdevKitabi = 0;
                 int yapilanOdevKitabi = 0;
                 int reddedilenOdevKitabi = 0;
@@ -210,7 +214,6 @@ class StudentDetailScreen extends StatelessWidget {
 
                 return Column(
                   children: [
-                    // Ödev İstatistik Kartı (Artık doğru sayılara göre güncellenecek)
                     Card(
                       margin: const EdgeInsets.all(16),
                       child: Padding(
@@ -363,23 +366,29 @@ class StudentDetailScreen extends StatelessWidget {
                                                   ],
                                                 ),
                                               ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  kDurum == 'ogretmen_reddi'
-                                                      ? Icons.lock
-                                                      : Icons.lock_open,
-                                                  color: itemRengi,
-                                                ),
-                                                tooltip:
-                                                    "Bu Ödev Kitabını Kırmızı Yap / Kilitle",
-                                                onPressed: () =>
-                                                    _ogretmenOdevKitabiDurumGuncelle(
-                                                      context,
-                                                      odevDoc.id,
-                                                      kitaplar,
-                                                      kIndex,
+                                              // --- 2. Kilit Butonu Rol Kontrolü ---
+                                              // Eğer kullanıcı 'admin' ise buton gizlenir (SizedBox.shrink),
+                                              // değilse sınıf/branş öğretmenine görünür ve çalışır.
+                                              isAdmin
+                                                  ? const SizedBox.shrink()
+                                                  : IconButton(
+                                                      icon: Icon(
+                                                        kDurum ==
+                                                                'ogretmen_reddi'
+                                                            ? Icons.lock
+                                                            : Icons.lock_open,
+                                                        color: itemRengi,
+                                                      ),
+                                                      tooltip:
+                                                          "Bu Ödev Kitabını Kırmızı Yap / Kilitle",
+                                                      onPressed: () =>
+                                                          _ogretmenOdevKitabiDurumGuncelle(
+                                                            context,
+                                                            odevDoc.id,
+                                                            kitaplar,
+                                                            kIndex,
+                                                          ),
                                                     ),
-                                              ),
                                             ],
                                           ),
                                         );

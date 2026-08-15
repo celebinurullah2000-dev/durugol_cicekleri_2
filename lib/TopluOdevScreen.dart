@@ -1,9 +1,17 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student_kitap_odev_screen.dart'; // Öğrenci detay ekranının import edildiğinden emin olun
 
 class TopluOdevScreen extends StatefulWidget {
-  const TopluOdevScreen({super.key});
+  final String classId;
+  final String userRole;
+  const TopluOdevScreen({
+    super.key,
+    required this.classId,
+    this.userRole = 'classroom_teacher',
+  });
 
   @override
   State<TopluOdevScreen> createState() => _TopluOdevScreenState();
@@ -18,15 +26,21 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
       ),
+      // 1. Dıştaki sorgu doğrudan seçilen sınıfın öğrencilerini getirir
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('students').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('students')
+            .where('classId', isEqualTo: widget.classId)
+            .snapshots(),
         builder: (context, studentSnapshot) {
           if (studentSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (!studentSnapshot.hasData || studentSnapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("Kayıtlı öğrenci bulunamadı."));
+            return const Center(
+              child: Text("Bu sınıfta kayıtlı öğrenci bulunamadı."),
+            );
           }
 
           var ogrenciler = studentSnapshot.data!.docs;
@@ -42,12 +56,9 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
               if (ogrenciAdi.isEmpty) ogrenciAdi = 'İsimsiz Öğrenci';
               String ogrenciId = ogrenciDoc.id;
 
+              // 2. İçteki sorgu her öğrencinin kendi altındaki 'odevler' koleksiyonunu dinler
               return StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('students')
-                    .doc(ogrenciId)
-                    .collection('odevler')
-                    .snapshots(),
+                stream: ogrenciDoc.reference.collection('odevler').snapshots(),
                 builder: (context, odevSnapshot) {
                   String durumOzeti = "Ödev yükleniyor...";
                   Color durumRengi = Colors.grey;
@@ -123,6 +134,7 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
                             builder: (context) => StudentDetailScreen(
                               studentData: ogrenciData,
                               studentId: ogrenciId,
+                              userRole: widget.userRole,
                             ),
                           ),
                         );

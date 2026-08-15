@@ -1,6 +1,7 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:durugol_cicekleri/Etkinlikler_Screen.dart';
 import 'package:durugol_cicekleri/Sinif_Istatistik_Siralama_Screen.dart';
-import 'package:durugol_cicekleri/branch_teacher_class_select_screen.dart';
 import 'package:durugol_cicekleri/ogretmen_randevu_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
 import 'package:durugol_cicekleri/screens/teacher_chat_audit_screen.dart';
@@ -133,15 +134,71 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     'J',
   ];
 
+  Future<String?> _getAktifHedefClassId() async {
+    if (widget.userRole == 'classroom_teacher') {
+      return widget.classId;
+    }
+
+    String arananClassName = "$_filtreliGrade/$_filtreliBranch";
+    var classQuery = await FirebaseFirestore.instance
+        .collection('classes')
+        .where('className', isEqualTo: arananClassName)
+        .get();
+
+    if (classQuery.docs.isNotEmpty) {
+      return classQuery.docs.first.id;
+    }
+    return widget.classId;
+  }
+
+  // Yetkilendirme için değişkenler
+  List<String> _izinliButonlar = [];
+  bool _yetkilerYukleniyor = true;
+
   @override
   void initState() {
     super.initState();
+    _kullaniciYetkileriniGetir();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       dogumGunuKontrolEtVeBildir(context, widget.classId);
       ogretmenBildirimTokeniniKaydet(widget.classId);
     });
     bildirimleriBaslat();
     _randevuDinle();
+  }
+
+  Future<void> _kullaniciYetkileriniGetir() async {
+    // Sınıf öğretmenleri tüm butonları görür
+    if (widget.userRole == 'classroom_teacher') {
+      setState(() {
+        _yetkilerYukleniyor = false;
+      });
+      return;
+    }
+
+    try {
+      var doc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('role_permissions')
+          .get();
+
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+        List<dynamic> izinler = data[widget.userRole] ?? [];
+        setState(() {
+          _izinliButonlar = izinler.map((e) => e.toString()).toList();
+          _yetkilerYukleniyor = false;
+        });
+      } else {
+        setState(() {
+          _yetkilerYukleniyor = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _yetkilerYukleniyor = false;
+      });
+    }
   }
 
   void _randevuDinle() {
@@ -254,7 +311,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   ) {
     String mesaj = kalanGun == 0
         ? "Bugün $ogrenciAdi adlı arkadaşımızın doğum günü! 🎂 Birlikte nice mutlu yıllara dileyelim! 🎉"
-        : "$ogrenciAdi adlı arkadaşımızın doğum gününe $kalanGun gün kaldı! 🎈 Şimdiden hazırlıklara başlayalım! 🎁";
+        : "$ogrenciAdi adlı arkadaşımızın doğum gününe $kalanGun kaldı! 🎈 Şimdiden hazırlıklara başlayalım! 🎁";
 
     showDialog(
       context: context,
@@ -426,7 +483,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     setState(() {});
   }
 
-  void _showSozlukSecenekleri(BuildContext context) {
+  void _showSozlukSecenekleri(BuildContext context) async {
+    String? hedefClassId = await _getAktifHedefClassId();
+    if (hedefClassId == null) return;
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -455,7 +516,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => KisiselSozlukScreen(
-                        classId: widget.classId,
+                        classId: hedefClassId,
                         isTeacher: true,
                       ),
                     ),
@@ -471,7 +532,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => KisiselAtasozleriScreen(
-                        classId: widget.classId,
+                        classId: hedefClassId,
                         isTeacher: true,
                       ),
                     ),
@@ -490,7 +551,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => KisiselDeyimlerScreen(
-                        classId: widget.classId,
+                        classId: hedefClassId,
                         isTeacher: true,
                       ),
                     ),
@@ -504,7 +565,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     );
   }
 
-  void _showNobetciVeGorevliSecenekleri(BuildContext context) {
+  void _showNobetciVeGorevliSecenekleri(BuildContext context) async {
+    String? hedefClassId = await _getAktifHedefClassId();
+    if (hedefClassId == null) return;
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -534,8 +599,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     MaterialPageRoute(
                       builder: (context) => NobetciScreen(
                         studentId: "",
-                        classId: widget.classId,
+                        classId: hedefClassId,
                         isTeacher: true,
+                        userRole: widget.userRole,
                       ),
                     ),
                   );
@@ -549,8 +615,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          SinifGorevleriScreen(classId: widget.classId),
+                      builder: (context) => SinifGorevleriScreen(
+                        classId: hedefClassId,
+                        userRole: widget.userRole,
+                      ),
                     ),
                   );
                 },
@@ -562,7 +630,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     );
   }
 
-  void _showOdevIslemleriSecenekleri(BuildContext context) {
+  void _showOdevIslemleriSecenekleri(BuildContext context) async {
+    String? hedefClassId = await _getAktifHedefClassId();
+    if (hedefClassId == null) return;
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -587,9 +659,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => TarihBazliOdevYoneticisiScreen(
-                        classId: widget.classId,
-                      ),
+                      builder: (context) =>
+                          TarihBazliOdevYoneticisiScreen(classId: hedefClassId),
                     ),
                   );
                 },
@@ -597,12 +668,19 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
               ListTile(
                 leading: const Icon(Icons.checklist_rtl, color: Colors.blue),
                 title: const Text("Toplu Ödev"),
-                onTap: () {
+                onTap: () async {
+                  String? hedefClassId = await _getAktifHedefClassId();
+                  if (hedefClassId == null) return;
+
+                  if (!context.mounted) return;
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const TopluOdevScreen(),
+                      builder: (context) => TopluOdevScreen(
+                        classId: hedefClassId,
+                        userRole: widget.userRole,
+                      ),
                     ),
                   );
                 },
@@ -615,7 +693,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 title: const Text("Ödev Ver"),
                 onTap: () {
                   Navigator.pop(context);
-                  _odevVerDialog(context);
+                  _odevVerDialog(context, hedefClassId);
                 },
               ),
             ],
@@ -694,7 +772,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     );
   }
 
-  void _odevVerDialog(BuildContext context) {
+  void _odevVerDialog(BuildContext context, String hedefClassId) {
     final TextEditingController tarihStrController = TextEditingController(
       text: "21 Temmuz 2026, Salı",
     );
@@ -753,7 +831,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
               var studentsSnapshot = await FirebaseFirestore.instance
                   .collection('students')
-                  .where('classId', isEqualTo: widget.classId)
+                  .where('classId', isEqualTo: hedefClassId)
                   .get();
 
               for (var studentDoc in studentsSnapshot.docs) {
@@ -854,7 +932,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   Future<List<Map<String, dynamic>>> _getOgrenciler() async {
     List<Map<String, dynamic>> ogrenciListesi = [];
 
-    // İdareci veya branş öğretmeniyse seçilen sınıf seviyesi ve şubeye göre filtrele
     if (widget.userRole == 'admin' || widget.userRole == 'branch_teacher') {
       String arananClassName = "$_filtreliGrade/$_filtreliBranch";
 
@@ -878,7 +955,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         ogrenciListesi.add({'id': doc.id, ...doc.data()});
       }
     } else {
-      // Normal sınıf öğretmeniyse doğrudan kendi sınıfı
       var studentsQuery = await FirebaseFirestore.instance
           .collection('students')
           .where('classId', isEqualTo: widget.classId)
@@ -906,6 +982,27 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     return ogrenciListesi;
   }
 
+  // Yetki kontrolü yaparak buton oluşturan yardımcı metot
+  Widget? _buildYetkiliHizliIslemButonu({
+    required String key,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    bool gosterilsinMi =
+        widget.userRole == 'classroom_teacher' || _izinliButonlar.contains(key);
+
+    if (!gosterilsinMi) return null;
+
+    return _buildHizliIslemButonu(
+      icon: icon,
+      label: label,
+      color: color,
+      onTap: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
@@ -918,26 +1015,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
-          // Eğer kullanıcı idareci veya branş öğretmeniyse, sınıflarını değiştirebileceği buton görünür
-          /*if (widget.userRole == 'admin' || widget.userRole == 'branch_teacher')
-            IconButton(
-              icon: const Icon(Icons.class_),
-              tooltip: "Dersine Girdiğim Sınıfları Seç",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BranchTeacherClassSelectScreen(
-                      teacherId: widget.classId,
-                      teacherName: widget.className,
-                    ),
-                  ),
-                ).then((_) {
-                  // Geri döndüğünde sayfayı yenileyip güncel sınıfları yükleyebiliriz
-                  setState(() {});
-                });
-              },
-            ),*/
           IconButton(
             icon: const Icon(Icons.lock_reset),
             tooltip: "Şifre Değiştir",
@@ -947,529 +1024,648 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // EĞER İDARECİ VEYA BRANŞ ÖĞRETMENİYSE ÜST KISIMDA SINIF/ŞUBE SEÇME FİLTRESİ
-          if (isYetkili)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.indigo.shade100,
-              child: Row(
-                children: [
-                  const Text(
-                    "Sınıf Filtrele: ",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
+      body: _yetkilerYukleniyor
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                if (isYetkili)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    color: Colors.indigo.shade100,
+                    child: Row(
+                      children: [
+                        const Text(
+                          "Sınıf Filtrele: ",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.indigo,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _filtreliGrade,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            items: ['1', '2', '3', '4'].map((grade) {
+                              return DropdownMenuItem(
+                                value: grade,
+                                child: Text("$grade. Sınıf"),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                _filtreliGrade = val;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _filtreliBranch,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            items: _branchListesi.map((branch) {
+                              return DropdownMenuItem(
+                                value: branch,
+                                child: Text("$branch Şubesi"),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                _filtreliBranch = val;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _filtreliGrade,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      items: ['1', '2', '3', '4'].map((grade) {
-                        return DropdownMenuItem(
-                          value: grade,
-                          child: Text("$grade. Sınıf"),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          _filtreliGrade = val;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _filtreliBranch,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      items: _branchListesi.map((branch) {
-                        return DropdownMenuItem(
-                          value: branch,
-                          child: Text("$branch Şubesi"),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          _filtreliBranch = val;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            color: Colors.indigo.shade50,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _buildHizliIslemButonu(
-                        icon: Icons.group_work,
-                        label: "Nöbetçi & Görevli",
-                        color: Colors.green.shade700,
-                        onTap: () {
-                          _showNobetciVeGorevliSecenekleri(context);
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.fact_check,
-                        label: "İş Takibi",
-                        color: Colors.teal,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  SinifIsTakipScreen(classId: widget.classId),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 8,
+                  ),
+                  color: Colors.indigo.shade50,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'nobetci',
+                              icon: Icons.group_work,
+                              label: "Nöbetçi & Görevli",
+                              color: Colors.green.shade700,
+                              onTap: () =>
+                                  _showNobetciVeGorevliSecenekleri(context),
                             ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.assignment,
-                        label: "Ödev İşlemleri",
-                        color: Colors.indigo,
-                        onTap: () {
-                          _showOdevIslemleriSecenekleri(context);
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.cake,
-                        label: "Doğum Günleri",
-                        color: Colors.pink,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  DogumGunleriScreen(classId: widget.classId),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.schedule,
-                        label: "Ders Programı",
-                        color: Colors.lightBlue,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => HaftalikDersProgramiScreen(
-                                classId: widget.classId,
-                                isTeacher: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.chat,
-                        label: "Sohbet & Duvar",
-                        color: Colors.lightGreenAccent,
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(20),
-                              ),
-                            ),
-                            builder: (bottomSheetContext) => Container(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    "Öğretmen İletişim & Denetim",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'is_takibi',
+                              icon: Icons.fact_check,
+                              label: "İş Takibi",
+                              color: Colors.teal,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SinifIsTakipScreen(
+                                      classId: hedefClassId,
+                                      userRole: widget.userRole,
                                     ),
                                   ),
-                                  const Divider(),
-                                  ListTile(
-                                    leading: const Icon(
-                                      Icons.campaign,
-                                      color: Colors.pinkAccent,
-                                      size: 30,
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'odev_islemleri',
+                              icon: Icons.assignment,
+                              label: "Ödev İşlemleri",
+                              color: Colors.indigo,
+                              // --- BURASI GÜNCELLENDİ ---
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+
+                                // Eğer kullanıcı yönetici/idareci (admin) ise doğrudan Toplu Ödev sayfasına git
+                                if (widget.userRole == 'admin') {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => TopluOdevScreen(
+                                        classId: hedefClassId,
+                                        userRole: widget.userRole,
+                                      ),
                                     ),
-                                    title: const Text("Sınıf Duvarı"),
-                                    subtitle: const Text(
-                                      "Öğrencilerle ortak akış ve paylaşımlar",
+                                  );
+                                } else {
+                                  // Sınıf veya branş öğretmeniyse 3 seçenekli alt menüyü aç
+                                  _showOdevIslemleriSecenekleri(context);
+                                }
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'dogum_gunleri',
+                              icon: Icons.cake,
+                              label: "Doğum Günleri",
+                              color: Colors.pink,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DogumGunleriScreen(
+                                      classId: hedefClassId,
                                     ),
-                                    onTap: () {
-                                      Navigator.pop(bottomSheetContext);
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ClassFeedScreen(
-                                            currentUserId:
-                                                FirebaseAuth
-                                                    .instance
-                                                    .currentUser
-                                                    ?.uid ??
-                                                "ogretmen_id",
-                                            currentUserName: "Öğretmen",
-                                            isTeacher: true,
-                                            classId: widget.classId,
-                                            className: widget.className,
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'ders_programi',
+                              icon: Icons.schedule,
+                              label: "Ders Programı",
+                              color: Colors.lightBlue,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        HaftalikDersProgramiScreen(
+                                          classId: hedefClassId,
+                                          isTeacher: true,
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'sohbet_duvar',
+                              icon: Icons.chat,
+                              label: "Sohbet & Duvar",
+                              color: Colors.lightGreenAccent,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+
+                                showModalBottomSheet(
+                                  context: context,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20),
+                                    ),
+                                  ),
+                                  builder: (bottomSheetContext) => Container(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text(
+                                          "Öğretmen İletişim & Denetim",
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                      );
-                                    },
-                                  ),
-                                  ListTile(
-                                    leading: const Icon(
-                                      Icons.security,
-                                      color: Colors.indigo,
-                                      size: 30,
-                                    ),
-                                    title: const Text(
-                                      "Tüm Sınıf Sohbetleri (Denetim)",
-                                    ),
-                                    subtitle: const Text(
-                                      "Öğrenci aralarındaki bireysel ve grup sohbetleri",
-                                    ),
-                                    onTap: () {
-                                      Navigator.pop(bottomSheetContext);
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              TeacherChatAuditScreen(
-                                                classId: widget.classId,
-                                                currentUserId:
-                                                    FirebaseAuth
-                                                        .instance
-                                                        .currentUser
-                                                        ?.uid ??
-                                                    "ogretmen_id",
-                                                currentUserName: "Öğretmen",
+                                        const Divider(),
+                                        ListTile(
+                                          leading: const Icon(
+                                            Icons.campaign,
+                                            color: Colors.pinkAccent,
+                                            size: 30,
+                                          ),
+                                          title: const Text("Sınıf Duvarı"),
+                                          subtitle: const Text(
+                                            "Öğrencilerle ortak akış ve paylaşımlar",
+                                          ),
+                                          onTap: () {
+                                            Navigator.pop(bottomSheetContext);
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ClassFeedScreen(
+                                                      currentUserId:
+                                                          FirebaseAuth
+                                                              .instance
+                                                              .currentUser
+                                                              ?.uid ??
+                                                          "ogretmen_id",
+                                                      currentUserName:
+                                                          "Öğretmen",
+                                                      isTeacher: true,
+                                                      classId: hedefClassId,
+                                                      className:
+                                                          widget.className,
+                                                    ),
                                               ),
+                                            );
+                                          },
                                         ),
-                                      );
-                                    },
+                                        ListTile(
+                                          leading: const Icon(
+                                            Icons.security,
+                                            color: Colors.indigo,
+                                            size: 30,
+                                          ),
+                                          title: const Text(
+                                            "Tüm Sınıf Sohbetleri (Denetim)",
+                                          ),
+                                          subtitle: const Text(
+                                            "Öğrenci aralarındaki bireysel ve grup sohbetleri",
+                                          ),
+                                          onTap: () {
+                                            Navigator.pop(bottomSheetContext);
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    TeacherChatAuditScreen(
+                                                      classId: hedefClassId,
+                                                      currentUserId:
+                                                          FirebaseAuth
+                                                              .instance
+                                                              .currentUser
+                                                              ?.uid ??
+                                                          "ogretmen_id",
+                                                      currentUserName:
+                                                          "Öğretmen",
+                                                    ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ].whereType<Widget>().toList(),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'etutler',
+                              icon: Icons.event_available,
+                              label: "Etütler",
+                              color: Colors.deepPurple,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => etutlerscreen(
+                                      classId: hedefClassId,
+                                      className: widget.className,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'denemeler',
+                              icon: Icons.edit_note,
+                              label: "Denemeler",
+                              color: Colors.indigo,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DenemelerScreen(
+                                      classId: hedefClassId,
+                                      className: widget.className,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'kitap_odev',
+                              icon: Icons.menu_book,
+                              label: "Kitap ve Ödev",
+                              color: Colors.brown,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => KitapOkumaTakipScreen(
+                                      classId: hedefClassId,
+                                      className: widget.className,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'oturma_duzeni',
+                              icon: Icons.grid_view,
+                              label: "Oturma Düzeni",
+                              color: Colors.indigo.shade700,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => OturmaDuzeniScreen(
+                                      classId: hedefClassId,
+                                      isTeacher: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'devamsizlik',
+                              icon: Icons.fact_check,
+                              label: "Devamsızlık",
+                              color: Colors.teal,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DevamsizlikScreen(
+                                      classId: hedefClassId,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'randevular',
+                              icon: Icons.access_time,
+                              label: "Randevular",
+                              color: Colors.orange,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => OgretmenRandevuScreen(
+                                      classId: hedefClassId,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ].whereType<Widget>().toList(),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'sozluk',
+                              icon: Icons.library_books,
+                              label: "Sözlük",
+                              color: Colors.deepOrange,
+                              onTap: () => _showSozlukSecenekleri(context),
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'etkinlikler',
+                              icon: Icons.auto_stories,
+                              label: "Etkinlikler",
+                              color: Colors.pinkAccent,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EtkinliklerScreen(
+                                      classId: hedefClassId,
+                                      isTeacher: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'davranislar',
+                              icon: Icons.auto_stories,
+                              label: "Davranışlar",
+                              color: const Color.fromARGB(255, 139, 175, 238),
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        OgretmenDavranisScreen(
+                                          classId: hedefClassId,
+                                          isTeacher: true,
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'yarismalar',
+                              icon: Icons.auto_stories,
+                              label: "Yarışmalar",
+                              color: Colors.purpleAccent,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => YarismalarScreen(
+                                      classId: hedefClassId,
+                                      isTeacher: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'istatistikler',
+                              icon: Icons.auto_stories,
+                              label: "Kullanım İstatistikleri",
+                              color: Colors.yellow.shade700,
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        SinifIstatistikSiralamaScreen(
+                                          classId: hedefClassId,
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'sinif_sifreleri',
+                              icon: Icons.auto_stories,
+                              label: "Sınıf Şifreleri",
+                              color: const Color.fromARGB(255, 69, 9, 80),
+                              onTap: () async {
+                                String? hedefClassId =
+                                    await _getAktifHedefClassId();
+                                if (hedefClassId == null) return;
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SinifSifreleriScreen(
+                                      classId: hedefClassId,
+                                      className: widget.className,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ].whereType<Widget>().toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _getOgrenciler(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return const Center(
+                          child: Text("Bu sınıfta henüz kayıtlı öğrenci yok."),
+                        );
+                      }
+
+                      final students = snapshot.data!;
+
+                      return ListView.builder(
+                        itemCount: students.length,
+                        itemBuilder: (context, index) {
+                          final student = students[index];
+                          final firstName = student['firstName'] ?? '';
+                          final lastName = student['lastName'] ?? '';
+                          final initials =
+                              (firstName.isNotEmpty ? firstName[0] : '') +
+                              (lastName.isNotEmpty ? lastName[0] : '');
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            child: ListTile(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => StudentDetailScreen(
+                                      studentData: student,
+                                      studentId: student['id'],
+                                      userRole: widget.userRole,
+                                    ),
+                                  ),
+                                ).then((_) => setState(() {}));
+                              },
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.indigo.shade100,
+                                child: Text(
+                                  initials.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.indigo,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                "$firstName $lastName",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                "No: ${student['schoolNumber'] ?? 'Belirtilmemiş'}",
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isSinifOgretmeni) ...[
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () => _duzenle(
+                                        context,
+                                        student['id'],
+                                        student,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: () =>
+                                          _sil(context, student['id']),
+                                    ),
+                                  ],
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.indigo,
                                   ),
                                 ],
                               ),
                             ),
                           );
                         },
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      _buildHizliIslemButonu(
-                        icon: Icons.event_available,
-                        label: "Etütler",
-                        color: Colors.deepPurple,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => etutlerscreen(
-                                classId: widget.classId,
-                                className: widget.className,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.edit_note,
-                        label: "Denemeler",
-                        color: Colors.indigo,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DenemelerScreen(
-                                classId: widget.classId,
-                                className: widget.className,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.menu_book,
-                        label: "Kitap ve Ödev",
-                        color: Colors.brown,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => KitapOkumaTakipScreen(
-                                classId: widget.classId,
-                                className: widget.className,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.grid_view,
-                        label: "Oturma Düzeni",
-                        color: Colors.indigo.shade700,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OturmaDuzeniScreen(
-                                classId: widget.classId,
-                                isTeacher: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.fact_check,
-                        label: "Devamsızlık",
-                        color: Colors.teal,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  DevamsizlikScreen(classId: widget.classId),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.access_time,
-                        label: "Randevular",
-                        color: Colors.orange,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OgretmenRandevuScreen(
-                                classId: widget.classId,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      _buildHizliIslemButonu(
-                        icon: Icons.library_books,
-                        label: "Sözlük",
-                        color: Colors.deepOrange,
-                        onTap: () {
-                          _showSozlukSecenekleri(context);
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.auto_stories,
-                        label: "Etkinlikler",
-                        color: Colors.pinkAccent,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EtkinliklerScreen(
-                                classId: widget.classId,
-                                isTeacher: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.auto_stories,
-                        label: "Davranışlar",
-                        color: const Color.fromARGB(255, 139, 175, 238),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OgretmenDavranisScreen(
-                                classId: widget.classId,
-                                isTeacher: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.auto_stories,
-                        label: "Yarışmalar",
-                        color: Colors.purpleAccent,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => YarismalarScreen(
-                                classId: widget.classId,
-                                isTeacher: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.auto_stories,
-                        label: "Kullanım İstatistikleri",
-                        color: Colors.yellow.shade700,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  SinifIstatistikSiralamaScreen(
-                                    classId: widget.classId,
-                                  ),
-                            ),
-                          );
-                        },
-                      ),
-                      _buildHizliIslemButonu(
-                        icon: Icons.auto_stories,
-                        label: "Sınıf Şifreleri",
-                        color: const Color.fromARGB(255, 69, 9, 80),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SinifSifreleriScreen(
-                                classId: widget.classId,
-                                className: widget.className,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _getOgrenciler(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text("Bu sınıfta henüz kayıtlı öğrenci yok."),
-                  );
-                }
-
-                final students = snapshot.data!;
-
-                return ListView.builder(
-                  itemCount: students.length,
-                  itemBuilder: (context, index) {
-                    final student = students[index];
-                    final firstName = student['firstName'] ?? '';
-                    final lastName = student['lastName'] ?? '';
-                    final initials =
-                        (firstName.isNotEmpty ? firstName[0] : '') +
-                        (lastName.isNotEmpty ? lastName[0] : '');
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      child: ListTile(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => StudentDetailScreen(
-                                studentData: student,
-                                studentId: student['id'],
-                              ),
-                            ),
-                          ).then((_) => setState(() {}));
-                        },
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.indigo.shade100,
-                          child: Text(
-                            initials.toUpperCase(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.indigo,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          "$firstName $lastName",
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          "No: ${student['schoolNumber'] ?? 'Belirtilmemiş'}",
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isSinifOgretmeni) ...[
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                ),
-                                onPressed: () =>
-                                    _duzenle(context, student['id'], student),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () => _sil(context, student['id']),
-                              ),
-                            ],
-                            const Icon(
-                              Icons.chevron_right,
-                              color: Colors.indigo,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      // SADECE SINIF ÖĞRETMENİ İSE ÖĞRENCİ EKLEME BUTONU GÖRÜNÜR
       floatingActionButton: isSinifOgretmeni
           ? FloatingActionButton(
               onPressed: () async {

@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, camel_case_types
 
+import 'package:durugol_cicekleri/YetkiTanimlaScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_class_screen.dart';
@@ -270,6 +271,20 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
       appBar: AppBar(
         title: const Text("Sınıflarım ve Yetkililer"),
         actions: [
+          // SÜPER ADMIN (MASTER) İSENİZ GÖRÜNEN "YETKİ TANIMLA" DÜĞMESİ
+          if (widget.isTeacherMaster)
+            IconButton(
+              icon: const Icon(Icons.security, color: Colors.amberAccent),
+              tooltip: "Yetki Tanımla",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const YetkiTanimlaScreen()),
+                );
+              },
+            ),
+
+          // Çıkış Butonu
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

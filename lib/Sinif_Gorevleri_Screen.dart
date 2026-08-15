@@ -5,7 +5,14 @@ import 'package:flutter/material.dart';
 
 class SinifGorevleriScreen extends StatefulWidget {
   final String classId;
-  const SinifGorevleriScreen({super.key, required this.classId});
+  final String
+  userRole; // Yeni eklenen rol parametresi ('classroom_teacher', 'branch_teacher', 'admin')
+
+  const SinifGorevleriScreen({
+    super.key,
+    required this.classId,
+    this.userRole = 'classroom_teacher',
+  });
 
   @override
   State<SinifGorevleriScreen> createState() => _SinifGorevleriScreenState();
@@ -72,7 +79,6 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
         String lastName = (data['lastName'] ?? '').toString().trim();
         data['adSoyad'] = "$firstName $lastName".trim();
 
-        // Veritabanındaki 'gender' alanına ve 'K' / 'E' değerlerine göre ayırıyoruz
         String gender = (data['gender'] ?? '').toString().trim().toUpperCase();
 
         if (gender == 'K') {
@@ -140,7 +146,6 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
     String cinsiyet,
     int currentIndex,
   ) {
-    // Parametrenin 'Kiz' mi yoksa 'Erkek' mi geldiğini kesin olarak ayırt edelim
     bool arananKizMi = cinsiyet == 'Kiz';
 
     List<Map<String, dynamic>> kaynakListe = arananKizMi
@@ -150,21 +155,17 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
         ? _secilenKizAdaylar
         : _secilenErkekAdaylar;
 
-    // Şu an aktif görevde olan öğrencilerin ID'lerini alalım
     String? aktifKizId = _aktifKizGorevli?['id'];
     String? aktifErkekId = _aktifErkekGorevli?['id'];
 
     return kaynakListe.where((ogrenci) {
       String id = ogrenci['id'];
 
-      // 1. Daha önce görev yapmış olanlar listede çıkmasın
       if (_eskiGorevliIds.contains(id)) return false;
 
-      // 2. Şu an aktif görevde olanlar yeni seçim listesinde çıkmasın
       if (arananKizMi && id == aktifKizId) return false;
       if (!arananKizMi && id == aktifErkekId) return false;
 
-      // 3. Aynı anda birden fazla slotta aynı kişi seçilemesin
       for (int i = 0; i < seciliDigerleri.length; i++) {
         if (i != currentIndex && seciliDigerleri[i] == id) {
           return false;
@@ -179,7 +180,7 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
       if (_secilenKizAdaylar[i] == null || _secilenErkekAdaylar[i] == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Lutfen tum aday slotlarini doldurun!"),
+            content: Text("Lütfen tüm aday slotlarını doldurun!"),
             backgroundColor: Colors.orange,
           ),
         );
@@ -290,14 +291,14 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
       _verileriGetir();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Yeni sinif gorevlileri basariyla secildi! 🎉"),
+          content: Text("Yeni sınıf görevlileri başarıyla seçildi! 🎉"),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Kayit sirasinda hata: $e"),
+          content: Text("Kayıt sırasında hata: $e"),
           backgroundColor: Colors.red,
         ),
       );
@@ -308,7 +309,7 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Eski Sinif Gorevlileri Arsivi"),
+        title: const Text("Eski Sınıf Görevlileri Arşivi"),
         content: SizedBox(
           width: double.maxFinite,
           child: FutureBuilder<QuerySnapshot>(
@@ -323,7 +324,7 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Text("Henuz gecmis gorevli kaydi bulunmuyor.");
+                return const Text("Henüz geçmiş görevli kaydı bulunmuyor.");
               }
               var docs = snapshot.data!.docs;
               return ListView.builder(
@@ -349,7 +350,7 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
-                      "Gorev Suresi: $gun gun\nBitis Tarihi: $tarihStr",
+                      "Görev Süresi: $gun gün\nBitiş Tarihi: $tarihStr",
                     ),
                     isThreeLine: true,
                   );
@@ -374,14 +375,17 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Sadece sınıf öğretmeni ise yeni seçim başlatma butonuna izin verilir (İdareci ve Branş Öğretmeninde gizlenir)
+    bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Sinif Gorevlileri Modulu"),
+        title: const Text("Sınıf Görevlileri Modülü"),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.history, size: 28),
-            tooltip: "Eski Gorevliler Arsivi",
+            tooltip: "Eski Görevliler Arşivi",
             onPressed: _gecmisGorevlileriGoster,
           ),
         ],
@@ -401,7 +405,7 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      "Mevcut Sinif Gorevlileri",
+                      "Mevcut Sınıf Görevlileri",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -431,89 +435,92 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            if (!_secimModuAktif) ...[
-              ElevatedButton.icon(
-                onPressed: () => setState(() => _secimModuAktif = true),
-                icon: const Icon(Icons.how_to_vote, size: 24),
-                label: const Text(
-                  "Yeni Secim Baslat",
-                  style: TextStyle(fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+            // Sadece sınıf öğretmeniyse "Yeni Seçim Başlat" butonu görünsün
+            if (isSinifOgretmeni) ...[
+              if (!_secimModuAktif) ...[
+                ElevatedButton.icon(
+                  onPressed: () => setState(() => _secimModuAktif = true),
+                  icon: const Icon(Icons.how_to_vote, size: 24),
+                  label: const Text(
+                    "Yeni Seçim Başlat",
+                    style: TextStyle(fontSize: 16),
                   ),
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
-              ),
-            ] else ...[
-              const Text(
-                "Aday Ogrenci Secimi ve Oy Girisi",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.indigo,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Not: Daha once gorev yapmis olanlar aday listesinde gorunmez.",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Kız Adaylar ve Oylar",
+              ] else ...[
+                const Text(
+                  "Aday Öğrenci Seçimi ve Oy Girişi",
                   style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.pink,
+                    color: Colors.indigo,
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              for (int i = 0; i < 3; i++) _adaySatiriOlustur('Kiz', i),
-              const SizedBox(height: 20),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Erkek Adaylar ve Oylar",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.blue,
-                  ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Not: Daha önce görev yapmış olanlar aday listesinde görünmez.",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-              ),
-              const SizedBox(height: 8),
-              for (int i = 0; i < 3; i++) _adaySatiriOlustur('Erkek', i),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => setState(() => _secimModuAktif = false),
-                    child: const Text("Iptal Et"),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: _secimiSonlandir,
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text("Secimi Sonlandir ve Kaydet"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Kız Adaylar ve Oylar",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.pink,
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                for (int i = 0; i < 3; i++) _adaySatiriOlustur('Kiz', i),
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Erkek Adaylar ve Oylar",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (int i = 0; i < 3; i++) _adaySatiriOlustur('Erkek', i),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => setState(() => _secimModuAktif = false),
+                      child: const Text("İptal Et"),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton.icon(
+                      onPressed: _secimiSonlandir,
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text("Seçimi Sonlandır ve Kaydet"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ],
         ),
@@ -528,12 +535,12 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
     IconData ikon,
   ) {
     String ad = gorevli != null
-        ? (gorevli['adSoyad'] ?? 'Atanmadi')
-        : 'Henuz Secilmedi';
+        ? (gorevli['adSoyad'] ?? 'Atanmadı')
+        : 'Henüz Seçilmedi';
     String tarihStr = '';
     if (baslangicTarihi != null) {
       tarihStr =
-          "Baslangic: ${baslangicTarihi.day}.${baslangicTarihi.month}.${baslangicTarihi.year}";
+          "Başlangıç: ${baslangicTarihi.day}.${baslangicTarihi.month}.${baslangicTarihi.year}";
     }
 
     return Column(
@@ -570,7 +577,6 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
         : _erkekOyControllers[index];
     String gorunenCinsiyet = (cinsiyet == 'Kiz') ? 'Kız' : 'Erkek';
 
-    // Seçilen öğrencinin adını bulalım (varsa)
     String? secilenOgrenciAdi;
     if (secilenler[index] != null) {
       var bulunan = uygunAdaylar.firstWhere(
@@ -605,7 +611,6 @@ class _SinifGorevleriScreenState extends State<SinifGorevleriScreen> {
           Expanded(
             child: InkWell(
               onTap: () {
-                // Tıklandığında doğrudan Dialog veya Liste açarak seçimi garantileyelim
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
