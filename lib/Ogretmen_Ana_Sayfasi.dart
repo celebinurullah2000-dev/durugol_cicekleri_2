@@ -1960,7 +1960,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
               onPressed: () async {
                 await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AddStudentScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => AddStudentScreen(
+                      userRole: widget.userRole,
+                      currentClassId: widget.classId,
+                    ),
+                  ),
                 );
                 setState(() {});
               },

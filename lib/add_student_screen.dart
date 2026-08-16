@@ -1,8 +1,17 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddStudentScreen extends StatefulWidget {
-  const AddStudentScreen({super.key});
+  final String userRole;
+  final String currentClassId;
+
+  const AddStudentScreen({
+    super.key,
+    this.userRole = 'classroom_teacher',
+    this.currentClassId = '',
+  });
 
   @override
   State<AddStudentScreen> createState() => _AddStudentScreenState();
@@ -10,13 +19,34 @@ class AddStudentScreen extends StatefulWidget {
 
 class _AddStudentScreenState extends State<AddStudentScreen> {
   final _formKey = GlobalKey<FormState>();
-  String? _selectedClassId; // Seçilen sınıfın ID'si
+  String? _selectedClassId;
   String? _selectedGender; // Seçilen cinsiyet ('K' veya 'E')
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _numberController = TextEditingController();
+
+  bool get _isSinifOgretmeni =>
+      widget.userRole.trim().toLowerCase() == 'classroom_teacher';
+
+  @override
+  void initState() {
+    super.initState();
+    // Eğer sınıf öğretmeniyse, sınıf ID'sini doğrudan sabitleyelim
+    if (_isSinifOgretmeni && widget.currentClassId.isNotEmpty) {
+      _selectedClassId = widget.currentClassId;
+    }
+  }
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _passwordController.dispose();
+    _numberController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,29 +57,76 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // SINIF SEÇİMİ (Firebase'den çekilen sınıflar)
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('classes')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const CircularProgressIndicator();
+            // SINIF SEÇİMİ (Sınıf öğretmenine kilitli, idareciye seçilebilir)
+            _isSinifOgretmeni
+                ? FutureBuilder<DocumentSnapshot>(
+                    future: widget.currentClassId.isNotEmpty
+                        ? FirebaseFirestore.instance
+                              .collection('classes')
+                              .doc(widget.currentClassId)
+                              .get()
+                        : null,
+                    builder: (context, snapshot) {
+                      // Veri yüklenirken veya id boşsa geçici olarak yükleniyor veya boş gösterelim
+                      String className = "Yükleniyor...";
+                      if (snapshot.connectionState == ConnectionState.done) {
+                        if (snapshot.hasData && snapshot.data!.exists) {
+                          var data =
+                              snapshot.data!.data() as Map<String, dynamic>?;
+                          className =
+                              data?['className'] ?? widget.currentClassId;
+                        } else {
+                          className = "Sınıf Bilgisi Bulunamadı";
+                        }
+                      }
 
-                var classList = snapshot.data!.docs;
-                return DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: "Sınıf Seçin"),
-                  initialValue: _selectedClassId,
-                  items: classList.map((doc) {
-                    return DropdownMenuItem(
-                      value: doc.id,
-                      child: Text(doc['className']),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _selectedClassId = val),
-                  validator: (val) => val == null ? "Sınıf seçmelisiniz" : null,
-                );
-              },
-            ),
+                      return InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: "Sınıf",
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors
+                              .grey, // Kilitli olduğunu belirten gri arka plan
+                        ),
+                        child: Text(
+                          className,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('classes')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const CircularProgressIndicator();
+                      }
+
+                      var classList = snapshot.data!.docs;
+                      return DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: "Sınıf Seçin",
+                        ),
+                        initialValue: _selectedClassId,
+                        items: classList.map((doc) {
+                          return DropdownMenuItem(
+                            value: doc.id,
+                            child: Text(doc['className']),
+                          );
+                        }).toList(),
+                        onChanged: (val) =>
+                            setState(() => _selectedClassId = val),
+                        validator: (val) =>
+                            val == null ? "Sınıf seçmelisiniz" : null,
+                      );
+                    },
+                  ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _firstNameController,
               decoration: const InputDecoration(labelText: "Öğrenci Adı"),
@@ -90,23 +167,19 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 if (_formKey.currentState!.validate() &&
                     _selectedClassId != null &&
                     _selectedGender != null) {
-                  // 1. Sadece ihtiyacımız olan navigator'ı kaydediyoruz
                   final navigator = Navigator.of(context);
 
-                  // 2. Firestore işlemini yap (gender alanı eklendi)
                   await FirebaseFirestore.instance.collection('students').add({
-                    'firstName': _firstNameController.text,
-                    'lastName': _lastNameController.text,
+                    'firstName': _firstNameController.text.trim(),
+                    'lastName': _lastNameController.text.trim(),
                     'classId': _selectedClassId,
-                    'gender': _selectedGender, // 'K' veya 'E'
-                    'schoolNumber': _numberController.text,
-                    'password': _passwordController.text,
+                    'gender': _selectedGender,
+                    'schoolNumber': _numberController.text.trim(),
+                    'password': _passwordController.text.trim(),
                     'createdAt': DateTime.now(),
-                    'hasBeenOnDuty':
-                        false, // Yeni eklenen öğrenci için başlangıç değeri
+                    'hasBeenOnDuty': false,
                   });
 
-                  // 3. Kaydedilen navigator referansını kullan
                   navigator.pop();
                 }
               },

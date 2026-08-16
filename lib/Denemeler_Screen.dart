@@ -2,19 +2,20 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart'; // Grafik paketi (pubspec.yaml'da ekli olmalıdır)
 
 class DenemelerScreen extends StatelessWidget {
   final String classId;
   final String className;
   final String userRole;
-  final String grade; // Sınıf seviyesi (1, 2, 3, 4)
+  final String grade;
 
   const DenemelerScreen({
     super.key,
     required this.classId,
     required this.className,
     this.userRole = 'classroom_teacher',
-    this.grade = '2', // Varsayılan 2. sınıf
+    this.grade = '2',
   });
 
   bool get _isSinifOgretmeni =>
@@ -307,6 +308,48 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
   bool get _isSinifOgretmeni =>
       userRole.trim().toLowerCase() == 'classroom_teacher';
 
+  int _turkceKarsilastir(String a, String b) {
+    const String turkceAlfabe = 'aabcçdefgğhıijklmnoöprsştuüvyz';
+
+    String aKucuk = a
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    String bKucuk = b
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    int minLength = aKucuk.length < bKucuk.length
+        ? aKucuk.length
+        : bKucuk.length;
+
+    for (int i = 0; i < minLength; i++) {
+      int indexA = turkceAlfabe.indexOf(aKucuk[i]);
+      int indexB = turkceAlfabe.indexOf(bKucuk[i]);
+
+      if (indexA == -1 || indexB == -1) {
+        int comp = aKucuk.codeUnitAt(i).compareTo(bKucuk.codeUnitAt(i));
+        if (comp != 0) return comp;
+      } else if (indexA != indexB) {
+        return indexA.compareTo(indexB);
+      }
+    }
+
+    return aKucuk.length.compareTo(bKucuk.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -324,7 +367,24 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
             return const Center(child: Text("Bu sınıfta öğrenci bulunamadı."));
           }
 
-          var students = studentSnap.data!.docs;
+          var students = List.from(studentSnap.data!.docs);
+
+          students.sort((docA, docB) {
+            var dataA = docA.data() as Map<String, dynamic>;
+            var dataB = docB.data() as Map<String, dynamic>;
+
+            String adA = dataA['firstName'] ?? '';
+            String adB = dataB['firstName'] ?? '';
+            int adKarsilastir = _turkceKarsilastir(adA, adB);
+
+            if (adKarsilastir != 0) {
+              return adKarsilastir;
+            }
+
+            String soyadA = dataA['lastName'] ?? '';
+            String soyadB = dataB['lastName'] ?? '';
+            return _turkceKarsilastir(soyadA, soyadB);
+          });
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -396,7 +456,7 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
 }
 
 // ------------------------------------------------------------------
-// 2. AŞAMA: ÖĞRENCİ DERS BAZLI GİRİŞ/GÖRÜNTÜLEME EKRANI
+// 2. AŞAMA: ÖĞRENCİ DERS BAZLI GİRİŞ/GÖRÜNTÜLEME VE GRAFİK EKRANI
 // ------------------------------------------------------------------
 class OgrenciSinavGirisScreen extends StatefulWidget {
   final String classId;
@@ -422,7 +482,6 @@ class OgrenciSinavGirisScreen extends StatefulWidget {
 }
 
 class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
-  // Sınıf seviyesine göre dinamik ders listesi döndüren metot
   List<String> get dersler {
     String g = widget.grade.trim();
     if (g == '1') {
@@ -438,22 +497,24 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
         "İngilizce",
       ];
     } else if (g == '4') {
-      // 4. sınıfta Hayat Bilgisi yerine Sosyal Bilgiler gelir
       return [
         "Türkçe",
         "Matematik",
-        "Sosyal Bilgiler",
         "Fen Bilimleri",
         "İngilizce",
+        "Sosyal Bilgiler",
       ];
     }
-    // Varsayılan (eğer boş veya farklı gelirse)
     return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
   }
 
   final Map<String, Map<String, TextEditingController>> controllers = {};
-
   bool yukleniyor = true;
+
+  // Öğrencinin geçmiş sınav başarı yüzdelerini tutmak için (Grafik verisi)
+  List<FlSpot> _grafikNoktalari = [];
+  List<String> _sinavIsimleri = [];
+  bool _grafikYukleniyor = true;
 
   bool get _isSinifOgretmeni =>
       widget.userRole.trim().toLowerCase() == 'classroom_teacher';
@@ -474,6 +535,7 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
       }
     }
     _verileriGetir();
+    _gecmisSinavVerileriniGetir();
   }
 
   @override
@@ -538,6 +600,76 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
     setState(() => yukleniyor = false);
   }
 
+  // Öğrencinin geçmiş tüm sınavlarındaki başarı yüzdelerini hesaplayan fonksiyon
+  Future<void> _gecmisSinavVerileriniGetir() async {
+    try {
+      // 1. Sınıfa ait tüm denemeleri tarihe göre sıralı çek
+      var denemelerSnap = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .collection('denemeler')
+          .orderBy('tarih', descending: false)
+          .get();
+
+      List<FlSpot> spots = [];
+      List<String> sinavlar = [];
+      int index = 0;
+
+      for (var denemeDoc in denemelerSnap.docs) {
+        String sId = denemeDoc.id;
+        var sData = denemeDoc.data();
+        String sAdi = sData['sinavAdi'] ?? 'Deneme';
+
+        // O denemede bu öğrencinin sonuçlarını al
+        var sonucDoc = await FirebaseFirestore.instance
+            .collection('classes')
+            .doc(widget.classId)
+            .collection('denemeler')
+            .doc(sId)
+            .collection('sonuclar')
+            .doc(widget.studentId)
+            .get();
+
+        if (sonucDoc.exists) {
+          var sonucData = sonucDoc.data() as Map<String, dynamic>;
+          int sinavToplamDogru = 0;
+          int sinavToplamSoru = 0;
+
+          // Bu sınıf düzeyindeki derslere göre toplam doğru ve toplam soru sayısını hesapla
+          for (var ders in dersler) {
+            if (sonucData.containsKey(ders)) {
+              var dersData = sonucData[ders] as Map<String, dynamic>? ?? {};
+              int d = (dersData['d'] ?? 0) as int;
+              int y = (dersData['y'] ?? 0) as int;
+              int b = (dersData['b'] ?? 0) as int;
+
+              sinavToplamDogru += d;
+              sinavToplamSoru += (d + y + b);
+            }
+          }
+
+          // Yüzde başarı hesabı (Doğru / Toplam Soru * 100)
+          double basariYuzdesi = 0.0;
+          if (sinavToplamSoru > 0) {
+            basariYuzdesi = (sinavToplamDogru / sinavToplamSoru) * 100;
+          }
+
+          spots.add(FlSpot(index.toDouble(), basariYuzdesi));
+          sinavlar.add(sAdi);
+          index++;
+        }
+      }
+
+      setState(() {
+        _grafikNoktalari = spots;
+        _sinavIsimleri = sinavlar;
+        _grafikYukleniyor = false;
+      });
+    } catch (e) {
+      setState(() => _grafikYukleniyor = false);
+    }
+  }
+
   void _kaydet() async {
     if (!_isSinifOgretmeni) return;
 
@@ -578,8 +710,9 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
+              child: ListView(
                 children: [
+                  // Üst Kısım: Toplam Özet Kartı
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -653,73 +786,197 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: ListView(
-                      children: dersler.map((ders) {
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 16),
+                  // Ders Bazlı Giriş / Görüntüleme Alanları
+                  ...dersler.map((ders) {
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ders,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
                               children: [
-                                Text(
-                                  ders,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.indigo,
+                                Expanded(
+                                  child: TextField(
+                                    controller: controllers[ders]?['d'],
+                                    keyboardType: TextInputType.number,
+                                    readOnly: !_isSinifOgretmeni,
+                                    decoration: const InputDecoration(
+                                      labelText: "Doğru",
+                                      border: OutlineInputBorder(),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: controllers[ders]?['d'],
-                                        keyboardType: TextInputType.number,
-                                        readOnly: !_isSinifOgretmeni,
-                                        decoration: const InputDecoration(
-                                          labelText: "Doğru",
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: controllers[ders]?['y'],
+                                    keyboardType: TextInputType.number,
+                                    readOnly: !_isSinifOgretmeni,
+                                    decoration: const InputDecoration(
+                                      labelText: "Yanlış",
+                                      border: OutlineInputBorder(),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: controllers[ders]?['y'],
-                                        keyboardType: TextInputType.number,
-                                        readOnly: !_isSinifOgretmeni,
-                                        decoration: const InputDecoration(
-                                          labelText: "Yanlış",
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: controllers[ders]?['b'],
+                                    keyboardType: TextInputType.number,
+                                    readOnly: !_isSinifOgretmeni,
+                                    decoration: const InputDecoration(
+                                      labelText: "Boş",
+                                      border: OutlineInputBorder(),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: controllers[ders]?['b'],
-                                        keyboardType: TextInputType.number,
-                                        readOnly: !_isSinifOgretmeni,
-                                        decoration: const InputDecoration(
-                                          labelText: "Boş",
-                                          border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 20),
+
+                  // --- GEÇMİŞ DENEME BAŞARI GRAFİĞİ (YÜZDE TABANLI) ---
+                  const Text(
+                    "Geçmiş Deneme Sınavları Başarı Grafiği (%)",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 240, // Grafik alanını biraz genişlettik
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: _grafikYukleniyor
+                        ? const Center(child: CircularProgressIndicator())
+                        : _grafikNoktalari.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "Henüz geçmiş sınav verisi bulunmuyor.",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : LineChart(
+                            LineChartData(
+                              minX: 0,
+                              maxX: _grafikNoktalari.isNotEmpty
+                                  ? (_grafikNoktalari.length - 1).toDouble()
+                                  : 0,
+                              minY: 0,
+                              maxY: 100,
+                              lineTouchData: LineTouchData(
+                                touchTooltipData: LineTouchTooltipData(
+                                  getTooltipItems: (touchedSpots) {
+                                    return touchedSpots.map((spot) {
+                                      return LineTooltipItem(
+                                        "%${spot.y.toInt()}",
+                                        const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                      ),
+                                      );
+                                    }).toList();
+                                  },
+                                ),
+                              ),
+                              gridData: FlGridData(show: true),
+                              titlesData: FlTitlesData(
+                                rightTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                topTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 35,
+                                    getTitlesWidget: (value, meta) {
+                                      return Text(
+                                        "${value.toInt()}%",
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    interval: 1,
+                                    reservedSize: 45,
+                                    getTitlesWidget: (value, meta) {
+                                      int idx = value.toInt();
+                                      if (idx >= 0 &&
+                                          idx < _sinavIsimleri.length) {
+                                        return SideTitleWidget(
+                                          axisSide: meta.axisSide,
+                                          space: 8.0,
+                                          child: Transform.rotate(
+                                            angle: -0.25,
+                                            child: Text(
+                                              _sinavIsimleri[idx],
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return const Text('');
+                                    },
+                                  ),
+                                ),
+                              ),
+                              borderData: FlBorderData(show: true),
+                              lineBarsData: [
+                                LineChartBarData(
+                                  spots: _grafikNoktalari,
+                                  isCurved: true,
+                                  color: Colors.indigo,
+                                  barWidth: 3,
+                                  isStrokeCapRound: true,
+                                  dotData: FlDotData(show: true),
+                                  belowBarData: BarAreaData(
+                                    show: true,
+                                    color: Colors.indigo.withValues(
+                                      alpha: 0.15,
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
+
+                  // Kaydet Butonu (Sadece Sınıf Öğretmeni İçin)
                   if (_isSinifOgretmeni)
                     SizedBox(
                       width: double.infinity,
@@ -737,6 +994,7 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
                         ),
                       ),
                     ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -747,7 +1005,7 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
 // ------------------------------------------------------------------
 // 3. SINIF TOPLU SONUÇLAR VE SIRALAMA EKRANI
 // ------------------------------------------------------------------
-class SinifTopluSonucScreen extends StatelessWidget {
+class SinifTopluSonucScreen extends StatefulWidget {
   final String classId;
   final String sinavId;
   final String sinavAdi;
@@ -761,8 +1019,15 @@ class SinifTopluSonucScreen extends StatelessWidget {
     this.grade = '2',
   });
 
+  @override
+  State<SinifTopluSonucScreen> createState() => _SinifTopluSonucScreenState();
+}
+
+class _SinifTopluSonucScreenState extends State<SinifTopluSonucScreen> {
+  String _siralamaTuru = 'alfabetik';
+
   List<String> get dersler {
-    String g = grade.trim();
+    String g = widget.grade.trim();
     if (g == '1') {
       return ["Türkçe", "Matematik", "Hayat Bilgisi"];
     } else if (g == '2') {
@@ -787,17 +1052,84 @@ class SinifTopluSonucScreen extends StatelessWidget {
     return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
   }
 
+  int _turkceKarsilastir(String a, String b) {
+    const String turkceAlfabe = 'aabcçdefgğhıijklmnoöprsştuüvyz';
+
+    String aKucuk = a
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    String bKucuk = b
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    int minLength = aKucuk.length < bKucuk.length
+        ? aKucuk.length
+        : bKucuk.length;
+
+    for (int i = 0; i < minLength; i++) {
+      int indexA = turkceAlfabe.indexOf(aKucuk[i]);
+      int indexB = turkceAlfabe.indexOf(bKucuk[i]);
+
+      if (indexA == -1 || indexB == -1) {
+        int comp = aKucuk.codeUnitAt(i).compareTo(bKucuk.codeUnitAt(i));
+        if (comp != 0) return comp;
+      } else if (indexA != indexB) {
+        return indexA.compareTo(indexB);
+      }
+    }
+
+    return aKucuk.length.compareTo(bKucuk.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("$sinavAdi - Toplu Sonuçlar"),
+        title: Text("${widget.sinavAdi} - Toplu Sonuçlar"),
         centerTitle: true,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            tooltip: "Sıralama Seçenekleri",
+            onSelected: (value) {
+              setState(() {
+                _siralamaTuru = value;
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'alfabetik',
+                child: Text("🔤 Türkçe Alfabetik Sıralama"),
+              ),
+              const PopupMenuItem(
+                value: 'dogru_azalan',
+                child: Text("📈 Doğru Sayısına Göre (Çoktan Aza)"),
+              ),
+              const PopupMenuItem(
+                value: 'dogru_artan',
+                child: Text("📉 Doğru Sayısına Göre (Azdan Çoğa)"),
+              ),
+            ],
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('students')
-            .where('classId', isEqualTo: classId)
+            .where('classId', isEqualTo: widget.classId)
             .snapshots(),
         builder: (context, studentSnap) {
           if (studentSnap.connectionState == ConnectionState.waiting) {
@@ -812,9 +1144,9 @@ class SinifTopluSonucScreen extends StatelessWidget {
           return StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('classes')
-                .doc(classId)
+                .doc(widget.classId)
                 .collection('denemeler')
-                .doc(sinavId)
+                .doc(widget.sinavId)
                 .collection('sonuclar')
                 .snapshots(),
             builder: (context, sonucSnap) {
@@ -834,8 +1166,9 @@ class SinifTopluSonucScreen extends StatelessWidget {
               for (var studentDoc in students) {
                 String studentId = studentDoc.id;
                 var studentData = studentDoc.data() as Map<String, dynamic>;
-                String adSoyad =
-                    "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}";
+                String ad = studentData['firstName'] ?? '';
+                String soyad = studentData['lastName'] ?? '';
+                String adSoyad = "$ad $soyad";
 
                 int toplamD = 0;
                 int toplamY = 0;
@@ -854,6 +1187,8 @@ class SinifTopluSonucScreen extends StatelessWidget {
                 }
 
                 ogrenciListesi.add({
+                  'ad': ad,
+                  'soyad': soyad,
                   'adSoyad': adSoyad,
                   'dogru': toplamD,
                   'yanlis': toplamY,
@@ -861,16 +1196,32 @@ class SinifTopluSonucScreen extends StatelessWidget {
                 });
               }
 
-              ogrenciListesi.sort(
-                (a, b) => (b['dogru'] as int).compareTo(a['dogru'] as int),
-              );
+              if (_siralamaTuru == 'alfabetik') {
+                ogrenciListesi.sort((a, b) {
+                  int adKarsilastir = _turkceKarsilastir(a['ad'], b['ad']);
+                  if (adKarsilastir != 0) return adKarsilastir;
+                  return _turkceKarsilastir(a['soyad'], b['soyad']);
+                });
+              } else if (_siralamaTuru == 'dogru_azalan') {
+                ogrenciListesi.sort(
+                  (a, b) => (b['dogru'] as int).compareTo(a['dogru'] as int),
+                );
+              } else if (_siralamaTuru == 'dogru_artan') {
+                ogrenciListesi.sort(
+                  (a, b) => (a['dogru'] as int).compareTo(b['dogru'] as int),
+                );
+              }
 
               List<Map<String, dynamic>> siraliOgrenciListesi = [];
               int currentRank = 1;
               for (int i = 0; i < ogrenciListesi.length; i++) {
-                if (i > 0 &&
-                    ogrenciListesi[i]['dogru'] !=
-                        ogrenciListesi[i - 1]['dogru']) {
+                if (_siralamaTuru.startsWith('dogru')) {
+                  if (i > 0 &&
+                      ogrenciListesi[i]['dogru'] !=
+                          ogrenciListesi[i - 1]['dogru']) {
+                    currentRank = i + 1;
+                  }
+                } else {
                   currentRank = i + 1;
                 }
 
