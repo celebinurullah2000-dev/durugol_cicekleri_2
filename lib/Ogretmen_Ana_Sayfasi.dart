@@ -1610,6 +1610,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     builder: (context) => etutlerscreen(
                                       classId: hedefClassId,
                                       className: widget.className,
+                                      userRole: widget.userRole,
                                     ),
                                   ),
                                 );

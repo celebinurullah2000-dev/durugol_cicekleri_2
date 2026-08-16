@@ -6,11 +6,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class etutlerscreen extends StatefulWidget {
   final String classId;
   final String className;
+  final String userRole; // Rol parametresi eklendi
 
   const etutlerscreen({
     super.key,
     required this.classId,
     required this.className,
+    this.userRole = 'classroom_teacher', // Varsayılan sınıf öğretmeni
   });
 
   @override
@@ -18,14 +20,19 @@ class etutlerscreen extends StatefulWidget {
 }
 
 class _etutlerscreenState extends State<etutlerscreen> {
+  // Sadece rolü kesin olarak 'classroom_teacher' olanlar yetkilidir
+  bool get _isSinifOgretmeni =>
+      widget.userRole.trim().toLowerCase() == 'classroom_teacher';
+
   // --- YENİ ETÜT EKLEME VEYA DÜZENLEME DİALOGU ---
   void _etutEkleDuzenleDialog(
     BuildContext context, {
     DocumentSnapshot? etutDoc,
   }) {
+    if (!_isSinifOgretmeni) return;
+
     bool isEditing = etutDoc != null;
 
-    // Verileri güvenli bir şekilde değişkenlere alalım
     final Map<String, dynamic>? data = isEditing
         ? etutDoc.data() as Map<String, dynamic>?
         : null;
@@ -115,7 +122,6 @@ class _etutlerscreenState extends State<etutlerscreen> {
               }
 
               if (isEditing) {
-                // Güncelleme İşlemi
                 await FirebaseFirestore.instance
                     .collection('etutler')
                     .doc(etutDoc.id)
@@ -127,7 +133,6 @@ class _etutlerscreenState extends State<etutlerscreen> {
                       'bitisSaati': bitis,
                     });
               } else {
-                // Yeni Ekleme İşlemi
                 await FirebaseFirestore.instance.collection('etutler').add({
                   'classId': widget.classId,
                   'etutAdi': etutAdi,
@@ -161,6 +166,8 @@ class _etutlerscreenState extends State<etutlerscreen> {
 
   // --- ETÜT SİLME ---
   void _etutSil(String etutId) {
+    if (!_isSinifOgretmeni) return;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -195,7 +202,6 @@ class _etutlerscreenState extends State<etutlerscreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Haftanın günlerinin sıralama önceliği
     final Map<String, int> gunSiralamasi = {
       'pazartesi': 1,
       'salı': 2,
@@ -226,18 +232,19 @@ class _etutlerscreenState extends State<etutlerscreen> {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                "Bu sınıfa ait henüz bir etüt oluşturulmamış.\nSağ alttan yeni etüt ekleyebilirsiniz.",
+                _isSinifOgretmeni
+                    ? "Bu sınıfa ait henüz bir etüt oluşturulmamış.\nSağ alttan yeni etüt ekleyebilirsiniz."
+                    : "Bu sınıfa ait henüz bir etüt bulunmuyor.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 15),
+                style: const TextStyle(color: Colors.grey, fontSize: 15),
               ),
             );
           }
 
           var etutListesi = snapshot.data!.docs;
 
-          // Gün sırasına göre etütleri sıralama
           etutListesi.sort((a, b) {
             var dataA = a.data() as Map<String, dynamic>;
             var dataB = b.data() as Map<String, dynamic>;
@@ -251,8 +258,7 @@ class _etutlerscreenState extends State<etutlerscreen> {
                 .trim()
                 .toLowerCase();
 
-            int siraA =
-                gunSiralamasi[gunA] ?? 99; // Gün belirtilmediyse en sona atar
+            int siraA = gunSiralamasi[gunA] ?? 99;
             int siraB = gunSiralamasi[gunB] ?? 99;
 
             return siraA.compareTo(siraB);
@@ -321,20 +327,25 @@ class _etutlerscreenState extends State<etutlerscreen> {
                       ),
                     ],
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () =>
-                            _etutEkleDuzenleDialog(context, etutDoc: etutDoc),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _etutSil(etutId),
-                      ),
-                    ],
-                  ),
+                  // SADECE SINIF ÖĞRETMENİYSE KALEM VE ÇÖP KUTUSU GÖRÜNÜR
+                  trailing: _isSinifOgretmeni
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _etutEkleDuzenleDialog(
+                                context,
+                                etutDoc: etutDoc,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _etutSil(etutId),
+                            ),
+                          ],
+                        )
+                      : null,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -343,6 +354,7 @@ class _etutlerscreenState extends State<etutlerscreen> {
                           etutId: etutId,
                           etutAdi: etutAdi,
                           classId: widget.classId,
+                          userRole: widget.userRole, // Rol açıkça aktarılıyor
                         ),
                       ),
                     );
@@ -353,12 +365,15 @@ class _etutlerscreenState extends State<etutlerscreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        onPressed: () => _etutEkleDuzenleDialog(context),
-        child: const Icon(Icons.add),
-      ),
+      // SADECE SINIF ÖĞRETMENİYSE YENİ ETÜT EKLEME (+) BUTONU GÖRÜNÜR
+      floatingActionButton: _isSinifOgretmeni
+          ? FloatingActionButton(
+              backgroundColor: Colors.deepPurple,
+              foregroundColor: Colors.white,
+              onPressed: () => _etutEkleDuzenleDialog(context),
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
@@ -368,12 +383,14 @@ class EtutKatilimciSecimScreen extends StatefulWidget {
   final String etutId;
   final String etutAdi;
   final String classId;
+  final String userRole;
 
   const EtutKatilimciSecimScreen({
     super.key,
     required this.etutId,
     required this.etutAdi,
     required this.classId,
+    this.userRole = 'classroom_teacher',
   });
 
   @override
@@ -386,6 +403,10 @@ class _EtutKatilimciSecimScreenState extends State<EtutKatilimciSecimScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   List<Map<String, dynamic>> _ogrenciler = [];
+
+  // Sadece sınıf öğretmeni yetkili
+  bool get _isSinifOgretmeni =>
+      widget.userRole.trim().toLowerCase() == 'classroom_teacher';
 
   @override
   void initState() {
@@ -496,6 +517,7 @@ class _EtutKatilimciSecimScreenState extends State<EtutKatilimciSecimScreen> {
   }
 
   void _tumunuTetikle(bool? value) {
+    if (!_isSinifOgretmeni) return;
     setState(() {
       if (value == true) {
         for (var ogrenci in _ogrenciler) {
@@ -508,6 +530,8 @@ class _EtutKatilimciSecimScreenState extends State<EtutKatilimciSecimScreen> {
   }
 
   Future<void> _degisiklikleriKaydet() async {
+    if (!_isSinifOgretmeni) return;
+
     setState(() => _isSaving = true);
     try {
       await FirebaseFirestore.instance
@@ -547,6 +571,7 @@ class _EtutKatilimciSecimScreenState extends State<EtutKatilimciSecimScreen> {
           ? const Center(child: Text("Bu sınıfta kayıtlı öğrenci bulunmuyor."))
           : Column(
               children: [
+                // Üstteki "Tümünü Seç / Kaldır" kutusu (Sınıf öğretmeni değilse pasif/tıklanamaz olur)
                 Container(
                   color: Colors.deepPurple.shade50,
                   child: CheckboxListTile(
@@ -559,7 +584,7 @@ class _EtutKatilimciSecimScreenState extends State<EtutKatilimciSecimScreen> {
                     ),
                     value: tumSecili,
                     activeColor: Colors.deepPurple,
-                    onChanged: _tumunuTetikle,
+                    onChanged: _isSinifOgretmeni ? _tumunuTetikle : null,
                     secondary: const Icon(
                       Icons.select_all,
                       color: Colors.deepPurple,
@@ -603,55 +628,62 @@ class _EtutKatilimciSecimScreenState extends State<EtutKatilimciSecimScreen> {
                             ),
                           ),
                         ),
-                        onChanged: (bool? value) {
-                          setState(() {
-                            if (value == true) {
-                              _secilenOgrenciIdleri.add(studentId);
-                            } else {
-                              _secilenOgrenciIdleri.remove(studentId);
-                            }
-                          });
-                        },
+                        // ÖĞRENCİ LİSTESİNDEKİ CHECKBOXLAR: Sınıf öğretmeniyse değiştirilebilir, değilse null (pasif)
+                        onChanged: _isSinifOgretmeni
+                            ? (bool? value) {
+                                setState(() {
+                                  if (value == true) {
+                                    _secilenOgrenciIdleri.add(studentId);
+                                  } else {
+                                    _secilenOgrenciIdleri.remove(studentId);
+                                  }
+                                });
+                              }
+                            : null,
                       );
                     },
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 4,
-                        offset: Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                // EN ALTTAKİ KAYDET BUTONU: Sadece sınıf öğretmeniyse görünür, diğerlerinde tamamen gizlenir
+                if (_isSinifOgretmeni)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, -2),
                         ),
-                      ),
-                      onPressed: _isSaving ? null : _degisiklikleriKaydet,
-                      child: _isSaving
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              "Kaydet",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                      ],
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _isSaving ? null : _degisiklikleriKaydet,
+                        child: _isSaving
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                "Kaydet",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
     );
