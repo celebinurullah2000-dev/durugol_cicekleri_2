@@ -296,11 +296,13 @@ class _ManuelOturmaScreenState extends State<ManuelOturmaScreen> {
 class OturmaDuzeniScreen extends StatefulWidget {
   final String classId;
   final bool isTeacher;
+  final String userRole;
 
   const OturmaDuzeniScreen({
     super.key,
     required this.classId,
     required this.isTeacher,
+    this.userRole = 'classroom_teacher',
   });
 
   @override
@@ -925,11 +927,12 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
 
   @override
   Widget build(BuildContext context) {
+    bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
     return Scaffold(
       appBar: AppBar(
         title: const Text("Sınıf Oturma Düzeni"),
         actions: [
-          if (widget.isTeacher) ...[
+          if (widget.isTeacher && isSinifOgretmeni) ...[
             // 1. Otomatik Yerleştir Butonu
             IconButton(
               icon: const Icon(Icons.shuffle),
@@ -1020,7 +1023,7 @@ class _OturmaDuzeniScreenState extends State<OturmaDuzeniScreen> {
                           "${data['ogrenci1Ad'] ?? 'Boş'}   /   ${data['ogrenci2Ad'] ?? 'Boş'}",
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-                        trailing: widget.isTeacher
+                        trailing: (widget.isTeacher && isSinifOgretmeni)
                             ? IconButton(
                                 icon: const Icon(Icons.edit, size: 20),
                                 onPressed: () {

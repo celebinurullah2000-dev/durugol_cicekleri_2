@@ -66,8 +66,8 @@ class _NobetciScreenState extends State<NobetciScreen>
           .get();
 
       if (dutySnapshot.exists) {
-        var data = dutySnapshot.data() as Map<String, dynamic>;
-        var list = data['nobetciler'] as List<dynamic>? ?? [];
+        var data = dutySnapshot.data() as Map<String, dynamic>?;
+        var list = data?['nobetciler'] as List<dynamic>? ?? [];
         setState(() {
           _bugunNobetciler = list
               .map((e) => e as Map<String, dynamic>)
@@ -85,7 +85,6 @@ class _NobetciScreenState extends State<NobetciScreen>
     setState(() => _isLoading = false);
   }
 
-  // Tüm sınıfın nöbet durumunu (hasBeenOnDuty) sıfırlayan yardımcı fonksiyon
   Future<void> _tumSinifSiciliniSifirla() async {
     var snapshot = await FirebaseFirestore.instance
         .collection('students')
@@ -243,9 +242,9 @@ class _NobetciScreenState extends State<NobetciScreen>
 
       var students = snapshot.docs;
 
-      // 1. Havuz oluşturma
       var havuz = students.where((doc) {
-        var data = doc.data();
+        var data = doc.data() as Map<String, dynamic>?;
+        if (data == null) return false;
         bool nobetMusait = data['nobetMusait'] ?? true;
         if (!nobetMusait) return false;
 
@@ -261,12 +260,9 @@ class _NobetciScreenState extends State<NobetciScreen>
         return true;
       }).toList();
 
-      // EĞER SEÇİLMEK İSTENEN KİŞİ SAYISINDAN DAHA AZ MÜSAİT ÖĞRENCİ KALDIYSA
-      // (Örneğin havuz tükendiyse ve hariç tutulsun denildiyse), SİCİLİ SIFIRLA VE HAVUZU YENİDEN DOLDUR!
       if (havuz.length < kisiSayisi && gecmisKriteri == 'Hariç tutulsun') {
         await _tumSinifSiciliniSifirla();
 
-        // Öğrenci verilerini güncel haliyle tekrar çekelim
         snapshot = await FirebaseFirestore.instance
             .collection('students')
             .where('classId', isEqualTo: widget.classId)
@@ -274,7 +270,8 @@ class _NobetciScreenState extends State<NobetciScreen>
         students = snapshot.docs;
 
         havuz = students.where((doc) {
-          var data = doc.data();
+          var data = doc.data() as Map<String, dynamic>?;
+          if (data == null) return false;
           bool nobetMusait = data['nobetMusait'] ?? true;
           if (!nobetMusait) return false;
 
@@ -289,8 +286,14 @@ class _NobetciScreenState extends State<NobetciScreen>
       List<DocumentSnapshot> secilenler = [];
 
       if (cinsiyetKriteri == 'Kız-Erkek' && kisiSayisi == 2) {
-        var kizlar = havuz.where((d) => (d.data())['gender'] == 'K').toList();
-        var erkekler = havuz.where((d) => (d.data())['gender'] == 'E').toList();
+        var kizlar = havuz.where((d) {
+          var data = d.data() as Map<String, dynamic>?;
+          return data?['gender'] == 'K';
+        }).toList();
+        var erkekler = havuz.where((d) {
+          var data = d.data() as Map<String, dynamic>?;
+          return data?['gender'] == 'E';
+        }).toList();
 
         kizlar.shuffle();
         erkekler.shuffle();
@@ -360,7 +363,8 @@ class _NobetciScreenState extends State<NobetciScreen>
                     var students = snapshot.data!.docs;
 
                     var filtrelenmisOgrenciler = students.where((doc) {
-                      var data = doc.data() as Map<String, dynamic>;
+                      var data = doc.data() as Map<String, dynamic>?;
+                      if (data == null) return false;
                       bool nobetMusait = data['nobetMusait'] ?? true;
                       if (!nobetMusait) return false;
 
@@ -380,7 +384,6 @@ class _NobetciScreenState extends State<NobetciScreen>
                       return true;
                     }).toList();
 
-                    // Eğer manuel listede hiç uygun öğrenci kalmadıysa bilgi verebiliriz
                     if (filtrelenmisOgrenciler.isEmpty &&
                         gecmisKriteri == 'Hariç tutulsun') {
                       return Center(
@@ -399,7 +402,7 @@ class _NobetciScreenState extends State<NobetciScreen>
                               ),
                               onPressed: () async {
                                 await _tumSinifSiciliniSifirla();
-                                setDialogState(() {}); // Listeyi yenile
+                                setDialogState(() {});
                               },
                               child: const Text("Tüm Sınıfın Sicilini Sıfırla"),
                             ),
@@ -413,7 +416,7 @@ class _NobetciScreenState extends State<NobetciScreen>
                       itemBuilder: (context, index) {
                         var ogrenciDoc = filtrelenmisOgrenciler[index];
                         var ogrenciData =
-                            ogrenciDoc.data() as Map<String, dynamic>;
+                            ogrenciDoc.data() as Map<String, dynamic>? ?? {};
                         String ogrenciId = ogrenciDoc.id;
                         String adSoyad =
                             "${ogrenciData['firstName'] ?? ''} ${ogrenciData['lastName'] ?? ''}";
@@ -494,10 +497,13 @@ class _NobetciScreenState extends State<NobetciScreen>
           .doc(id)
           .get();
       if (doc.exists) {
-        var data = doc.data() as Map<String, dynamic>;
-        String adSoyad = "${data['firstName']} ${data['lastName']}";
-        yeniNobetciListesi.add({'id': id, 'name': adSoyad});
-        secilenIsimler.add(adSoyad);
+        var data = doc.data();
+        if (data != null) {
+          String adSoyad =
+              "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}";
+          yeniNobetciListesi.add({'id': id, 'name': adSoyad});
+          secilenIsimler.add(adSoyad);
+        }
 
         await FirebaseFirestore.instance.collection('students').doc(id).update({
           'hasBeenOnDuty': true,
@@ -769,8 +775,10 @@ class _NobetciScreenState extends State<NobetciScreen>
                                 var students = snapshot.data!.docs;
 
                                 students.sort((a, b) {
-                                  var dataA = a.data() as Map<String, dynamic>;
-                                  var dataB = b.data() as Map<String, dynamic>;
+                                  var dataA =
+                                      a.data() as Map<String, dynamic>? ?? {};
+                                  var dataB =
+                                      b.data() as Map<String, dynamic>? ?? {};
                                   String nameA =
                                       "${dataA['firstName'] ?? ''} ${dataA['lastName'] ?? ''}";
                                   String nameB =
@@ -784,7 +792,8 @@ class _NobetciScreenState extends State<NobetciScreen>
                                     var studentDoc = students[index];
                                     var studentData =
                                         studentDoc.data()
-                                            as Map<String, dynamic>;
+                                            as Map<String, dynamic>? ??
+                                        {};
                                     String studentId = studentDoc.id;
                                     String adSoyad =
                                         "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}";
@@ -812,36 +821,26 @@ class _NobetciScreenState extends State<NobetciScreen>
                                     }
 
                                     return ListTile(
-                                      leading: widget.isTeacher
-                                          ? Checkbox(
-                                              value: nobetMusait,
-                                              activeColor: Colors.indigo,
-                                              onChanged:
-                                                  (bool? yeniDeger) async {
-                                                    if (yeniDeger != null) {
-                                                      await FirebaseFirestore
-                                                          .instance
-                                                          .collection(
-                                                            'students',
-                                                          )
-                                                          .doc(studentId)
-                                                          .update({
-                                                            'nobetMusait':
-                                                                yeniDeger,
-                                                          });
-                                                    }
-                                                  },
-                                            )
-                                          : CircleAvatar(
-                                              backgroundColor:
-                                                  Colors.indigo.shade100,
-                                              child: Text(
-                                                (index + 1).toString(),
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
+                                      leading: Checkbox(
+                                        value: nobetMusait,
+                                        activeColor: Colors.indigo,
+                                        onChanged:
+                                            (widget.isTeacher &&
+                                                isSinifOgretmeni)
+                                            ? (bool? yeniDeger) async {
+                                                if (yeniDeger != null) {
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('students')
+                                                      .doc(studentId)
+                                                      .update({
+                                                        'nobetMusait':
+                                                            yeniDeger,
+                                                      });
+                                                }
+                                              }
+                                            : null,
+                                      ),
                                       title: Text(
                                         adSoyad,
                                         style: TextStyle(

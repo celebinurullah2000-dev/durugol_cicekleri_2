@@ -1684,6 +1684,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     builder: (context) => OturmaDuzeniScreen(
                                       classId: hedefClassId,
                                       isTeacher: true,
+                                      userRole: widget
+                                          .userRole, // <--- BURAYI EKLEYİN
                                     ),
                                   ),
                                 );
