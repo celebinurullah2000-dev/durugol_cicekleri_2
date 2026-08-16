@@ -1626,12 +1626,22 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     await _getAktifHedefClassId();
                                 if (hedefClassId == null) return;
                                 if (!mounted) return;
+
+                                // Sınıf adından seviyeyi ayıkla (Örn: "2/D" -> "2")
+                                String sinifSeviyesi =
+                                    widget.className.contains('/')
+                                    ? widget.className.split('/')[0]
+                                    : '2';
+
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => DenemelerScreen(
                                       classId: hedefClassId,
                                       className: widget.className,
+                                      userRole: widget.userRole,
+                                      grade:
+                                          sinifSeviyesi, // <--- Sınıf seviyesi buraya aktarılıyor
                                     ),
                                   ),
                                 );

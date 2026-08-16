@@ -5,14 +5,24 @@ import 'package:flutter/material.dart';
 
 class DenemelerScreen extends StatelessWidget {
   final String classId;
+  final String className;
+  final String userRole;
+  final String grade; // Sınıf seviyesi (1, 2, 3, 4)
 
   const DenemelerScreen({
     super.key,
     required this.classId,
-    required String className,
+    required this.className,
+    this.userRole = 'classroom_teacher',
+    this.grade = '2', // Varsayılan 2. sınıf
   });
 
+  bool get _isSinifOgretmeni =>
+      userRole.trim().toLowerCase() == 'classroom_teacher';
+
   void _yeniSinavEkleDialog(BuildContext context) {
+    if (!_isSinifOgretmeni) return;
+
     final TextEditingController adiController = TextEditingController();
     DateTime? sinavTarihi;
 
@@ -90,6 +100,73 @@ class DenemelerScreen extends StatelessWidget {
     );
   }
 
+  void _sinavSil(BuildContext context, String sinavId, String sinavAdi) {
+    if (!_isSinifOgretmeni) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("'$sinavAdi' Sil"),
+        content: const Text(
+          "Bu deneme sınavını ve girilen tüm öğrenci sonuçlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("İptal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+
+              try {
+                var sonuclarSnapshot = await FirebaseFirestore.instance
+                    .collection('classes')
+                    .doc(classId)
+                    .collection('denemeler')
+                    .doc(sinavId)
+                    .collection('sonuclar')
+                    .get();
+
+                for (var doc in sonuclarSnapshot.docs) {
+                  await doc.reference.delete();
+                }
+
+                await FirebaseFirestore.instance
+                    .collection('classes')
+                    .doc(classId)
+                    .collection('denemeler')
+                    .doc(sinavId)
+                    .delete();
+
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Deneme sınavı başarıyla silindi."),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("Silme sırasında hata oluştu: $e"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text("Sil"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,11 +174,12 @@ class DenemelerScreen extends StatelessWidget {
         title: const Text("Deneme Sınavları"),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle, size: 28),
-            tooltip: "Yeni Sınav Ekle",
-            onPressed: () => _yeniSinavEkleDialog(context),
-          ),
+          if (_isSinifOgretmeni)
+            IconButton(
+              icon: const Icon(Icons.add_circle, size: 28),
+              tooltip: "Yeni Sınav Ekle",
+              onPressed: () => _yeniSinavEkleDialog(context),
+            ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -144,11 +222,9 @@ class DenemelerScreen extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text("Yapılış Tarihi: $tarihStr"),
-                  // Sağ tarafa hem sıralama tablosu ikonu hem de ok işareti ekliyoruz
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 1. İkon: Toplu Sınav Sonuç ve Sıralama Tablosu
                       IconButton(
                         icon: const Icon(
                           Icons.leaderboard,
@@ -163,13 +239,21 @@ class DenemelerScreen extends StatelessWidget {
                                 classId: classId,
                                 sinavId: doc.id,
                                 sinavAdi: sinavAdi,
+                                grade: grade,
                               ),
                             ),
                           );
                         },
                       ),
+                      if (_isSinifOgretmeni) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          tooltip: "Denemeyi Sil",
+                          onPressed: () => _sinavSil(context, doc.id, sinavAdi),
+                        ),
+                      ],
                       const SizedBox(width: 4),
-                      // 2. Alan: Öğrenci Listesine Gitmek İçin Ok İkonu
                       const Icon(
                         Icons.arrow_forward_ios,
                         size: 16,
@@ -178,7 +262,6 @@ class DenemelerScreen extends StatelessWidget {
                     ],
                   ),
                   onTap: () {
-                    // Karta genel olarak tıklandığında öğrenci listesine gitmeye devam eder
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -186,6 +269,8 @@ class DenemelerScreen extends StatelessWidget {
                           classId: classId,
                           sinavId: doc.id,
                           sinavAdi: sinavAdi,
+                          userRole: userRole,
+                          grade: grade,
                         ),
                       ),
                     );
@@ -207,13 +292,20 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
   final String classId;
   final String sinavId;
   final String sinavAdi;
+  final String userRole;
+  final String grade;
 
   const DenemeOgrenciListesiScreen({
     super.key,
     required this.classId,
     required this.sinavId,
     required this.sinavAdi,
+    this.userRole = 'classroom_teacher',
+    this.grade = '2',
   });
+
+  bool get _isSinifOgretmeni =>
+      userRole.trim().toLowerCase() == 'classroom_teacher';
 
   @override
   Widget build(BuildContext context) {
@@ -265,11 +357,17 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
                       subtitle: Text(
                         girildiMi ? "Sonuçlar girilmiş ✅" : "Sonuç girilmedi ❌",
                       ),
-                      trailing: const Icon(
-                        Icons.edit_note,
-                        color: Colors.indigo,
-                        size: 28,
-                      ),
+                      trailing: _isSinifOgretmeni
+                          ? const Icon(
+                              Icons.edit_note,
+                              color: Colors.indigo,
+                              size: 28,
+                            )
+                          : const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -279,6 +377,8 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
                               sinavId: sinavId,
                               studentId: studentId,
                               ogrenciAdi: adSoyad,
+                              userRole: userRole,
+                              grade: grade,
                             ),
                           ),
                         );
@@ -296,13 +396,15 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
 }
 
 // ------------------------------------------------------------------
-// 2. AŞAMA: ÖĞRENCİ DERS BAZLI DOĞRU/YANLIŞ/BOŞ GİRİŞ EKRANI
+// 2. AŞAMA: ÖĞRENCİ DERS BAZLI GİRİŞ/GÖRÜNTÜLEME EKRANI
 // ------------------------------------------------------------------
 class OgrenciSinavGirisScreen extends StatefulWidget {
   final String classId;
   final String sinavId;
   final String studentId;
   final String ogrenciAdi;
+  final String userRole;
+  final String grade;
 
   const OgrenciSinavGirisScreen({
     super.key,
@@ -310,6 +412,8 @@ class OgrenciSinavGirisScreen extends StatefulWidget {
     required this.sinavId,
     required this.studentId,
     required this.ogrenciAdi,
+    this.userRole = 'classroom_teacher',
+    this.grade = '2',
   });
 
   @override
@@ -318,16 +422,41 @@ class OgrenciSinavGirisScreen extends StatefulWidget {
 }
 
 class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
-  final List<String> dersler = [
-    "Türkçe",
-    "Matematik",
-    "Hayat Bilgisi",
-    "Fen Bilimleri",
-    "İngilizce",
-  ];
+  // Sınıf seviyesine göre dinamik ders listesi döndüren metot
+  List<String> get dersler {
+    String g = widget.grade.trim();
+    if (g == '1') {
+      return ["Türkçe", "Matematik", "Hayat Bilgisi"];
+    } else if (g == '2') {
+      return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
+    } else if (g == '3') {
+      return [
+        "Türkçe",
+        "Matematik",
+        "Hayat Bilgisi",
+        "Fen Bilimleri",
+        "İngilizce",
+      ];
+    } else if (g == '4') {
+      // 4. sınıfta Hayat Bilgisi yerine Sosyal Bilgiler gelir
+      return [
+        "Türkçe",
+        "Matematik",
+        "Sosyal Bilgiler",
+        "Fen Bilimleri",
+        "İngilizce",
+      ];
+    }
+    // Varsayılan (eğer boş veya farklı gelirse)
+    return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
+  }
+
   final Map<String, Map<String, TextEditingController>> controllers = {};
 
   bool yukleniyor = true;
+
+  bool get _isSinifOgretmeni =>
+      widget.userRole.trim().toLowerCase() == 'classroom_teacher';
 
   @override
   void initState() {
@@ -338,10 +467,11 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
         'y': TextEditingController(),
         'b': TextEditingController(),
       };
-      // Değişiklikleri dinleyerek toplamları anlık güncellemek için listener ekleyelim
-      controllers[ders]?['d']?.addListener(_hesaplaVeGuncelle);
-      controllers[ders]?['y']?.addListener(_hesaplaVeGuncelle);
-      controllers[ders]?['b']?.addListener(_hesaplaVeGuncelle);
+      if (_isSinifOgretmeni) {
+        controllers[ders]?['d']?.addListener(_hesaplaVeGuncelle);
+        controllers[ders]?['y']?.addListener(_hesaplaVeGuncelle);
+        controllers[ders]?['b']?.addListener(_hesaplaVeGuncelle);
+      }
     }
     _verileriGetir();
   }
@@ -357,9 +487,7 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
   }
 
   void _hesaplaVeGuncelle() {
-    setState(
-      () {},
-    ); // TextField değerleri değiştikçe ekranı yenileyip toplamları hesaplatır
+    setState(() {});
   }
 
   int get toplamDogru {
@@ -411,6 +539,8 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
   }
 
   void _kaydet() async {
+    if (!_isSinifOgretmeni) return;
+
     Map<String, dynamic> kayitVerisi = {};
     for (var ders in dersler) {
       kayitVerisi[ders] = {
@@ -450,7 +580,6 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // Üst Kısım: Toplam Özet Kartı
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -550,6 +679,7 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
                                       child: TextField(
                                         controller: controllers[ders]?['d'],
                                         keyboardType: TextInputType.number,
+                                        readOnly: !_isSinifOgretmeni,
                                         decoration: const InputDecoration(
                                           labelText: "Doğru",
                                           border: OutlineInputBorder(),
@@ -561,6 +691,7 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
                                       child: TextField(
                                         controller: controllers[ders]?['y'],
                                         keyboardType: TextInputType.number,
+                                        readOnly: !_isSinifOgretmeni,
                                         decoration: const InputDecoration(
                                           labelText: "Yanlış",
                                           border: OutlineInputBorder(),
@@ -572,6 +703,7 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
                                       child: TextField(
                                         controller: controllers[ders]?['b'],
                                         keyboardType: TextInputType.number,
+                                        readOnly: !_isSinifOgretmeni,
                                         decoration: const InputDecoration(
                                           labelText: "Boş",
                                           border: OutlineInputBorder(),
@@ -588,22 +720,23 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: _kaydet,
-                      icon: const Icon(Icons.save),
-                      label: const Text(
-                        "Sonuçları Kaydet",
-                        style: TextStyle(fontSize: 16),
+                  if (_isSinifOgretmeni)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _kaydet,
+                        icon: const Icon(Icons.save),
+                        label: const Text(
+                          "Sonuçları Kaydet",
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -611,28 +744,51 @@ class _OgrenciSinavGirisScreenState extends State<OgrenciSinavGirisScreen> {
   }
 }
 
+// ------------------------------------------------------------------
+// 3. SINIF TOPLU SONUÇLAR VE SIRALAMA EKRANI
+// ------------------------------------------------------------------
 class SinifTopluSonucScreen extends StatelessWidget {
   final String classId;
   final String sinavId;
   final String sinavAdi;
+  final String grade;
 
   const SinifTopluSonucScreen({
     super.key,
     required this.classId,
     required this.sinavId,
     required this.sinavAdi,
+    this.grade = '2',
   });
+
+  List<String> get dersler {
+    String g = grade.trim();
+    if (g == '1') {
+      return ["Türkçe", "Matematik", "Hayat Bilgisi"];
+    } else if (g == '2') {
+      return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
+    } else if (g == '3') {
+      return [
+        "Türkçe",
+        "Matematik",
+        "Hayat Bilgisi",
+        "Fen Bilimleri",
+        "İngilizce",
+      ];
+    } else if (g == '4') {
+      return [
+        "Türkçe",
+        "Matematik",
+        "Fen Bilimleri",
+        "İngilizce",
+        "Sosyal Bilgiler",
+      ];
+    }
+    return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
+  }
 
   @override
   Widget build(BuildContext context) {
-    final List<String> dersler = [
-      "Türkçe",
-      "Matematik",
-      "Hayat Bilgisi",
-      "Fen Bilimleri",
-      "İngilizce",
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: Text("$sinavAdi - Toplu Sonuçlar"),
@@ -666,7 +822,6 @@ class SinifTopluSonucScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // Sonuçları öğrenci ID'sine göre map'le
               Map<String, Map<String, dynamic>> sonuclarMap = {};
               if (sonucSnap.hasData) {
                 for (var doc in sonucSnap.data!.docs) {
@@ -674,7 +829,6 @@ class SinifTopluSonucScreen extends StatelessWidget {
                 }
               }
 
-              // Her öğrenci için toplamları hesapla ve liste oluştur
               List<Map<String, dynamic>> ogrenciListesi = [];
 
               for (var studentDoc in students) {
@@ -707,21 +861,17 @@ class SinifTopluSonucScreen extends StatelessWidget {
                 });
               }
 
-              // Doğru sayısına göre azalan şekilde sırala
               ogrenciListesi.sort(
                 (a, b) => (b['dogru'] as int).compareTo(a['dogru'] as int),
               );
 
-              // İstediğiniz Kurallara Göre Sıralama Algoritması (Rank calculation)
               List<Map<String, dynamic>> siraliOgrenciListesi = [];
               int currentRank = 1;
               for (int i = 0; i < ogrenciListesi.length; i++) {
                 if (i > 0 &&
                     ogrenciListesi[i]['dogru'] !=
                         ogrenciListesi[i - 1]['dogru']) {
-                  currentRank =
-                      i +
-                      1; // Doğru sayısı değiştiyse sıra, listedeki index + 1 olur (atlamalı sıra)
+                  currentRank = i + 1;
                 }
 
                 var ogrenci = Map<String, dynamic>.from(ogrenciListesi[i]);
@@ -733,7 +883,6 @@ class SinifTopluSonucScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   children: [
-                    // Tablo Başlığı
                     Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 12,
