@@ -518,7 +518,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     MaterialPageRoute(
                       builder: (context) => KisiselSozlukScreen(
                         classId: hedefClassId,
-                        isTeacher: true,
+                        isTeacher:
+                            widget.userRole.trim().toLowerCase() ==
+                            'classroom_teacher',
                       ),
                     ),
                   );
@@ -534,7 +536,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     MaterialPageRoute(
                       builder: (context) => KisiselAtasozleriScreen(
                         classId: hedefClassId,
-                        isTeacher: true,
+                        isTeacher:
+                            widget.userRole.trim().toLowerCase() ==
+                            'classroom_teacher',
                       ),
                     ),
                   );
@@ -553,7 +557,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     MaterialPageRoute(
                       builder: (context) => KisiselDeyimlerScreen(
                         classId: hedefClassId,
-                        isTeacher: true,
+                        isTeacher:
+                            widget.userRole.trim().toLowerCase() ==
+                            'classroom_teacher',
                       ),
                     ),
                   );
@@ -1829,6 +1835,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                   MaterialPageRoute(
                                     builder: (context) => DevamsizlikScreen(
                                       classId: hedefClassId,
+                                      userRole: widget.userRole,
                                     ),
                                   ),
                                 );
