@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OdevlerimScreen extends StatefulWidget {
   final String studentId;
-  final String classId; // Sınıf ID'sini de ekrana alıyoruz
+  final String classId;
 
   const OdevlerimScreen({
     super.key,
@@ -26,28 +26,21 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    // Ekran ilk açıldığında varsayılan olarak 0. sekme (Ödevlerim) açık gelir
-    // Bu yüzden direkt kitap ödevlerini okundu olarak işaretliyoruz ki rozet anında düşsün.
     _kitapOdevleriniOkunduIsaretle();
 
     _tabController.addListener(() {
-      // Sekme değişimi tamamlandığında (animasyon bittiğinde) çalışması için:
       if (!_tabController.indexIsChanging) {
         if (_tabController.index == 0) {
-          // 0. Sekme: Ödevlerim
           IstatistikServisi.islemKaydet(
             studentId: widget.studentId,
             islemTuru: 'odevlerim_sekmesi',
           );
           _kitapOdevleriniOkunduIsaretle();
         } else if (_tabController.index == 1) {
-          // 1. Sekme: Görevlerim
           IstatistikServisi.islemKaydet(
             studentId: widget.studentId,
             islemTuru: 'gorevlerim_sekmesi',
           );
-          // Sadece bu sekmeye tıklandığında görevleri okundu yapıyoruz
           _sinifIsleriniOkunduIsaretle();
         }
       }
@@ -60,7 +53,6 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
     super.dispose();
   }
 
-  // Kitap ödevlerini okundu olarak işaretleyen fonksiyon
   Future<void> _kitapOdevleriniOkunduIsaretle() async {
     try {
       var odevlerSnapshot = await FirebaseFirestore.instance
@@ -81,7 +73,6 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
     }
   }
 
-  // Sınıf işleri açıldığında okunmamışları okundu olarak işaretleyen fonksiyon
   Future<void> _sinifIsleriniOkunduIsaretle() async {
     try {
       var sinifIsleriSnapshot = await FirebaseFirestore.instance
@@ -100,7 +91,6 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
 
         var veriSnap = await veriRef.get();
         if (!veriSnap.exists) {
-          // Eğer hiç veri yoksa varsayılan değerle oluşturup okundu yapalım
           await veriRef.set({
             'deger': '-',
             'okundu': true,
@@ -118,8 +108,8 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
     }
   }
 
-  // Tekil ödev kitabının durumunu güncelleme fonksiyonu
   Future<void> _odevKitabiDurumGuncelle(
+    BuildContext context,
     String odevId,
     List mevcutKitaplar,
     int index,
@@ -165,7 +155,6 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: [
-            // 1. SEKME: Ödevlerim (Dinamik Rozetli)
             Tab(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -213,7 +202,6 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
                 },
               ),
             ),
-            // 2. SEKME: Görevlerim (Dinamik Rozetli)
             Tab(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -243,7 +231,6 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
                           var veri =
                               ogrenciVerileri[isId] as Map<String, dynamic>?;
 
-                          // Eğer öğrenci bu iş için kayıt açmamışsa veya okundu alanı true değilse okunmamış say
                           if (veri == null || veri['okundu'] != true) {
                             okunmamisSayisi++;
                           }
@@ -286,18 +273,11 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          // 1. SEKME: Mevcut Kitap Ödevleri Listesi
-          _buildKitapOdevleriView(),
-
-          // 2. SEKME: Yeni Eklenen Sınıf İşleri ve Öğrenci Takip Listesi
-          _buildSinifIsleriView(),
-        ],
+        children: [_buildKitapOdevleriView(), _buildSinifIsleriView()],
       ),
     );
   }
 
-  // 1. Sekme İçeriği (Kitap Ödevleriniz)
   Widget _buildKitapOdevleriView() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -397,9 +377,9 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
                             durumAciklama = "Yapıldı (Tebrikler!)";
                           } else if (kDurum == 'ogretmen_reddi') {
                             itemRengi = Colors.red;
-                            itemIcon = Icons.cancel;
+                            itemIcon = Icons.lock;
                             durumAciklama =
-                                "Öğretmeniniz 'yapılmadı' olarak işaretledi!";
+                                "Öğretmeniniz tarafından kilitlendi!";
                           }
 
                           return Container(
@@ -460,11 +440,14 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
                                     size: 28,
                                   ),
                                   onPressed: () => _odevKitabiDurumGuncelle(
+                                    context,
                                     odevDoc.id,
                                     kitaplar,
                                     kIndex,
                                   ),
-                                  tooltip: "Bu Ödev Kitabını İşaretle",
+                                  tooltip: kDurum == 'ogretmen_reddi'
+                                      ? "Bu ödev kilitlidir"
+                                      : "Bu Ödev Kitabını İşaretle",
                                 ),
                               ],
                             ),
@@ -482,7 +465,6 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
     );
   }
 
-  // 2. Sekme İçeriği (Öğretmenin Sınıf İşleri / Etkinlik Takibi)
   Widget _buildSinifIsleriView() {
     if (widget.classId.isEmpty) {
       return const Center(

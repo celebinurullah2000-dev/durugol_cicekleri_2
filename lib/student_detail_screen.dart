@@ -34,7 +34,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   String? ogrenciProfilResmiUrl;
   bool _isSaving = false;
 
-  // Sadece sınıf öğretmeninin düzenleme ve kaydetme yetkisi vardır
   bool get _isSinifOgretmeni =>
       widget.userRole.trim().toLowerCase() == 'classroom_teacher';
 
@@ -86,7 +85,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     super.dispose();
   }
 
-  // --- ÖĞRENCİ BİLGİLERİNİ GÜNCELLEME VE KAYDETME FONKSİYONU ---
   Future<void> _bilgileriKaydet() async {
     if (!_isSinifOgretmeni) return;
 
@@ -184,7 +182,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // --- PROFİL FOTOĞRAFI ALANI ---
             Center(
               child: GestureDetector(
                 onTap: _resmiTamBoyutGoster,
@@ -208,12 +205,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // --- BİLGİ ALANLARI (Sınıf öğretmenine düzenlenebilir, diğerlerine readOnly) ---
             TextField(
               controller: _tcController,
-              readOnly:
-                  !_isSinifOgretmeni, // Sadece sınıf öğretmeni değiştirebilir
+              readOnly: !_isSinifOgretmeni,
               decoration: const InputDecoration(labelText: "T.C. Kimlik No"),
               keyboardType: TextInputType.number,
             ),
@@ -269,8 +263,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               maxLines: 2,
             ),
             const SizedBox(height: 30),
-
-            // --- SADECE SINIF ÖĞRETMENLERİ İÇİN KAYDET BUTONU ---
             if (_isSinifOgretmeni)
               SizedBox(
                 width: double.infinity,

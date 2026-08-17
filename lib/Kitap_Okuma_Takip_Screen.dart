@@ -5,11 +5,13 @@ import 'student_kitap_odev_screen.dart';
 class KitapOkumaTakipScreen extends StatefulWidget {
   final String classId;
   final String className;
+  final String userRole;
 
   const KitapOkumaTakipScreen({
     super.key,
     required this.classId,
     required this.className,
+    this.userRole = 'classroom_teacher',
   });
 
   @override
@@ -30,6 +32,7 @@ class _KitapOkumaTakipScreenState extends State<KitapOkumaTakipScreen> {
     for (var doc in studentsQuery.docs) {
       var studentData = doc.data();
 
+      // Sadece okunan kitapları ve sayfa sayısını topluyoruz
       var kitaplarQuery = await doc.reference
           .collection('okunan_kitaplar')
           .get();
@@ -42,31 +45,10 @@ class _KitapOkumaTakipScreenState extends State<KitapOkumaTakipScreen> {
         }
       }
 
-      var odevQuery = await doc.reference.collection('odevler').get();
-      int toplamOdev = 0;
-      int yapilanOdev = 0;
-      bool kilitliVar = false;
-
-      for (var odevDoc in odevQuery.docs) {
-        var odevData = odevDoc.data();
-        List kitaplar = odevData['kitaplar'] ?? [];
-        for (var k in kitaplar) {
-          toplamOdev++;
-          if (k['durum'] == 'yapildi') {
-            yapilanOdev++;
-          } else if (k['durum'] == 'ogretmen_reddi') {
-            kilitliVar = true;
-          }
-        }
-      }
-
       ogrenciListesi.add({
         'id': doc.id,
         ...studentData,
         'toplamSayfa': toplamSayfa,
-        'toplamOdev': toplamOdev,
-        'yapilanOdev': yapilanOdev,
-        'kilitliVar': kilitliVar,
       });
     }
 
@@ -83,7 +65,7 @@ class _KitapOkumaTakipScreenState extends State<KitapOkumaTakipScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("${widget.className} - Kitap ve Ödev Takibi"),
+        title: Text("${widget.className} - Kitap Okuma Takibi"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
@@ -121,27 +103,6 @@ class _KitapOkumaTakipScreenState extends State<KitapOkumaTakipScreen> {
               final lastName = student['lastName'] ?? '';
               final toplamSayfa = student['toplamSayfa'] ?? 0;
 
-              int toplamOdev = student['toplamOdev'] ?? 0;
-              int yapilanOdev = student['yapilanOdev'] ?? 0;
-              bool kilitliVar = student['kilitliVar'] ?? false;
-
-              String odevDurumMetni = "Ödev yok";
-              Color odevDurumRengi = Colors.grey;
-
-              if (toplamOdev > 0) {
-                if (kilitliVar) {
-                  odevDurumMetni =
-                      "Kilitli Ödev Var ($yapilanOdev/$toplamOdev)";
-                  odevDurumRengi = Colors.red;
-                } else if (yapilanOdev == toplamOdev) {
-                  odevDurumMetni = "Tümü Tamamlandı ($yapilanOdev/$toplamOdev)";
-                  odevDurumRengi = Colors.green;
-                } else {
-                  odevDurumMetni = "Devam Ediyor ($yapilanOdev/$toplamOdev)";
-                  odevDurumRengi = Colors.orange;
-                }
-              }
-
               final initials =
                   (firstName.isNotEmpty ? firstName[0] : '') +
                   (lastName.isNotEmpty ? lastName[0] : '');
@@ -153,9 +114,11 @@ class _KitapOkumaTakipScreenState extends State<KitapOkumaTakipScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => StudentDetailScreen(
+                        builder: (_) => StudentOdevTakipScreen(
                           studentData: student,
                           studentId: student['id'],
+                          userRole: widget.userRole,
+                          initialTabIndex: 0, // Sadece Kitaplar & Özet
                         ),
                       ),
                     ).then((_) => setState(() {}));
@@ -185,22 +148,10 @@ class _KitapOkumaTakipScreenState extends State<KitapOkumaTakipScreen> {
                     "$firstName $lastName",
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Sınıf No: ${student['schoolNumber'] ?? 'Belirtilmemiş'}  •  Toplam: $toplamSayfa Sayfa",
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        odevDurumMetni,
-                        style: TextStyle(
-                          color: odevDurumRengi,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                  // Alt satır sadece sınıf numarası ve toplam sayfayı gösterecek şekilde sadeleştirildi
+                  subtitle: Text(
+                    "Sınıf No: ${student['schoolNumber'] ?? 'Belirtilmemiş'}  •  Toplam: $toplamSayfa Sayfa",
+                    style: const TextStyle(fontSize: 13),
                   ),
                   trailing: const Icon(
                     Icons.chevron_right,

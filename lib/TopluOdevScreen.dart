@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'student_kitap_odev_screen.dart'; // Öğrenci detay ekranının import edildiğinden emin olun
+import 'student_kitap_odev_screen.dart';
 
 class TopluOdevScreen extends StatefulWidget {
   final String classId;
@@ -26,7 +26,6 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
       ),
-      // 1. Dıştaki sorgu doğrudan seçilen sınıfın öğrencilerini getirir
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('students')
@@ -56,7 +55,6 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
               if (ogrenciAdi.isEmpty) ogrenciAdi = 'İsimsiz Öğrenci';
               String ogrenciId = ogrenciDoc.id;
 
-              // 2. İçteki sorgu her öğrencinin kendi altındaki 'odevler' koleksiyonunu dinler
               return StreamBuilder<QuerySnapshot>(
                 stream: ogrenciDoc.reference.collection('odevler').snapshots(),
                 builder: (context, odevSnapshot) {
@@ -127,14 +125,14 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
                       ),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
-                        // Öğrenci üzerine tıklandığında detay sayfasına yönlendirme
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => StudentDetailScreen(
+                            builder: (context) => StudentOdevTakipScreen(
                               studentData: ogrenciData,
                               studentId: ogrenciId,
                               userRole: widget.userRole,
+                              initialTabIndex: 1, // Sadece Ödev Takibi
                             ),
                           ),
                         );

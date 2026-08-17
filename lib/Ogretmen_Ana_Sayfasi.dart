@@ -117,7 +117,8 @@ class OgretmenAnaSayfasi extends StatefulWidget {
 
 class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   StreamSubscription<QuerySnapshot>? _randevuSubscription;
-
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
   // Filtreleme için durum değişkenleri (İdareci ve Branş Öğretmenleri için)
   String? _filtreliGrade = '1';
   String? _filtreliBranch = 'A';
@@ -651,50 +652,60 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const Divider(),
-              ListTile(
-                leading: const Icon(Icons.date_range, color: Colors.indigo),
-                title: const Text("Hızlı Ödev Durumu Ekle"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          TarihBazliOdevYoneticisiScreen(classId: hedefClassId),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.checklist_rtl, color: Colors.blue),
-                title: const Text("Toplu Ödev"),
-                onTap: () async {
-                  String? hedefClassId = await _getAktifHedefClassId();
-                  if (hedefClassId == null) return;
-
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TopluOdevScreen(
-                        classId: hedefClassId,
-                        userRole: widget.userRole,
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.date_range, color: Colors.indigo),
+                  title: const Text("Hızlı Ödev Durumu Ekle"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TarihBazliOdevYoneticisiScreen(
+                          classId: hedefClassId,
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  Icons.assignment_add,
-                  color: Colors.orange.shade800,
+                    );
+                  },
                 ),
-                title: const Text("Ödev Ver"),
-                onTap: () {
-                  Navigator.pop(context);
-                  _odevVerDialog(context, hedefClassId);
-                },
+              ),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.checklist_rtl, color: Colors.blue),
+                  title: const Text("Toplu Ödev"),
+                  onTap: () async {
+                    String? currentHedefClassId = await _getAktifHedefClassId();
+                    if (currentHedefClassId == null) return;
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TopluOdevScreen(
+                          classId: currentHedefClassId,
+                          userRole: widget.userRole,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: Icon(
+                    Icons.assignment_add,
+                    color: Colors.orange.shade800,
+                  ),
+                  title: const Text("Ödev Ver"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _odevVerDialog(context, hedefClassId);
+                  },
+                ),
               ),
             ],
           ),
@@ -773,9 +784,44 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   }
 
   void _odevVerDialog(BuildContext context, String hedefClassId) {
+    DateTime secilenTarih = DateTime.now();
+
+    final List<String> aylar = [
+      '',
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık',
+    ];
+
+    final List<String> gunler = [
+      'Pazartesi',
+      'Salı',
+      'Çarşamba',
+      'Perşembe',
+      'Cuma',
+      'Cumartesi',
+      'Pazar',
+    ];
+
+    String tarihFormatla(DateTime tarih) {
+      String gunAdi = gunler[tarih.weekday - 1];
+      String ayAdi = aylar[tarih.month];
+      return "${tarih.day} $ayAdi ${tarih.year}, $gunAdi";
+    }
+
     final TextEditingController tarihStrController = TextEditingController(
-      text: "21 Temmuz 2026, Salı",
+      text: tarihFormatla(secilenTarih),
     );
+
     final TextEditingController kitapAdiController = TextEditingController();
     final TextEditingController sayfaController = TextEditingController();
     final TextEditingController aciklamaController = TextEditingController();
@@ -790,13 +836,42 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
             children: [
               TextField(
                 controller: tarihStrController,
+                readOnly: true,
+                onTap: () async {
+                  DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: secilenTarih,
+                    firstDate: DateTime(2023),
+                    lastDate: DateTime(2030),
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.light().copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: Colors.indigo,
+                            onPrimary: Colors.white,
+                            surface: Colors.white,
+                            onSurface: Colors.black,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+
+                  if (picked != null) {
+                    secilenTarih = picked;
+                    tarihStrController.text = tarihFormatla(picked);
+                  }
+                },
                 decoration: const InputDecoration(
-                  labelText: "Tarih Formatı (Örn: 21 Temmuz 2026, Salı)",
+                  labelText: "Ödev Tarihi",
+                  suffixIcon: Icon(Icons.calendar_today, color: Colors.indigo),
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: kitapAdiController,
+                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(labelText: "Kitap Adı"),
               ),
               const SizedBox(height: 10),
@@ -823,11 +898,51 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
             child: const Text("İptal"),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
-              String secilenTarih = tarihStrController.text.trim();
+              String secilenTarihStr = tarihStrController.text.trim();
               String kitapAdi = kitapAdiController.text.trim();
               String sayfaAraligi = sayfaController.text.trim();
               String aciklama = aciklamaController.text.trim();
+
+              if (kitapAdi.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Lütfen kitap adı giriniz!"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+
+              BuildContext? dialogContext;
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (BuildContext ctx) {
+                  dialogContext = ctx;
+                  return const PopScope(
+                    canPop: false,
+                    child: AlertDialog(
+                      content: Row(
+                        children: [
+                          CircularProgressIndicator(color: Colors.indigo),
+                          SizedBox(width: 20),
+                          Text(
+                            "Ödev tüm öğrencilere gönderiliyor...",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
 
               var studentsSnapshot = await FirebaseFirestore.instance
                   .collection('students')
@@ -838,7 +953,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 var odevlerRef = studentDoc.reference.collection('odevler');
 
                 var existingOdev = await odevlerRef
-                    .where('tarihStr', isEqualTo: secilenTarih)
+                    .where('tarihStr', isEqualTo: secilenTarihStr)
                     .get();
 
                 if (existingOdev.docs.isNotEmpty) {
@@ -858,7 +973,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                   });
                 } else {
                   await odevlerRef.add({
-                    'tarihStr': secilenTarih,
+                    'tarihStr': secilenTarihStr,
                     'kitaplar': [
                       {
                         'kitapAdi': kitapAdi,
@@ -871,12 +986,19 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 }
               }
 
+              if (dialogContext != null && Navigator.canPop(dialogContext!)) {
+                Navigator.pop(dialogContext!);
+              }
+
               if (!context.mounted) return;
-              Navigator.pop(context);
+
               setState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
+              _scaffoldMessengerKey.currentState?.showSnackBar(
                 const SnackBar(
-                  content: Text("Ödev kitaba özel açıklamasıyla eklendi."),
+                  content: Text(
+                    "Ödevler başarıyla gönderildi! ✅",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               );
             },
@@ -1014,6 +1136,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         widget.userRole == 'guidance_teacher';
 
     return Scaffold(
+      key: _scaffoldMessengerKey,
       appBar: AppBar(
         title: Text("${widget.className} Paneli"),
         backgroundColor: Colors.indigo,
@@ -1650,7 +1773,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                             _buildYetkiliHizliIslemButonu(
                               key: 'kitap_odev',
                               icon: Icons.menu_book,
-                              label: "Kitap ve Ödev",
+                              label: "Kitap Okuma",
                               color: Colors.brown,
                               onTap: () async {
                                 String? hedefClassId =

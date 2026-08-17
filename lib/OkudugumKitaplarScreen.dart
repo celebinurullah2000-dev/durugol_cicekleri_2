@@ -18,9 +18,7 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
   final TextEditingController _kitapAdiController = TextEditingController();
   final TextEditingController _sayfaSayisiController = TextEditingController();
 
-  // Kitap ekleme fonksiyonu
   void _kitapEkle() async {
-    // 1. Veri Doğrulama
     if (_kitapAdiController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Lütfen bir kitap adı girin!")),
@@ -36,7 +34,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
       return;
     }
 
-    // Firestore'a gönderim
     await FirebaseFirestore.instance
         .collection('students')
         .doc(widget.studentId)
@@ -47,10 +44,9 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
           'tarih': FieldValue.serverTimestamp(),
         });
 
-    // 2. Klavye Kapatma ve Temizleme
     _kitapAdiController.clear();
     _sayfaSayisiController.clear();
-    FocusScope.of(context).unfocus(); // Klavyeyi kapatır
+    FocusScope.of(context).unfocus();
 
     if (mounted) {
       ScaffoldMessenger.of(
@@ -117,7 +113,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
       appBar: AppBar(title: const Text("Okuduğum Kitaplar")),
       body: Column(
         children: [
-          // 1. LOTTIE ANİMASYONU
           SizedBox(
             height: 120,
             child: Lottie.asset(
@@ -127,8 +122,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
               animate: true,
             ),
           ),
-
-          // 2. KİTAP EKLEME ALANI
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
@@ -162,8 +155,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
             ),
           ),
           const SizedBox(height: 10),
-
-          // 3. LİSTE VE ÖZET KARTI
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -173,7 +164,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
                   .orderBy('tarih', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                // Bağlantı kopuksa veya veri henüz gelmediyse yükleniyor göster
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -199,7 +189,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
 
                 return Column(
                   children: [
-                    // DİNAMİK ÖZET KARTI
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                       padding: const EdgeInsets.all(16),
@@ -218,8 +207,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // LİSTELEME
                     Expanded(
                       child: ListView.builder(
                         itemCount: toplamKitap,
@@ -227,8 +214,6 @@ class _OkudugumKitaplarScreenState extends State<OkudugumKitaplarScreen> {
                           var doc = docs[index];
                           var data = doc.data() as Map<String, dynamic>;
 
-                          // Tarih alanı serverTimestamp olduğu için ilk eklemede anlık null gelebilir.
-                          // Bu kontrol ile uygulamanın patlaması engellenir.
                           Timestamp? timestamp = data['tarih'] as Timestamp?;
                           String tarihStr = "Yükleniyor...";
                           if (timestamp != null) {
