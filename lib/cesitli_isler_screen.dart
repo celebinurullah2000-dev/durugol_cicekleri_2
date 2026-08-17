@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:durugol_cicekleri/Dogum_Gunleri_Screen.dart';
 import 'package:durugol_cicekleri/Kisisel_Atasozleri_Screen.dart';
 import 'package:durugol_cicekleri/Kisisel_Deyimler_Screen.dart';
+import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk.dart'; // İngilizce Sözlük eklendi
 import 'package:durugol_cicekleri/Kisisel_Sozluk_Screen.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -13,7 +14,7 @@ import 'Ogrenci_Gorevli_Goruntuleme_Screen.dart';
 import 'Ogrenci_Haftalik_Ders_Programi_Screen.dart';
 import 'Ogrenci_Etkinlikler_Screen.dart';
 import 'Ogrenci_Yarismalar_Screen.dart';
-import 'istatistik_servisi.dart'; // 1. Servisi import ettik[cite: 2]
+import 'istatistik_servisi.dart'; //[cite: 2]
 
 class OgrenciDevamsizlikScreen extends StatelessWidget {
   final String classId;
@@ -231,6 +232,11 @@ class _CesitliIslerScreenState extends State<CesitliIslerScreen> {
     },
     {"title": "Sözlük", "icon": Icons.menu_book, "color": Colors.brown},
     {
+      "title": "İngilizce Sözlük",
+      "icon": Icons.translate,
+      "color": Colors.indigoAccent,
+    },
+    {
       "title": "Atasözleri",
       "icon": Icons.history_edu,
       "color": Colors.blueGrey,
@@ -276,13 +282,11 @@ class _CesitliIslerScreenState extends State<CesitliIslerScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: InkWell(
                       onTap: () async {
-                        // 2. Tıklama anını istatistiğe kaydediyoruz
                         setState(() {
                           _selectedIndex = index;
                         });
 
-                        String islemTuruKey =
-                            'cesitli_$title'; // Benzersiz bir key oluşturduk[cite: 2]
+                        String islemTuruKey = 'cesitli_$title'; //[cite: 2]
                         await IstatistikServisi.islemKaydet(
                           studentId: widget.studentId,
                           islemTuru: islemTuruKey,
@@ -327,6 +331,17 @@ class _CesitliIslerScreenState extends State<CesitliIslerScreen> {
                               builder: (context) => KisiselAtasozleriScreen(
                                 classId: widget.classId,
                                 isTeacher: false,
+                              ),
+                            ),
+                          );
+                        } else if (title == "İngilizce Sözlük") {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => KisiselIngilizceSozluk(
+                                classId: widget.classId,
+                                userRole: 'student',
+                                isTeacher: true,
                               ),
                             ),
                           );

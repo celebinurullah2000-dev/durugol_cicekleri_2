@@ -1,23 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class KisiselIngilizceSozlukScreen extends StatefulWidget {
+class KisiselIngilizceSozluk extends StatefulWidget {
   final String classId;
   final String userRole; // Kullanıcı rolünü alıyoruz
 
-  const KisiselIngilizceSozlukScreen({
+  const KisiselIngilizceSozluk({
     super.key,
     required this.classId,
     required this.userRole,
+    required bool isTeacher,
   });
 
   @override
-  State<KisiselIngilizceSozlukScreen> createState() =>
+  State<KisiselIngilizceSozluk> createState() =>
       _KisiselIngilizceSozlukScreenState();
 }
 
-class _KisiselIngilizceSozlukScreenState
-    extends State<KisiselIngilizceSozlukScreen> {
+class _KisiselIngilizceSozlukScreenState extends State<KisiselIngilizceSozluk> {
   String _aramaMetni = "";
 
   // İdareci veya rehber öğretmen mi kontrolü (Bunlar yetkiye sahip olmayacak)

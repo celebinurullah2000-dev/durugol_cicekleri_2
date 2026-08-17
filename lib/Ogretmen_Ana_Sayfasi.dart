@@ -480,9 +480,78 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     );
   }
 
-  void _sil(BuildContext context, String studentId) {
-    FirebaseFirestore.instance.collection('students').doc(studentId).delete();
-    setState(() {});
+  void _sil(BuildContext context, String studentId, String studentName) {
+    // 1. AŞAMA: İlk Bilgilendirme ve Onay Penceresi
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Öğrenciyi Sil"),
+        content: Text(
+          "$studentName adlı öğrencinizi silmek üzeresiniz. Devam edilsin mi?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Vazgeç"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () {
+              Navigator.pop(context); // İlk dialogu kapat
+
+              // 2. AŞAMA: İkinci ve Son Kalıcı Uyarı Penceresi
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Kalıcı Silme Onayı"),
+                  content: Text(
+                    "$studentName adlı öğrenciniz kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Vazgeç"),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context); // İkinci dialogu kapat
+
+                        // Firestore'dan öğrenciyi sil
+                        await FirebaseFirestore.instance
+                            .collection('students')
+                            .doc(studentId)
+                            .delete();
+
+                        setState(() {});
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("$studentName başarıyla silindi."),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Kalıcı Olarak Sil",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+            child: const Text(
+              "Devam Et",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSozlukSecenekleri(BuildContext context) async {
@@ -574,9 +643,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => KisiselIngilizceSozlukScreen(
+                      builder: (context) => KisiselIngilizceSozluk(
                         classId: hedefClassId,
-                        userRole: widget.userRole,
+                        isTeacher:
+                            widget.userRole.trim().toLowerCase() ==
+                            'classroom_teacher',
+                        userRole: '', // Öğretmen rolüne göre true/false
                       ),
                     ),
                   );
@@ -2097,8 +2169,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                         Icons.delete,
                                         color: Colors.red,
                                       ),
-                                      onPressed: () =>
-                                          _sil(context, student['id']),
+                                      onPressed: () => _sil(
+                                        context,
+                                        student['id'],
+                                        "$firstName $lastName",
+                                      ),
                                     ),
                                   ],
                                   const Icon(
