@@ -264,6 +264,7 @@ class YarismalarScreen extends StatelessWidget {
                   yarismaAdi: ad,
                   aciklama: data['aciklama'] ?? '',
                   aktifMi: aktifMi,
+                  isTeacher: isTeacher, // Rolü detay ekranına aktarıyoruz
                 ),
               ),
             );
@@ -301,6 +302,7 @@ class YarismaDetayScreen extends StatelessWidget {
   final String yarismaAdi;
   final String aciklama;
   final bool aktifMi;
+  final bool isTeacher; // Rol parametresi eklendi
 
   const YarismaDetayScreen({
     super.key,
@@ -309,6 +311,7 @@ class YarismaDetayScreen extends StatelessWidget {
     required this.yarismaAdi,
     required this.aciklama,
     required this.aktifMi,
+    required this.isTeacher,
   });
 
   @override
@@ -414,17 +417,21 @@ class YarismaDetayScreen extends StatelessWidget {
                             leading: Checkbox(
                               value: yapildiMi,
                               activeColor: Colors.indigo,
-                              onChanged: (yeniDeger) async {
-                                katilanlarMap[studentId] = yeniDeger ?? false;
-                                await FirebaseFirestore.instance
-                                    .collection('classes')
-                                    .doc(classId)
-                                    .collection('yarismalar')
-                                    .doc(yarismaId)
-                                    .update({
-                                      'katilanOgrenciler': katilanlarMap,
-                                    });
-                              },
+                              // Sadece sınıf öğretmeniyse tıklanabilir, diğerleri için null (pasif) yapılır
+                              onChanged: isTeacher
+                                  ? (yeniDeger) async {
+                                      katilanlarMap[studentId] =
+                                          yeniDeger ?? false;
+                                      await FirebaseFirestore.instance
+                                          .collection('classes')
+                                          .doc(classId)
+                                          .collection('yarismalar')
+                                          .doc(yarismaId)
+                                          .update({
+                                            'katilanOgrenciler': katilanlarMap,
+                                          });
+                                    }
+                                  : null,
                             ),
                           );
                         },

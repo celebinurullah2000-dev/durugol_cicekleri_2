@@ -7,6 +7,7 @@ class EtkinlikDetayScreen extends StatelessWidget {
   final String etkinlikAdi;
   final String aciklama;
   final bool aktifMi;
+  final bool isTeacher; // Rol bilgisini alıyoruz
 
   const EtkinlikDetayScreen({
     super.key,
@@ -15,6 +16,7 @@ class EtkinlikDetayScreen extends StatelessWidget {
     required this.etkinlikAdi,
     required this.aciklama,
     required this.aktifMi,
+    required this.isTeacher,
   });
 
   @override
@@ -120,17 +122,21 @@ class EtkinlikDetayScreen extends StatelessWidget {
                             leading: Checkbox(
                               value: yapildiMi,
                               activeColor: Colors.indigo,
-                              onChanged: (yeniDeger) async {
-                                katilanlarMap[studentId] = yeniDeger ?? false;
-                                await FirebaseFirestore.instance
-                                    .collection('classes')
-                                    .doc(classId)
-                                    .collection('etkinlikler')
-                                    .doc(etkinlikId)
-                                    .update({
-                                      'katilanOgrenciler': katilanlarMap,
-                                    });
-                              },
+                              // Sınıf öğretmeniyse onChanged aktif olur, diğer kullanıcılarda null verilerek pasif (tıklanamaz) yapılır
+                              onChanged: isTeacher
+                                  ? (yeniDeger) async {
+                                      katilanlarMap[studentId] =
+                                          yeniDeger ?? false;
+                                      await FirebaseFirestore.instance
+                                          .collection('classes')
+                                          .doc(classId)
+                                          .collection('etkinlikler')
+                                          .doc(etkinlikId)
+                                          .update({
+                                            'katilanOgrenciler': katilanlarMap,
+                                          });
+                                    }
+                                  : null,
                             ),
                           );
                         },

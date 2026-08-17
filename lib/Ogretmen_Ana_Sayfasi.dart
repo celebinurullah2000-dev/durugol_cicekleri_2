@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:durugol_cicekleri/Etkinlikler_Screen.dart';
+import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk.dart';
 import 'package:durugol_cicekleri/Sinif_Istatistik_Siralama_Screen.dart';
 import 'package:durugol_cicekleri/ogretmen_randevu_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
@@ -560,6 +561,22 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         isTeacher:
                             widget.userRole.trim().toLowerCase() ==
                             'classroom_teacher',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.menu_book, color: Colors.indigo),
+                title: const Text("4: İngilizce Sözlük"),
+                onTap: () {
+                  Navigator.pop(context); // Alt menüyü kapat
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => KisiselIngilizceSozlukScreen(
+                        classId: hedefClassId,
+                        userRole: widget.userRole,
                       ),
                     ),
                   );
@@ -1888,7 +1905,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                   MaterialPageRoute(
                                     builder: (context) => EtkinliklerScreen(
                                       classId: hedefClassId,
-                                      isTeacher: true,
+                                      isTeacher:
+                                          widget.userRole
+                                              .trim()
+                                              .toLowerCase() ==
+                                          'classroom_teacher',
                                     ),
                                   ),
                                 );
@@ -1910,7 +1931,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     builder: (context) =>
                                         OgretmenDavranisScreen(
                                           classId: hedefClassId,
-                                          isTeacher: true,
+                                          isTeacher:
+                                              widget.userRole
+                                                  .trim()
+                                                  .toLowerCase() ==
+                                              'classroom_teacher',
                                         ),
                                   ),
                                 );
@@ -1931,7 +1956,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                   MaterialPageRoute(
                                     builder: (context) => YarismalarScreen(
                                       classId: hedefClassId,
-                                      isTeacher: true,
+                                      isTeacher:
+                                          widget.userRole
+                                              .trim()
+                                              .toLowerCase() ==
+                                          'classroom_teacher',
                                     ),
                                   ),
                                 );

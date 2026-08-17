@@ -137,6 +137,7 @@ class EtkinliklerScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Sınıf Etkinlikleri"),
         actions: [
+          // Sadece sınıf öğretmenine üst sağdaki + butonu görünür[cite: 10]
           if (isTeacher)
             IconButton(
               icon: const Icon(Icons.add_circle, size: 28),
@@ -264,13 +265,13 @@ class EtkinliklerScreen extends StatelessWidget {
                   etkinlikAdi: ad,
                   aciklama: data['aciklama'] ?? '',
                   aktifMi: aktifMi,
+                  isTeacher: isTeacher, // Rolü detay sayfasına aktarıyoruz
                 ),
               ),
             );
           },
         ),
         onTap: () {
-          // Etkinlik adına tıklayınca açıklamaları gösteren dialog
           showDialog(
             context: context,
             builder: (context) => AlertDialog(

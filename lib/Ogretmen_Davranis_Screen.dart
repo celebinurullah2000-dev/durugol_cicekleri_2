@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class OgretmenDavranisScreen extends StatelessWidget {
+class OgretmenDavranisScreen extends StatefulWidget {
   final String classId;
   final String className;
   final bool isTeacher;
@@ -14,57 +14,128 @@ class OgretmenDavranisScreen extends StatelessWidget {
   });
 
   @override
+  State<OgretmenDavranisScreen> createState() => _OgretmenDavranisScreenState();
+}
+
+class _OgretmenDavranisScreenState extends State<OgretmenDavranisScreen> {
+  // Filtreleme türü: 0 = Varsayılan, 1 = Olumludan Olumsuza, 2 = Olumsuzdan Olumluya
+  int _secilenFiltre = 0;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("$className - Davranış Takip Modülü"),
+        title: Text("${widget.className} - Davranis Takip Modulu"),
         centerTitle: true,
+        actions: [
+          PopupMenuButton<int>(
+            icon: const Icon(Icons.filter_list),
+            tooltip: "Ogrencileri Filtrele / Sirala",
+            onSelected: (deger) {
+              setState(() {
+                _secilenFiltre = deger;
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 0,
+                child: Text("Siralama Yok (Varsayilan)"),
+              ),
+              const PopupMenuItem(
+                value: 1,
+                child: Text("1. Olumludan Olumsuza (Yuksekten Dusuge)"),
+              ),
+              const PopupMenuItem(
+                value: 2,
+                child: Text("2. Olumsuzdan Olumluya (Dusukten Yuksege)"),
+              ),
+            ],
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('students')
-            .where('classId', isEqualTo: classId)
+            .where('classId', isEqualTo: widget.classId)
             .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+        builder: (context, studentSnapshot) {
+          if (studentSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (!studentSnapshot.hasData || studentSnapshot.data!.docs.isEmpty) {
             return const Center(
-              child: Text("Bu sınıfta kayıtlı öğrenci bulunamadı."),
+              child: Text("Bu sinifta kayitli ogrenci bulunamadi."),
             );
           }
 
-          var students = snapshot.data!.docs;
+          var students = studentSnapshot.data!.docs;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: students.length,
-            itemBuilder: (context, index) {
-              var studentDoc = students[index];
-              var studentData = studentDoc.data() as Map<String, dynamic>;
-              String studentId = studentDoc.id;
-              String adSoyad =
-                  "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}";
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('classes')
+                .doc(widget.classId)
+                .collection('davranislar')
+                .snapshots(),
+            builder: (context, davranisSnapshot) {
+              if (davranisSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('classes')
-                    .doc(classId)
-                    .collection('davranislar')
-                    .doc(studentId)
-                    .snapshots(),
-                builder: (context, davranisSnap) {
-                  int hamSari = 0;
-                  int hamYesil = 0;
+              Map<String, Map<String, dynamic>> davranisMap = {};
+              if (davranisSnapshot.hasData) {
+                for (var doc in davranisSnapshot.data!.docs) {
+                  davranisMap[doc.id] = doc.data() as Map<String, dynamic>;
+                }
+              }
 
-                  if (davranisSnap.hasData && davranisSnap.data!.exists) {
-                    var data =
-                        davranisSnap.data!.data() as Map<String, dynamic>? ??
-                        {};
-                    hamSari = data['sariKart'] ?? 0;
-                    hamYesil = data['yesilKart'] ?? 0;
-                  }
+              // Net puana göre sıralama mantığı
+              students.sort((a, b) {
+                var dataA = davranisMap[a.id] ?? {};
+                var dataB = davranisMap[b.id] ?? {};
+
+                int sariA = dataA['sariKart'] ?? 0;
+                int yesilA = dataA['yesilKart'] ?? 0;
+                int kirmiziA = sariA ~/ 3;
+                int kalanSariA = sariA % 3;
+                int altinA = yesilA ~/ 3;
+                int kalanYesilA = yesilA % 3;
+                int netPuanA =
+                    ((altinA * 3) + kalanYesilA) -
+                    ((kirmiziA * 3) + kalanSariA);
+
+                int sariB = dataB['sariKart'] ?? 0;
+                int yesilB = dataB['yesilKart'] ?? 0;
+                int kirmiziB = sariB ~/ 3;
+                int kalanSariB = sariB % 3;
+                int altinB = yesilB ~/ 3;
+                int kalanYesilB = yesilB % 3;
+                int netPuanB =
+                    ((altinB * 3) + kalanYesilB) -
+                    ((kirmiziB * 3) + kalanSariB);
+
+                if (_secilenFiltre == 1) {
+                  // Olumludan Olumsuza (En yüksek puandan en düşük puana doğru)
+                  return netPuanB.compareTo(netPuanA);
+                } else if (_secilenFiltre == 2) {
+                  // Olumsuzdan Olumluya (En düşük puandan en yüksek puana doğru)
+                  return netPuanA.compareTo(netPuanB);
+                }
+                return 0;
+              });
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: students.length,
+                itemBuilder: (context, index) {
+                  var studentDoc = students[index];
+                  var studentData = studentDoc.data() as Map<String, dynamic>;
+                  String studentId = studentDoc.id;
+                  String adSoyad =
+                      "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}";
+
+                  var davranisData = davranisMap[studentId] ?? {};
+                  int hamSari = davranisData['sariKart'] ?? 0;
+                  int hamYesil = davranisData['yesilKart'] ?? 0;
 
                   int hamKirmizi = hamSari ~/ 3;
                   int kalanSari = hamSari % 3;
@@ -76,7 +147,6 @@ class OgretmenDavranisScreen extends StatelessWidget {
                   int toplamPozitifPuan = (hamAltin * 3) + kalanYesil;
                   int netPuan = toplamPozitifPuan - toplamNegatifPuan;
 
-                  // Mahsuplaşma sonrası barda gösterilecek net kartlar:
                   int gosterilecekSari = 0;
                   int gosterilecekKirmizi = 0;
                   int gosterilecekYesil = 0;
@@ -103,7 +173,6 @@ class OgretmenDavranisScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Öğrenci Adı
                           Text(
                             adSoyad,
                             style: const TextStyle(
@@ -112,8 +181,6 @@ class OgretmenDavranisScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-
-                          // Denge barını çağırırken mahsuplaşmış değerleri veriyoruz:
                           _buildDengeBari(
                             gosterilecekSari,
                             gosterilecekKirmizi,
@@ -123,7 +190,7 @@ class OgretmenDavranisScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
 
-                          // ORTA KISIM: Olumsuz Davranışlar (Sarı & Kırmızı)
+                          // ORTA KISIM: Olumsuz Davranislar (Sari & Kirmizi)
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
@@ -143,7 +210,7 @@ class OgretmenDavranisScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      "Sarı: $kalanSari | Kırmızı: $hamKirmizi",
+                                      "Sari: $kalanSari | Kirmizi: $hamKirmizi",
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -151,52 +218,54 @@ class OgretmenDavranisScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                Row(
-                                  children: [
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orange,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(70, 32),
-                                        padding: EdgeInsets.zero,
+                                // SADECE SINIF OGRETMENINE GORUNEN BUTONLAR
+                                if (widget.isTeacher)
+                                  Row(
+                                    children: [
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          foregroundColor: Colors.white,
+                                          minimumSize: const Size(70, 32),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                        onPressed: () => _kartGuncelle(
+                                          widget.classId,
+                                          studentId,
+                                          hamSari + 1,
+                                          hamYesil,
+                                        ),
+                                        icon: const Icon(Icons.add, size: 16),
+                                        label: const Text(
+                                          "Sari Ekle",
+                                          style: TextStyle(fontSize: 11),
+                                        ),
                                       ),
-                                      onPressed: () => _kartGuncelle(
-                                        classId,
-                                        studentId,
-                                        hamSari + 1,
-                                        hamYesil,
+                                      const SizedBox(width: 6),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                          color: Colors.red,
+                                          size: 20,
+                                        ),
+                                        tooltip: "Olumsuz Karti Azalt",
+                                        onPressed: hamSari > 0
+                                            ? () => _kartGuncelle(
+                                                widget.classId,
+                                                studentId,
+                                                hamSari - 1,
+                                                hamYesil,
+                                              )
+                                            : null,
                                       ),
-                                      icon: const Icon(Icons.add, size: 16),
-                                      label: const Text(
-                                        "Sarı Ekle",
-                                        style: TextStyle(fontSize: 11),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        color: Colors.red,
-                                        size: 20,
-                                      ),
-                                      tooltip: "Olumsuz Kartı Azalt",
-                                      onPressed: hamSari > 0
-                                          ? () => _kartGuncelle(
-                                              classId,
-                                              studentId,
-                                              hamSari - 1,
-                                              hamYesil,
-                                            )
-                                          : null,
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 6),
 
-                          // ALT KISIM: Olumlu Davranışlar (Yeşil & Altın)
+                          // ALT KISIM: Olumlu Davranislar (Yesil & Altin)
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
@@ -216,7 +285,7 @@ class OgretmenDavranisScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      "Yeşil: $kalanYesil | Altın: $hamAltin",
+                                      "Yesil: $kalanYesil | Altin: $hamAltin",
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -224,46 +293,48 @@ class OgretmenDavranisScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                Row(
-                                  children: [
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(70, 32),
-                                        padding: EdgeInsets.zero,
+                                // SADECE SINIF OGRETMENINE GORUNEN BUTONLAR
+                                if (widget.isTeacher)
+                                  Row(
+                                    children: [
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green,
+                                          foregroundColor: Colors.white,
+                                          minimumSize: const Size(70, 32),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                        onPressed: () => _kartGuncelle(
+                                          widget.classId,
+                                          studentId,
+                                          hamSari,
+                                          hamYesil + 1,
+                                        ),
+                                        icon: const Icon(Icons.add, size: 16),
+                                        label: const Text(
+                                          "Yesil Ekle",
+                                          style: TextStyle(fontSize: 11),
+                                        ),
                                       ),
-                                      onPressed: () => _kartGuncelle(
-                                        classId,
-                                        studentId,
-                                        hamSari,
-                                        hamYesil + 1,
+                                      const SizedBox(width: 6),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                          color: Colors.green,
+                                          size: 20,
+                                        ),
+                                        tooltip: "Olumlu Karti Azalt",
+                                        onPressed: hamYesil > 0
+                                            ? () => _kartGuncelle(
+                                                widget.classId,
+                                                studentId,
+                                                hamSari,
+                                                hamYesil - 1,
+                                              )
+                                            : null,
                                       ),
-                                      icon: const Icon(Icons.add, size: 16),
-                                      label: const Text(
-                                        "Yeşil Ekle",
-                                        style: TextStyle(fontSize: 11),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        color: Colors.green,
-                                        size: 20,
-                                      ),
-                                      tooltip: "Olumlu Kartı Azalt",
-                                      onPressed: hamYesil > 0
-                                          ? () => _kartGuncelle(
-                                              classId,
-                                              studentId,
-                                              hamSari,
-                                              hamYesil - 1,
-                                            )
-                                          : null,
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
                               ],
                             ),
                           ),
@@ -280,7 +351,6 @@ class OgretmenDavranisScreen extends StatelessWidget {
     );
   }
 
-  // Firestore Veri Güncelleme Fonksiyonu
   void _kartGuncelle(
     String classId,
     String studentId,
@@ -299,7 +369,6 @@ class OgretmenDavranisScreen extends StatelessWidget {
         }, SetOptions(merge: true));
   }
 
-  // Ortası Sıfır Olan Denge Barı ve Dinamik Emoji Göstergesi
   Widget _buildDengeBari(
     int sari,
     int kirmizi,
@@ -307,8 +376,7 @@ class OgretmenDavranisScreen extends StatelessWidget {
     int altin,
     int netPuan,
   ) {
-    // Net puana göre dinamik smiley/emoji belirleme mantığı
-    String emojiDurum = "😐"; // Denge (0)
+    String emojiDurum = "😐";
     Color durumRengi = Colors.grey;
 
     if (netPuan > 0) {
@@ -341,14 +409,13 @@ class OgretmenDavranisScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              "Davranış Denge Barı",
+              "Davranis Denge Bari",
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.grey,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            // Emoji ve net puan göstergesi
             Row(
               children: [
                 Text(emojiDurum, style: const TextStyle(fontSize: 20)),
@@ -356,7 +423,7 @@ class OgretmenDavranisScreen extends StatelessWidget {
                 Text(
                   netPuan == 0
                       ? "Denge (0)"
-                      : (netPuan > 0 ? "Artı: +$netPuan" : "Eksi: $netPuan"),
+                      : (netPuan > 0 ? "Arti: +$netPuan" : "Eksi: $netPuan"),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -377,7 +444,6 @@ class OgretmenDavranisScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // SOL TARAF (Negatif / Eksi Yönü)
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
@@ -413,11 +479,7 @@ class OgretmenDavranisScreen extends StatelessWidget {
                   ),
                 ),
               ),
-
-              // ORTA ÇİZGİ (Sıfır Noktası / Denge Noktası)
               Container(width: 2, color: Colors.black87),
-
-              // SAĞ TARAF (Pozitif / Artı Yönü)
               Expanded(
                 child: Align(
                   alignment: Alignment.centerLeft,
