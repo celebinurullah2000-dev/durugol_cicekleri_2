@@ -2,6 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'dart:convert';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -83,6 +87,60 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     _babaMeslegiController.dispose();
     _kardesleriController.dispose();
     super.dispose();
+  }
+
+  // --- ÖĞRENCİ PROFİL RESMİNİ DEĞİŞTİRME FONKSİYONU ---
+  Future<void> _profilResmiDegistir() async {
+    if (!_isSinifOgretmeni) return;
+
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+    );
+
+    if (image == null) return;
+
+    try {
+      final ref = FirebaseStorage.instance.ref().child(
+        'profile_images/${widget.studentId}.jpg',
+      );
+
+      if (kIsWeb) {
+        var bytes = await image.readAsBytes();
+        await ref.putData(bytes);
+      } else {
+        await ref.putFile(File(image.path));
+      }
+
+      final String downloadUrl = await ref.getDownloadURL();
+
+      // Firestore'u güncelleme
+      await FirebaseFirestore.instance
+          .collection('students')
+          .doc(widget.studentId)
+          .update({'profileImageUrl': downloadUrl});
+
+      setState(() {
+        ogrenciProfilResmiUrl = downloadUrl;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Öğrenci profil resmi başarıyla güncellendi! ✅"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Resim yüklenirken hata oluştu: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _bilgileriKaydet() async {
@@ -184,23 +242,62 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           children: [
             Center(
               child: GestureDetector(
-                onTap: _resmiTamBoyutGoster,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.indigo.shade100,
-                  backgroundImage:
-                      (ogrenciProfilResmiUrl != null &&
-                          ogrenciProfilResmiUrl!.isNotEmpty)
-                      ? (ogrenciProfilResmiUrl!.startsWith('http')
-                            ? NetworkImage(ogrenciProfilResmiUrl!)
-                                  as ImageProvider
-                            : MemoryImage(base64Decode(ogrenciProfilResmiUrl!)))
-                      : null,
-                  child:
-                      (ogrenciProfilResmiUrl == null ||
-                          ogrenciProfilResmiUrl!.isEmpty)
-                      ? const Icon(Icons.person, size: 50, color: Colors.indigo)
-                      : null,
+                onTap: () {
+                  // Resim varsa ve sınıf öğretmeniyse tıklandığında tam boyut göster
+                  if (ogrenciProfilResmiUrl != null &&
+                      ogrenciProfilResmiUrl!.isNotEmpty) {
+                    _resmiTamBoyutGoster();
+                  } else if (_isSinifOgretmeni) {
+                    _profilResmiDegistir();
+                  }
+                },
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.indigo.shade100,
+                      backgroundImage:
+                          (ogrenciProfilResmiUrl != null &&
+                              ogrenciProfilResmiUrl!.isNotEmpty)
+                          ? (ogrenciProfilResmiUrl!.startsWith('http')
+                                ? NetworkImage(ogrenciProfilResmiUrl!)
+                                      as ImageProvider
+                                : MemoryImage(
+                                    base64Decode(ogrenciProfilResmiUrl!),
+                                  ))
+                          : null,
+                      child:
+                          (ogrenciProfilResmiUrl == null ||
+                              ogrenciProfilResmiUrl!.isEmpty)
+                          ? const Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Colors.indigo,
+                            )
+                          : null,
+                    ),
+                    // Sadece sınıf öğretmeniyse sağ altta kamera ikonu görünür
+                    if (_isSinifOgretmeni)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _profilResmiDegistir,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.indigoAccent,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
