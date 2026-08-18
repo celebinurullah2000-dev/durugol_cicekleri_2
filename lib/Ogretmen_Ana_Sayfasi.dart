@@ -32,6 +32,7 @@ import 'etutler_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
+import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk_Ogrenci.dart';
 
 Future<Map<String, dynamic>> ogrenciDevamsizlikRaporunuGetir(
   String classId,
@@ -639,19 +640,33 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 leading: const Icon(Icons.menu_book, color: Colors.indigo),
                 title: const Text("4: İngilizce Sözlük"),
                 onTap: () {
-                  Navigator.pop(context); // Alt menüyü kapat
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => KisiselIngilizceSozluk(
-                        classId: hedefClassId,
-                        isTeacher:
-                            widget.userRole.trim().toLowerCase() ==
-                            'classroom_teacher',
-                        userRole: '', // Öğretmen rolüne göre true/false
+                  Navigator.pop(context);
+
+                  // Sadece İngilizce öğretmeniyse tam yetkili sayfaya,
+                  // diğer tüm roller (İdareci, Rehber, Sınıf, Din Kültürü vb.) öğrenci sayfasına yönlendirilir.
+                  if (widget.userRole.trim().toLowerCase() ==
+                      'english_teacher') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => KisiselIngilizceSozluk(
+                          classId: hedefClassId,
+                          userRole: widget.userRole,
+                          isTeacher: true,
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  } else {
+                    // Diğer tüm roller kısıtlı sayfaya yönlendirilir
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => KisiselIngilizceSozlukOgrenci(
+                          classId: hedefClassId,
+                        ),
+                      ),
+                    );
+                  }
                 },
               ),
             ],

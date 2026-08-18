@@ -342,7 +342,9 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
 
             if (userRole == 'admin') {
               admins.add(doc);
-            } else if (userRole == 'branch_teacher') {
+            } else if (userRole == 'branch_teacher' ||
+                userRole == 'english_teacher' ||
+                userRole == 'religious_teacher') {
               branchTeachers.add(doc);
             } else if (userRole == 'guidance_teacher') {
               guidanceTeachers.add(doc);
@@ -353,6 +355,84 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               }
             }
           }
+
+          // İdarecileri Protokol ve Türkçe Alfabetik Sıraya Göre Sıralama
+          admins.sort((a, b) {
+            var dataA = a.data() as Map<String, dynamic>;
+            var dataB = b.data() as Map<String, dynamic>;
+
+            // Unvanı hem 'unvan' alanından hem de garanti olması için 'className' içinden kontrol edelim
+            String unvanA = (dataA['unvan'] ?? dataA['className'] ?? '')
+                .toString()
+                .toLowerCase();
+            String unvanB = (dataB['unvan'] ?? dataB['className'] ?? '')
+                .toString()
+                .toLowerCase();
+
+            int protokolPuani(String unvan) {
+              if (unvan.contains('müdür') &&
+                  !unvan.contains('başyardımcısı') &&
+                  !unvan.contains('yardımcısı')) {
+                return 1; // Sadece "Müdür" / "Okul Müdürü" (En üstte)
+              }
+              if (unvan.contains('başyardımcısı')) {
+                return 2; // Müdür Başyardımcısı (2. sırada)
+              }
+              if (unvan.contains('yardımcısı')) {
+                return 3; // Müdür Yardımcısı (En altta)
+              }
+              return 4; // Diğerleri
+            }
+
+            int puanA = protokolPuani(unvanA);
+            int puanB = protokolPuani(unvanB);
+
+            if (puanA != puanB) {
+              return puanA.compareTo(puanB);
+            }
+
+            // Aynı unvandaygsa Türkçe alfabetik sırala
+            String isimA = dataA['teacherName'] ?? '';
+            String isimB = dataB['teacherName'] ?? '';
+            return isimA.toLowerCase().compareTo(isimB.toLowerCase());
+          });
+
+          branchTeachers.sort((a, b) {
+            var dataA = a.data() as Map<String, dynamic>;
+            var dataB = b.data() as Map<String, dynamic>;
+
+            String roleA = dataA['userRole'] ?? '';
+            String roleB = dataB['userRole'] ?? '';
+
+            // Branş öncelik puanı (Örn: Önce İngilizce, sonra Din Kültürü, sonra diğer branşlar)
+            int bransPuani(String role) {
+              if (role == 'english_teacher') return 1;
+              if (role == 'religious_teacher') return 2;
+              return 3; // branch_teacher vb.
+            }
+
+            int puanA = bransPuani(roleA);
+            int puanB = bransPuani(roleB);
+
+            if (puanA != puanB) {
+              return puanA.compareTo(puanB);
+            }
+
+            // Aynı branş grubundaysa Türkçe alfabetik sırala
+            String isimA = dataA['teacherName'] ?? '';
+            String isimB = dataB['teacherName'] ?? '';
+            return isimA.toLowerCase().compareTo(isimB.toLowerCase());
+          });
+
+          // Rehber Öğretmenleri Türkçe Alfabetik Sıralama
+          guidanceTeachers.sort((a, b) {
+            var dataA = a.data() as Map<String, dynamic>;
+            var dataB = b.data() as Map<String, dynamic>;
+
+            String isimA = dataA['teacherName'] ?? '';
+            String isimB = dataB['teacherName'] ?? '';
+            return isimA.toLowerCase().compareTo(isimB.toLowerCase());
+          });
 
           for (var gradeKey in groupedClasses.keys) {
             groupedClasses[gradeKey]!.sort((a, b) {
@@ -366,7 +446,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
 
           List<String> seviyeler = ['1', '2', '3', '4'];
 
-          // DOĞRU DİZİN VE KART SAYISI HESAPLAMASI
           int adminCount = admins.isNotEmpty ? 1 : 0;
           int branchCount = branchTeachers.isNotEmpty ? 1 : 0;
           int guidanceCount = guidanceTeachers.isNotEmpty ? 1 : 0;
@@ -412,6 +491,8 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                       String adminName = adminData['teacherName'] ?? 'İdareci';
                       String correctPassword = adminData['password'] ?? '';
                       String userRole = adminData['userRole'] ?? 'admin';
+                      String idareciRolAciklamasi =
+                          adminData['unvan'] ?? 'İdareci';
 
                       return Container(
                         margin: const EdgeInsets.symmetric(
@@ -432,17 +513,24 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const Text(
-                                " (İdareci)",
-                                style: TextStyle(
+                              /*Text(
+                                " ($idareciRolAciklamasi)",
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.purple,
                                   fontWeight: FontWeight.w600,
                                 ),
-                              ),
+                              ),*/
                             ],
                           ),
-                          subtitle: const Text("Sistem Yöneticisi"),
+                          subtitle: Text(
+                            " ($idareciRolAciklamasi)",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.purple,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -543,6 +631,13 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                       String userRole =
                           teacherData['userRole'] ?? 'branch_teacher';
 
+                      String rolAciklamasi = "Branş Öğretmeni";
+                      if (userRole == 'english_teacher') {
+                        rolAciklamasi = "İngilizce Öğretmeni";
+                      } else if (userRole == 'religious_teacher') {
+                        rolAciklamasi = "Din Kültürü Öğretmeni";
+                      }
+
                       return Container(
                         margin: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -562,17 +657,24 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const Text(
-                                " (Branş Öğretmeni)",
-                                style: TextStyle(
+                              /*Text(
+                                " ($rolAciklamasi)",
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.orange,
                                   fontWeight: FontWeight.w600,
                                 ),
-                              ),
+                              ),*/
                             ],
                           ),
-                          subtitle: const Text("Branş / Alan Öğretmeni"),
+                          subtitle: Text(
+                            " ($rolAciklamasi)",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -698,17 +800,16 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const Text(
-                                " (Rehber Öğretmen)",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.teal,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
                             ],
                           ),
-                          subtitle: const Text("Rehberlik Servisi"),
+                          subtitle: const Text(
+                            "Rehber Öğretmen",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.teal,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -971,7 +1072,8 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               if (passwordInputController.text.trim() == correctPassword) {
                 Navigator.pop(context);
 
-                if (userRole == 'branch_teacher' ||
+                if (userRole == 'english_teacher' ||
+                    userRole == 'religious_teacher' ||
                     userRole == 'admin' ||
                     userRole == 'guidance_teacher') {
                   Navigator.push(

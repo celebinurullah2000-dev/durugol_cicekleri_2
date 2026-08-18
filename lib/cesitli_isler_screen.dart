@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:durugol_cicekleri/Dogum_Gunleri_Screen.dart';
 import 'package:durugol_cicekleri/Kisisel_Atasozleri_Screen.dart';
 import 'package:durugol_cicekleri/Kisisel_Deyimler_Screen.dart';
-import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk.dart'; // İngilizce Sözlük eklendi
 import 'package:durugol_cicekleri/Kisisel_Sozluk_Screen.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -14,7 +13,8 @@ import 'Ogrenci_Gorevli_Goruntuleme_Screen.dart';
 import 'Ogrenci_Haftalik_Ders_Programi_Screen.dart';
 import 'Ogrenci_Etkinlikler_Screen.dart';
 import 'Ogrenci_Yarismalar_Screen.dart';
-import 'istatistik_servisi.dart'; //[cite: 2]
+import 'istatistik_servisi.dart';
+import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk_Ogrenci.dart';
 
 class OgrenciDevamsizlikScreen extends StatelessWidget {
   final String classId;
@@ -338,11 +338,10 @@ class _CesitliIslerScreenState extends State<CesitliIslerScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => KisiselIngilizceSozluk(
-                                classId: widget.classId,
-                                userRole: 'student',
-                                isTeacher: true,
-                              ),
+                              builder: (context) =>
+                                  KisiselIngilizceSozlukOgrenci(
+                                    classId: widget.classId,
+                                  ),
                             ),
                           );
                         } else if (title == "Doğum Günleri") {

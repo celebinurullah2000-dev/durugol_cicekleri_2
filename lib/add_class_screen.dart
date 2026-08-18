@@ -18,8 +18,11 @@ class _AddClassScreenState extends State<AddClassScreen> {
   // Seçilen şube (Ğ harfi hariç A-I arası)
   String? _selectedBranch = 'A';
 
-  // Yeni eklenen: Kullanıcı / Öğretmen Rolü ('classroom_teacher', 'branch_teacher', 'admin')
+  // Kullanıcı / Öğretmen Rolü
   String _selectedRole = 'classroom_teacher';
+
+  // Seçilen İdareci Unvanı
+  String _selectedUnvan = 'Müdür Yardımcısı';
 
   // Controller'lar
   final TextEditingController _teacherNameController = TextEditingController();
@@ -67,7 +70,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 0. Yeni Eklenen: Kullanıcı / Öğretmen Türü Seçimi
+            // 0. Kullanıcı / Öğretmen Türü Seçimi
             DropdownButtonFormField<String>(
               initialValue: _selectedRole,
               decoration: const InputDecoration(
@@ -77,28 +80,57 @@ class _AddClassScreenState extends State<AddClassScreen> {
               items: const [
                 DropdownMenuItem(
                   value: 'classroom_teacher',
-                  child: Text("Sınıf Öğretmeni (Tek Sınıf)"),
+                  child: Text("Sınıf Öğretmeni"),
                 ),
                 DropdownMenuItem(
                   value: 'branch_teacher',
-                  child: Text("Branş Öğretmeni (Çoklu Sınıf Seçebilir)"),
+                  child: Text("Branş Öğretmeni"),
                 ),
                 DropdownMenuItem(
-                  value: 'admin',
-                  child: Text("İdareci (Tüm Sınıfları Görür)"),
+                  value: 'english_teacher',
+                  child: Text("İngilizce Öğretmeni"),
                 ),
+                DropdownMenuItem(
+                  value: 'religious_teacher',
+                  child: Text("Din Kültürü Öğretmeni"),
+                ),
+                DropdownMenuItem(value: 'admin', child: Text("İdareci")),
                 DropdownMenuItem(
                   value: 'guidance_teacher',
                   child: Text('Rehber Öğretmen'),
                 ),
               ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedRole = value!;
-                });
-              },
+              onChanged: (value) => setState(() => _selectedRole = value!),
             ),
             const SizedBox(height: 16),
+
+            // SADECE İDARECİ SEÇİLDİĞİNDE UNVAN SEÇENEKLERİNİ GÖSTER
+            if (_selectedRole == 'admin') ...[
+              DropdownButtonFormField<String>(
+                initialValue: _selectedUnvan,
+                decoration: const InputDecoration(
+                  labelText: "İdareci Unvanı",
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Müdür', child: Text("Müdür")),
+                  DropdownMenuItem(
+                    value: 'Müdür Başyardımcısı',
+                    child: Text("Müdür Başyardımcısı"),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Müdür Yardımcısı',
+                    child: Text("Müdür Yardımcısı"),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedUnvan = value!;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // SADECE SINIF ÖĞRETMENİ SEÇİLDİĞİNDE SINIF VE ŞUBE DROPDOWN'LARINI GÖSTER
             if (_selectedRole == 'classroom_teacher') ...[
@@ -195,15 +227,8 @@ class _AddClassScreenState extends State<AddClassScreen> {
 
                   String finalClassName;
 
-                  // 1. İdareci, Branş Öğretmeni ve Rehber Öğretmen için sınıf çakışması aranmaz
-                  if (_selectedRole == 'admin') {
-                    finalClassName = "İdareci: $teacherName";
-                  } else if (_selectedRole == 'branch_teacher') {
-                    finalClassName = "Branş Öğretmeni: $teacherName";
-                  } else if (_selectedRole == 'guidance_teacher') {
-                    finalClassName = "Rehber Öğretmen: $teacherName";
-                  } else {
-                    // Sadece Sınıf Öğretmeni (classroom_teacher) için sınıf/şube çakışması kontrol edilir
+                  // Sadece Sınıf Öğretmeni (classroom_teacher) için sınıf/şube çakışması kontrol edilir
+                  if (_selectedRole == 'classroom_teacher') {
                     finalClassName = "$_selectedGrade/$_selectedBranch";
 
                     var existingClassQuery = await FirebaseFirestore.instance
@@ -235,6 +260,23 @@ class _AddClassScreenState extends State<AddClassScreen> {
                       );
                       if (devamEtsinMi != true) return;
                     }
+                  } else {
+                    // Diğer özel roller için sınıf çakışması aranmaz, otomatik isimlendirilir
+                    String rolAdi = "";
+                    if (_selectedRole == 'admin') {
+                      rolAdi =
+                          _selectedUnvan; // İdareciler için doğrudan seçilen unvan (Müdür vb.) yazılır
+                    } else if (_selectedRole == 'branch_teacher') {
+                      rolAdi = "Branş Öğretmeni";
+                    } else if (_selectedRole == 'english_teacher') {
+                      rolAdi = "İngilizce Öğretmeni";
+                    } else if (_selectedRole == 'religious_teacher') {
+                      rolAdi = "Din Kültürü Öğretmeni";
+                    } else if (_selectedRole == 'guidance_teacher') {
+                      rolAdi = "Rehber Öğretmen";
+                    }
+
+                    finalClassName = "$rolAdi: $teacherName";
                   }
 
                   final navigator = Navigator.of(context);
@@ -250,6 +292,9 @@ class _AddClassScreenState extends State<AddClassScreen> {
                     'teacherName': teacherName,
                     'password': _passwordController.text.trim(),
                     'userRole': _selectedRole,
+                    'unvan': _selectedRole == 'admin'
+                        ? _selectedUnvan
+                        : '', // İdareci unvanı eklendi
                     'assignedClassIds': [],
                   });
 
