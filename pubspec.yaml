@@ -29,6 +29,7 @@ dependencies:
   intl: ^0.20.3
   google_sign_in: ^7.2.0  
   http: ^1.6.0  
+  video_player: ^2.8.6
 
 dev_dependencies:
   flutter_test:
@@ -42,6 +43,7 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    - assets/animations/logo_motion.mp4
 
 flutter_launcher_icons:
   android: "launcher_icon"

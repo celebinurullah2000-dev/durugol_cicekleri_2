@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, camel_case_types
 
+import 'dart:math';
 import 'package:durugol_cicekleri/YetkiTanimlaScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,6 +21,40 @@ class sinifseceklescreen extends StatefulWidget {
 
 class _sinifseceklescreenState extends State<sinifseceklescreen> {
   final List<String> _branches = ['A', 'B', 'C', 'D', 'E', 'F', 'H', 'I', 'J'];
+
+  // Atatürk'ün Eğitim, Motivasyon ve Kişisel Gelişim Sözleri Listesi
+  final List<String> _ataturkSozleri = [
+    "Eğitimdir ki bir milleti; ya özgür, bağımsız, şanlı, yüksek bir topluluk halinde yaşatır; ya da esaret ve sefalete terk eder.",
+    "Dünyada her şey için, medeniyet için, hayat için, başarı için en hakiki mürşit ilimdir, fendir.",
+    "Milletleri kurtaranlar yalnız ve ancak öğretmenlerdir. Öğretmenden, eğiticiden mahrum bir millet, henüz bir millet namını almak yeteneğini kazanmamıştır.",
+    "Eğitim kültürünü doğrudan doğruya halka yaymak, halkı aydınlatmak en büyük görevimizdir.",
+    "Öğretmenler! Yeni nesil sizin eseriniz olacaktır.",
+    "Çocuklarımızı ulusun bağımsızlığına, kendi benliğine, millî geleneklerine düşman olan hususlarla mücadele etmek lüzumu ile donatmalıyız.",
+    "Hayatta en hakiki mürşit ilimdir.",
+    "Beni görmek demek mutlaka yüzümü görmek demek değildir. Benim fikirlerimi, benim duygularımı anlıyorsanız ve hissediyorsanız bu yeterlidir.",
+    "Fikriyat ve zihniyet terbiyesi, maddî terbiye ile beraber yürütülmelidir.",
+    "Çalışmadan, yorulmadan ve üretenmeden, rahat yaşamak isteyen toplumlar; evvela haysiyetlerini, sonra hürriyetlerini ve daha sonra istiklal ve istikballerini kaybederler.",
+    "Zafer, 'Zafer benimdir' diyebilenindir. Başaracağım diyebilen ise başarıya ulaşabilir.",
+    "Umutsuz durumlar yoktur, umutsuz insanlar vardır. Ben hiçbir zaman umudumu yitirmedim.",
+    "Milli eğitim inancı, milli iradenin kalbidir.",
+    "Gençler! Cesaretimizi takviye eden ve idame eden sizsiniz. Siz almakta olduğunuz terbiye ve irfan ile insanlık medeniyetinin, vatan sevgisinin en kıymetli timsali olacaksınız.",
+  ];
+
+  late String _secilenSoz;
+
+  @override
+  void initState() {
+    super.initState();
+    _rastgeleSozSec();
+  }
+
+  // Her girişte veya yenile butonuna basıldığında rastgele bir söz seçen fonksiyon
+  void _rastgeleSozSec() {
+    final random = Random();
+    setState(() {
+      _secilenSoz = _ataturkSozleri[random.nextInt(_ataturkSozleri.length)];
+    });
+  }
 
   String _capitalizeWords(String value) {
     if (value.isEmpty) return value;
@@ -361,7 +396,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
             var dataA = a.data() as Map<String, dynamic>;
             var dataB = b.data() as Map<String, dynamic>;
 
-            // Unvanı hem 'unvan' alanından hem de garanti olması için 'className' içinden kontrol edelim
             String unvanA = (dataA['unvan'] ?? dataA['className'] ?? '')
                 .toString()
                 .toLowerCase();
@@ -373,15 +407,15 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               if (unvan.contains('müdür') &&
                   !unvan.contains('başyardımcısı') &&
                   !unvan.contains('yardımcısı')) {
-                return 1; // Sadece "Müdür" / "Okul Müdürü" (En üstte)
+                return 1;
               }
               if (unvan.contains('başyardımcısı')) {
-                return 2; // Müdür Başyardımcısı (2. sırada)
+                return 2;
               }
               if (unvan.contains('yardımcısı')) {
-                return 3; // Müdür Yardımcısı (En altta)
+                return 3;
               }
-              return 4; // Diğerleri
+              return 4;
             }
 
             int puanA = protokolPuani(unvanA);
@@ -391,7 +425,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               return puanA.compareTo(puanB);
             }
 
-            // Aynı unvandaygsa Türkçe alfabetik sırala
             String isimA = dataA['teacherName'] ?? '';
             String isimB = dataB['teacherName'] ?? '';
             return isimA.toLowerCase().compareTo(isimB.toLowerCase());
@@ -404,11 +437,10 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
             String roleA = dataA['userRole'] ?? '';
             String roleB = dataB['userRole'] ?? '';
 
-            // Branş öncelik puanı (Örn: Önce İngilizce, sonra Din Kültürü, sonra diğer branşlar)
             int bransPuani(String role) {
               if (role == 'english_teacher') return 1;
               if (role == 'religious_teacher') return 2;
-              return 3; // branch_teacher vb.
+              return 3;
             }
 
             int puanA = bransPuani(roleA);
@@ -418,7 +450,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               return puanA.compareTo(puanB);
             }
 
-            // Aynı branş grubundaysa Türkçe alfabetik sırala
             String isimA = dataA['teacherName'] ?? '';
             String isimB = dataB['teacherName'] ?? '';
             return isimA.toLowerCase().compareTo(isimB.toLowerCase());
@@ -450,8 +481,9 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           int branchCount = branchTeachers.isNotEmpty ? 1 : 0;
           int guidanceCount = guidanceTeachers.isNotEmpty ? 1 : 0;
 
+          // +1 ekleyerek son öğe olarak Atatürk kartını listeye dahil ediyoruz
           int totalItemCount =
-              adminCount + branchCount + guidanceCount + seviyeler.length;
+              adminCount + branchCount + guidanceCount + seviyeler.length + 1;
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -513,70 +545,68 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              /*Text(
-                                " ($idareciRolAciklamasi)",
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.purple,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),*/
                             ],
                           ),
                           subtitle: Text(
-                            " ($idareciRolAciklamasi)",
+                            "($idareciRolAciklamasi)",
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.purple,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  _sifreDogrulaVaIslemYap(
-                                    context,
-                                    correctPassword,
-                                    adminName,
-                                    () {
-                                      _sinifDuzenleDialog(
-                                        context,
-                                        adminId,
-                                        '',
-                                        '',
-                                        adminName,
-                                        userRole,
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  _sifreDogrulaVaIslemYap(
-                                    context,
-                                    correctPassword,
-                                    adminName,
-                                    () {
-                                      _sinifSil(context, adminId, adminName);
-                                    },
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                          trailing: widget.isTeacherMaster
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _sifreDogrulaVaIslemYap(
+                                          context,
+                                          correctPassword,
+                                          adminName,
+                                          () {
+                                            _sinifDuzenleDialog(
+                                              context,
+                                              adminId,
+                                              '',
+                                              '',
+                                              adminName,
+                                              userRole,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _sifreDogrulaVaIslemYap(
+                                          context,
+                                          correctPassword,
+                                          adminName,
+                                          () {
+                                            _sinifSil(
+                                              context,
+                                              adminId,
+                                              adminName,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                )
+                              : null,
                           onTap: () {
                             _sifreDogrulaVeIslemYardimcisi(
                               context,
@@ -657,74 +687,68 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              /*Text(
-                                " ($rolAciklamasi)",
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),*/
                             ],
                           ),
                           subtitle: Text(
-                            " ($rolAciklamasi)",
+                            "($rolAciklamasi)",
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.orange,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  _sifreDogrulaVaIslemYap(
-                                    context,
-                                    correctPassword,
-                                    teacherName,
-                                    () {
-                                      _sinifDuzenleDialog(
-                                        context,
-                                        teacherId,
-                                        '',
-                                        '',
-                                        teacherName,
-                                        userRole,
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  _sifreDogrulaVaIslemYap(
-                                    context,
-                                    correctPassword,
-                                    teacherName,
-                                    () {
-                                      _sinifSil(
-                                        context,
-                                        teacherId,
-                                        teacherName,
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                          trailing: widget.isTeacherMaster
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _sifreDogrulaVaIslemYap(
+                                          context,
+                                          correctPassword,
+                                          teacherName,
+                                          () {
+                                            _sinifDuzenleDialog(
+                                              context,
+                                              teacherId,
+                                              '',
+                                              '',
+                                              teacherName,
+                                              userRole,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _sifreDogrulaVaIslemYap(
+                                          context,
+                                          correctPassword,
+                                          teacherName,
+                                          () {
+                                            _sinifSil(
+                                              context,
+                                              teacherId,
+                                              teacherName,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                )
+                              : null,
                           onTap: () {
                             _sifreDogrulaVeIslemYardimcisi(
                               context,
@@ -810,56 +834,58 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  _sifreDogrulaVaIslemYap(
-                                    context,
-                                    correctPassword,
-                                    guidanceName,
-                                    () {
-                                      _sinifDuzenleDialog(
-                                        context,
-                                        guidanceId,
-                                        '',
-                                        '',
-                                        guidanceName,
-                                        userRole,
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  _sifreDogrulaVaIslemYap(
-                                    context,
-                                    correctPassword,
-                                    guidanceName,
-                                    () {
-                                      _sinifSil(
-                                        context,
-                                        guidanceId,
-                                        guidanceName,
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                          trailing: widget.isTeacherMaster
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _sifreDogrulaVaIslemYap(
+                                          context,
+                                          correctPassword,
+                                          guidanceName,
+                                          () {
+                                            _sinifDuzenleDialog(
+                                              context,
+                                              guidanceId,
+                                              '',
+                                              '',
+                                              guidanceName,
+                                              userRole,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _sifreDogrulaVaIslemYap(
+                                          context,
+                                          correctPassword,
+                                          guidanceName,
+                                          () {
+                                            _sinifSil(
+                                              context,
+                                              guidanceId,
+                                              guidanceName,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                )
+                              : null,
                           onTap: () {
                             _sifreDogrulaVeIslemYardimcisi(
                               context,
@@ -954,56 +980,58 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                                 ),
                               ),
                               subtitle: Text("Yetkili: $teacherName"),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      color: Colors.blue,
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      _sifreDogrulaVaIslemYap(
-                                        context,
-                                        correctPassword,
-                                        className,
-                                        () {
-                                          _sinifDuzenleDialog(
-                                            context,
-                                            classId,
-                                            grade,
-                                            branch,
-                                            teacherName,
-                                            userRole,
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      _sifreDogrulaVaIslemYap(
-                                        context,
-                                        correctPassword,
-                                        className,
-                                        () {
-                                          _sinifSil(
-                                            context,
-                                            classId,
-                                            className,
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
+                              trailing: widget.isTeacherMaster
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            color: Colors.blue,
+                                            size: 20,
+                                          ),
+                                          onPressed: () {
+                                            _sifreDogrulaVaIslemYap(
+                                              context,
+                                              correctPassword,
+                                              className,
+                                              () {
+                                                _sinifDuzenleDialog(
+                                                  context,
+                                                  classId,
+                                                  grade,
+                                                  branch,
+                                                  teacherName,
+                                                  userRole,
+                                                );
+                                              },
+                                            );
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                          onPressed: () {
+                                            _sifreDogrulaVaIslemYap(
+                                              context,
+                                              correctPassword,
+                                              className,
+                                              () {
+                                                _sinifSil(
+                                                  context,
+                                                  classId,
+                                                  className,
+                                                );
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    )
+                                  : null,
                               onTap: () {
                                 _sifreDogrulaVeIslemYardimcisi(
                                   context,
@@ -1017,6 +1045,100 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                           );
                         }),
                       const SizedBox(height: 8),
+                    ],
+                  ),
+                );
+              }
+
+              // 5. EN SON ÖĞE: 4. Sınıf Kartının Altındaki Atatürk Sözü ve Resmi Kartı
+              if (index == totalItemCount - 1) {
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.fromLTRB(4, 12, 4, 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                    border: Border.all(color: Colors.blue.shade100, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      // Sol Taraf: Atatürk'ün Sözü
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Mustafa Kemal Atatürk",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "\"$_secilenSoz\"",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Sağ Taraf: Yenile İkonu ve Atatürk Resmi
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(
+                                Icons.refresh,
+                                size: 20,
+                                color: Colors.indigo,
+                              ),
+                              tooltip: "Başka Söz Getir",
+                              onPressed: _rastgeleSozSec,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/images/ataturk.png',
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 70,
+                                  height: 70,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(
+                                    Icons.person,
+                                    color: Colors.grey,
+                                    size: 30,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 );

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student_home_screen.dart';
+import 'package:video_player/video_player.dart'; // <--- Video oynatıcı paketi eklendi
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isRoleSelected = false;
   bool _sifreGizli = true;
+
+  // Video Oynatıcı Kontrolcüsü
+  late VideoPlayerController _videoController;
 
   String? _selectedGradeLevel; // Seçilen sınıf seviyesi (1, 2, 3, 4)
   String? _selectedBranch; // Seçilen şube harfi (A, B, C, D, E, F, G, H, I, J)
@@ -38,6 +42,37 @@ class _LoginScreenState extends State<LoginScreen> {
     'J',
   ];
   final List<String> _gradeLevels = ['1', '2', '3', '4'];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSavedClass();
+    _loadClasses();
+
+    // Videoyu güvenli başlatma ve hata yakalama
+    _videoController =
+        VideoPlayerController.asset('assets/animations/logo_motion.mp4')
+          ..initialize()
+              .then((_) {
+                if (mounted) {
+                  setState(() {
+                    _videoController.setLooping(true);
+                    _videoController.setVolume(0.0);
+                    _videoController.play();
+                  });
+                }
+              })
+              .catchError((error) {
+                debugPrint("Video yüklenirken hata oluştu: $error");
+              });
+  }
+
+  @override
+  void dispose() {
+    _videoController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void _masterSifreSor() {
     TextEditingController masterController = TextEditingController();
@@ -103,13 +138,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _checkSavedClass();
-    _loadClasses();
-  }
-
   Future<void> _checkSavedClass() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -123,7 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
           .collection('classes')
           .get();
 
-      // Sınıfları alfabetik olarak (className değerine göre) sıralama
       List<QueryDocumentSnapshot<Map<String, dynamic>>> sortedDocs = List.from(
         snapshot.docs,
       );
@@ -141,35 +168,21 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Seçilen sınıf seviyesi ve şubeye göre Firestore'daki sınıfın doküman ID'sini bulur
   void _updateSelectedClassId() {
     if (_selectedGradeLevel != null && _selectedBranch != null) {
-      "$_selectedGradeLevel-İ$_selectedBranch" // Projenizdeki isimlendirme formatına göre uyarlanabilir, örn: "1/A" veya doğrudan birleştirme
-          .replaceAll(
-            'İ',
-            '',
-          ); // Eğer format farklıysa burayı düzenleyebilirsiniz
-
-      // Alternatif olarak standart adlandırma kontrolü (Örn: "1 A", "1-A" vb. veritabanı yapınıza göre)
-      // Burada doğrudan "className" alanının "1 A" veya "1/A" gibi geldiğini varsayarak eşleştiriyoruz:
       try {
-        // Kullanıcının seçtiği kombinasyonu içeren sınıfı bulmaya çalışalım (Örn: "1" ve "A" -> "1 A" veya "1-A")
-        var matchedDoc = _classList.firstWhere(
-          (doc) {
-            String cName = (doc.data()['className'] ?? '')
-                .toString()
-                .replaceAll(' ', '')
-                .replaceAll('/', '')
-                .replaceAll('-', '');
-            String target1 = "$_selectedGradeLevel$_selectedBranch";
-            return cName.toUpperCase() == target1.toUpperCase();
-          },
-          orElse: () => _classList.first,
-        ); // Bulamazsa ilkini veya null bırakır
+        var matchedDoc = _classList.firstWhere((doc) {
+          String cName = (doc.data()['className'] ?? '')
+              .toString()
+              .replaceAll(' ', '')
+              .replaceAll('/', '')
+              .replaceAll('-', '');
+          String target1 = "$_selectedGradeLevel$_selectedBranch";
+          return cName.toUpperCase() == target1.toUpperCase();
+        }, orElse: () => _classList.first);
 
         if (matchedDoc.exists &&
             (_selectedGradeLevel != null && _selectedBranch != null)) {
-          // Gerçek eşleşmeyi kontrol et
           for (var doc in _classList) {
             String cName = (doc.data()['className'] ?? '').toString();
             if (cName.contains(_selectedGradeLevel!) &&
@@ -204,17 +217,40 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
               Container(
-                margin: const EdgeInsets.only(bottom: 40),
+                margin: const EdgeInsets.only(bottom: 10),
                 child: Image.asset(
                   'assets/images/durugol_ilkokulu.png',
-                  height: 200,
+                  height: 140,
                   fit: BoxFit.contain,
                 ),
               ),
+
+              // --- LOGO MOTION VİDEO ALANI ---
+              SizedBox(
+                height: 150,
+                width: 150,
+                child: _videoController.value.isInitialized
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: _videoController.value.size.width,
+                            height: _videoController.value.size.height,
+                            child: VideoPlayer(_videoController),
+                          ),
+                        ),
+                      )
+                    : const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+              ),
+              const SizedBox(height: 20),
+
               _buildSinifGorseli(),
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
               if (!_isRoleSelected) ...[
                 Row(
                   children: [
@@ -249,12 +285,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
 
                 if (_savedClassId == null) ...[
-                  // Yan yana 2 adet Dropdown (Sınıf Seviyesi ve Şube)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        // 1'den 4'e Sınıf Seçimi
                         Expanded(
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -291,7 +325,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(width: 15),
-                        // A'dan J'ye Şube Seçimi
                         Expanded(
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
