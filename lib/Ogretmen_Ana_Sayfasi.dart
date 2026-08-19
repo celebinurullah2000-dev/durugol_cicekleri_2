@@ -121,9 +121,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   StreamSubscription<QuerySnapshot>? _randevuSubscription;
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
-  // Filtreleme için durum değişkenleri (İdareci ve Branş Öğretmenleri için)
-  String? _filtreliGrade = '1';
-  String? _filtreliBranch = 'A';
+
+  String? _filtreliGrade;
+  String? _filtreliBranch;
   final List<String> _branchListesi = [
     'A',
     'B',
@@ -136,11 +136,74 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     'I',
     'J',
   ];
+  List<String> _assignedBranches = []; // Sadece branş öğretmenleri için şubeler
 
+  @override
+  void initState() {
+    super.initState();
+    _ogretmenBilgileriniYukle();
+    _kullaniciYetkileriniGetir();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      dogumGunuKontrolEtVeBildir(context, widget.classId);
+      ogretmenBildirimTokeniniKaydet(widget.classId);
+    });
+    bildirimleriBaslat();
+    _randevuDinle();
+  }
+
+  // Öğretmenin daha önce kaydettiği şubeleri ve ilk filtre değerlerini çekme
+  Future<void> _ogretmenBilgileriniYukle() async {
+    try {
+      var doc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .get();
+
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+        List<dynamic> savedBranches = data['assignedBranches'] ?? [];
+        setState(() {
+          _assignedBranches = savedBranches.map((e) => e.toString()).toList();
+
+          if (widget.userRole == 'english_teacher' ||
+              widget.userRole == 'religious_teacher') {
+            if (_assignedBranches.isNotEmpty) {
+              var parts = _assignedBranches.first.split('/');
+              if (parts.length == 2) {
+                _filtreliGrade = parts[0];
+                _filtreliBranch = parts[1];
+              }
+            } else {
+              _filtreliGrade = null;
+              _filtreliBranch = null;
+            }
+          } else {
+            _filtreliGrade = '1';
+            _filtreliBranch = 'A';
+          }
+        });
+      }
+    } catch (e) {
+      setState(() {
+        if (widget.userRole == 'english_teacher' ||
+            widget.userRole == 'religious_teacher') {
+          _filtreliGrade = null;
+          _filtreliBranch = null;
+        } else {
+          _filtreliGrade = '1';
+          _filtreliBranch = 'A';
+        }
+      });
+    }
+  }
+
+  // Aktif filtrelere göre mevcut sınıf ID'sini bulma
   Future<String?> _getAktifHedefClassId() async {
     if (widget.userRole == 'classroom_teacher') {
       return widget.classId;
     }
+
+    if (_filtreliGrade == null || _filtreliBranch == null) return null;
 
     String arananClassName = "$_filtreliGrade/$_filtreliBranch";
     var classQuery = await FirebaseFirestore.instance
@@ -151,27 +214,207 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     if (classQuery.docs.isNotEmpty) {
       return classQuery.docs.first.id;
     }
-    return widget.classId;
+    return null;
   }
 
-  // Yetkilendirme için değişkenler
+  // Branş öğretmenleri için şube seçim dialogu
+  void _subeSecimDialogGoster(BuildContext context) async {
+    var querySnapshot = await FirebaseFirestore.instance
+        .collection('classes')
+        .where('grade', whereIn: ['2', '3', '4'])
+        .get();
+
+    List<Map<String, String>> tumSiniflar = [];
+    for (var doc in querySnapshot.docs) {
+      var data = doc.data();
+      String? grade = data['grade'];
+      String? branch = data['branch'];
+      String? className = data['className'];
+
+      if (grade != null &&
+          branch != null &&
+          className != null &&
+          className.contains('/')) {
+        tumSiniflar.add({
+          'className': className,
+          'grade': grade,
+          'branch': branch,
+        });
+      }
+    }
+
+    tumSiniflar.sort((a, b) => a['className']!.compareTo(b['className']!));
+    List<String> geciciSecilenler = List.from(_assignedBranches);
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Dersine Girdiğiniz Sınıflar"),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 350,
+                child: tumSiniflar.isEmpty
+                    ? const Center(child: Text("Kayıtlı sınıf bulunamadı."))
+                    : ListView.builder(
+                        itemCount: tumSiniflar.length,
+                        itemBuilder: (context, index) {
+                          var sinif = tumSiniflar[index];
+                          String className = sinif['className']!;
+                          bool isSelected = geciciSecilenler.contains(
+                            className,
+                          );
+
+                          return CheckboxListTile(
+                            title: Text("$className Sınıfı"),
+                            value: isSelected,
+                            onChanged: (bool? value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  geciciSecilenler.add(className);
+                                } else {
+                                  geciciSecilenler.remove(className);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("İptal"),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('classes')
+                        .doc(widget.classId)
+                        .update({'assignedBranches': geciciSecilenler});
+
+                    setState(() {
+                      _assignedBranches = geciciSecilenler;
+                      if (_assignedBranches.isNotEmpty) {
+                        var first = _assignedBranches.first.split('/');
+                        _filtreliGrade = first[0];
+                        _filtreliBranch = first[1];
+                      } else {
+                        _filtreliGrade = null;
+                        _filtreliBranch = null;
+                      }
+                    });
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Ders programı şubeleriniz güncellendi! ✅",
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                  child: const Text("Seçimi Kaydet"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Şube listesi belirleme
+  List<String> _getMevcutSubeler() {
+    bool isBransOgretmeni =
+        widget.userRole == 'english_teacher' ||
+        widget.userRole == 'religious_teacher';
+    if (!isBransOgretmeni) {
+      return _branchListesi;
+    }
+
+    if (_filtreliGrade == null) return [];
+    Set<String> subeler = {};
+    for (var item in _assignedBranches) {
+      var parts = item.split('/');
+      if (parts.length == 2 && parts[0] == _filtreliGrade) {
+        subeler.add(parts[1]);
+      }
+    }
+    List<String> liste = subeler.toList();
+    liste.sort();
+    return liste;
+  }
+
+  // Sınıf seviyesi listesi belirleme
+  List<String> _getMevcutSeviyeler() {
+    bool isBransOgretmeni =
+        widget.userRole == 'english_teacher' ||
+        widget.userRole == 'religious_teacher';
+    if (!isBransOgretmeni) {
+      return ['1', '2', '3', '4'];
+    }
+
+    Set<String> seviyeler = {};
+    for (var item in _assignedBranches) {
+      var parts = item.split('/');
+      if (parts.isNotEmpty) {
+        seviyeler.add(parts[0]);
+      }
+    }
+    List<String> liste = seviyeler.toList();
+    liste.sort();
+    return liste;
+  }
+
+  Future<String> _getUnvanliOgretmenAdi() async {
+    try {
+      var doc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .get();
+
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+        String adSoyad = data['teacherName'] ?? widget.className;
+        String unvan = data['unvan'] ?? '';
+        String rol = data['userRole'] ?? widget.userRole;
+
+        if (rol == 'admin') {
+          String idareciUnvan = unvan.isNotEmpty ? unvan : 'İdareci';
+          return "$adSoyad ($idareciUnvan)";
+        } else if (rol == 'english_teacher') {
+          return "$adSoyad (İngilizce Öğretmeni)";
+        } else if (rol == 'religious_teacher') {
+          return "$adSoyad (Din Kültürü Öğretmeni)";
+        } else if (rol == 'guidance_teacher') {
+          return "$adSoyad (Rehber Öğretmen)";
+        } else if (rol == 'branch_teacher') {
+          return "$adSoyad (Branş Öğretmeni)";
+        } else {
+          return "$adSoyad (Sınıf Öğretmeni)";
+        }
+      }
+    } catch (e) {
+      // Hata yönetimi
+    }
+    return widget.className;
+  }
+
   List<String> _izinliButonlar = [];
   bool _yetkilerYukleniyor = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _kullaniciYetkileriniGetir();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      dogumGunuKontrolEtVeBildir(context, widget.classId);
-      ogretmenBildirimTokeniniKaydet(widget.classId);
-    });
-    bildirimleriBaslat();
-    _randevuDinle();
-  }
-
   Future<void> _kullaniciYetkileriniGetir() async {
-    // Sınıf öğretmenleri tüm butonları görür
     if (widget.userRole == 'classroom_teacher') {
       setState(() {
         _yetkilerYukleniyor = false;
@@ -342,7 +585,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     );
   }
 
-  // --- ŞİFRE DEĞİŞTİRME DİYALOĞU ---
   void _sifreDegistirDialogGoster(BuildContext context) {
     final TextEditingController mevcutSifreController = TextEditingController();
     final TextEditingController yeniSifreController = TextEditingController();
@@ -482,7 +724,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   }
 
   void _sil(BuildContext context, String studentId, String studentName) {
-    // 1. AŞAMA: İlk Bilgilendirme ve Onay Penceresi
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -498,9 +739,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             onPressed: () {
-              Navigator.pop(context); // İlk dialogu kapat
-
-              // 2. AŞAMA: İkinci ve Son Kalıcı Uyarı Penceresi
+              Navigator.pop(context);
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -518,9 +757,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         backgroundColor: Colors.red,
                       ),
                       onPressed: () async {
-                        Navigator.pop(context); // İkinci dialogu kapat
-
-                        // Firestore'dan öğrenciyi sil
+                        Navigator.pop(context);
                         await FirebaseFirestore.instance
                             .collection('students')
                             .doc(studentId)
@@ -641,9 +878,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 title: const Text("4: İngilizce Sözlük"),
                 onTap: () {
                   Navigator.pop(context);
-
-                  // Sadece İngilizce öğretmeniyse tam yetkili sayfaya,
-                  // diğer tüm roller (İdareci, Rehber, Sınıf, Din Kültürü vb.) öğrenci sayfasına yönlendirilir.
                   if (widget.userRole.trim().toLowerCase() ==
                       'english_teacher') {
                     Navigator.push(
@@ -657,7 +891,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                       ),
                     );
                   } else {
-                    // Diğer tüm roller kısıtlı sayfaya yönlendirilir
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -953,19 +1186,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     initialDate: secilenTarih,
                     firstDate: DateTime(2023),
                     lastDate: DateTime(2030),
-                    builder: (context, child) {
-                      return Theme(
-                        data: ThemeData.light().copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: Colors.indigo,
-                            onPrimary: Colors.white,
-                            surface: Colors.white,
-                            onSurface: Colors.black,
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
                   );
 
                   if (picked != null) {
@@ -1164,9 +1384,21 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   Future<List<Map<String, dynamic>>> _getOgrenciler() async {
     List<Map<String, dynamic>> ogrenciListesi = [];
 
+    // İngilizce veya Din öğretmeni henüz hiçbir şube seçmediyse boş liste döndür
+    bool isBransOgretmeni =
+        widget.userRole == 'english_teacher' ||
+        widget.userRole == 'religious_teacher';
+    if (isBransOgretmeni && _assignedBranches.isEmpty) {
+      return [];
+    }
+
     if (widget.userRole == 'admin' ||
         widget.userRole == 'branch_teacher' ||
+        widget.userRole == 'english_teacher' ||
+        widget.userRole == 'religious_teacher' ||
         widget.userRole == 'guidance_teacher') {
+      if (_filtreliGrade == null || _filtreliBranch == null) return [];
+
       String arananClassName = "$_filtreliGrade/$_filtreliBranch";
 
       var classQuery = await FirebaseFirestore.instance
@@ -1216,7 +1448,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     return ogrenciListesi;
   }
 
-  // Yetki kontrolü yaparak buton oluşturan yardımcı metot
   Widget? _buildYetkiliHizliIslemButonu({
     required String key,
     required IconData icon,
@@ -1225,7 +1456,13 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     required VoidCallback onTap,
   }) {
     bool gosterilsinMi =
-        widget.userRole == 'classroom_teacher' || _izinliButonlar.contains(key);
+        widget.userRole == 'classroom_teacher' ||
+        widget.userRole == 'admin' ||
+        widget.userRole == 'branch_teacher' ||
+        widget.userRole == 'english_teacher' ||
+        widget.userRole == 'religious_teacher' ||
+        widget.userRole == 'guidance_teacher' ||
+        _izinliButonlar.contains(key);
 
     if (!gosterilsinMi) return null;
 
@@ -1243,7 +1480,25 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     bool isYetkili =
         widget.userRole == 'admin' ||
         widget.userRole == 'branch_teacher' ||
+        widget.userRole == 'english_teacher' ||
+        widget.userRole == 'religious_teacher' ||
         widget.userRole == 'guidance_teacher';
+
+    bool isBransOgretmeniSecimYapabilir =
+        widget.userRole == 'english_teacher' ||
+        widget.userRole == 'religious_teacher';
+
+    List<String> mevcutSeviyeler = _getMevcutSeviyeler();
+    List<String> mevcutSubeler = _getMevcutSubeler();
+
+    if (mevcutSeviyeler.isNotEmpty &&
+        (_filtreliGrade == null || !mevcutSeviyeler.contains(_filtreliGrade))) {
+      _filtreliGrade = mevcutSeviyeler.first;
+    }
+    if (mevcutSubeler.isNotEmpty &&
+        (_filtreliBranch == null || !mevcutSubeler.contains(_filtreliBranch))) {
+      _filtreliBranch = mevcutSubeler.first;
+    }
 
     return Scaffold(
       key: _scaffoldMessengerKey,
@@ -1252,6 +1507,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
+          if (isBransOgretmeniSecimYapabilir)
+            IconButton(
+              icon: const Icon(Icons.checklist),
+              tooltip: "Dersine Girdiğim Sınıfları Seç",
+              onPressed: () => _subeSecimDialogGoster(context),
+            ),
           IconButton(
             icon: const Icon(Icons.lock_reset),
             tooltip: "Şifre Değiştir",
@@ -1284,14 +1545,17 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: _filtreliGrade,
+                            initialValue:
+                                (mevcutSeviyeler.contains(_filtreliGrade))
+                                ? _filtreliGrade
+                                : null,
                             decoration: const InputDecoration(
                               isDense: true,
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
                             ),
-                            items: ['1', '2', '3', '4'].map((grade) {
+                            items: mevcutSeviyeler.map((grade) {
                               return DropdownMenuItem(
                                 value: grade,
                                 child: Text("$grade. Sınıf"),
@@ -1300,6 +1564,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                             onChanged: (val) {
                               setState(() {
                                 _filtreliGrade = val;
+                                List<String> subeler = _getMevcutSubeler();
+                                _filtreliBranch = subeler.isNotEmpty
+                                    ? subeler.first
+                                    : null;
                               });
                             },
                           ),
@@ -1307,14 +1575,17 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: _filtreliBranch,
+                            initialValue:
+                                (mevcutSubeler.contains(_filtreliBranch))
+                                ? _filtreliBranch
+                                : null,
                             decoration: const InputDecoration(
                               isDense: true,
                               border: OutlineInputBorder(),
                               filled: true,
                               fillColor: Colors.white,
                             ),
-                            items: _branchListesi.map((branch) {
+                            items: mevcutSubeler.map((branch) {
                               return DropdownMenuItem(
                                 value: branch,
                                 child: Text("$branch Şubesi"),
@@ -1378,14 +1649,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                               icon: Icons.assignment,
                               label: "Ödev İşlemleri",
                               color: Colors.indigo,
-                              // --- BURASI GÜNCELLENDİ ---
                               onTap: () async {
                                 String? hedefClassId =
                                     await _getAktifHedefClassId();
                                 if (hedefClassId == null) return;
                                 if (!mounted) return;
 
-                                // Eğer kullanıcı yönetici/idareci (admin) ise doğrudan Toplu Ödev sayfasına git
                                 if (widget.userRole == 'admin') {
                                   Navigator.push(
                                     context,
@@ -1397,7 +1666,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     ),
                                   );
                                 } else {
-                                  // Sınıf veya branş öğretmeniyse 3 seçenekli alt menüyü aç
                                   _showOdevIslemleriSecenekleri(context);
                                 }
                               },
@@ -1433,7 +1701,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 if (hedefClassId == null) return;
                                 if (!mounted) return;
 
-                                // 1. DURUM: Sınıf Öğretmeni ise doğrudan 2 sekmeli sınıf programına git
                                 if (widget.userRole == 'classroom_teacher') {
                                   Navigator.push(
                                     context,
@@ -1446,14 +1713,14 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                             scheduleDocId: 'haftalik',
                                             sayfaBasligi: "Sınıf Ders Programı",
                                             canEdit: true,
-                                            isBranchSchedule:
-                                                false, // Sınıf programı ders listesi kullanır
+                                            isBranchSchedule: false,
                                           ),
                                     ),
                                   );
-                                }
-                                // 2. DURUM: Branş Öğretmeni ise 2 seçenekli alt menü aç
-                                else if (widget.userRole == 'branch_teacher') {
+                                } else if (widget.userRole ==
+                                        'branch_teacher' ||
+                                    widget.userRole == 'english_teacher' ||
+                                    widget.userRole == 'religious_teacher') {
                                   showModalBottomSheet(
                                     context: context,
                                     shape: const RoundedRectangleBorder(
@@ -1498,8 +1765,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                         sayfaBasligi:
                                                             "Seçili Sınıf Programı",
                                                         canEdit: false,
-                                                        isBranchSchedule:
-                                                            false, // Sınıf programı
+                                                        isBranchSchedule: false,
                                                       ),
                                                 ),
                                               );
@@ -1515,8 +1781,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                             ),
                                             onTap: () {
                                               Navigator.pop(context);
-
-                                              // BURASI DÜZELTİLDİ: Her branş öğretmeninin kendi unique classId'si onun program anahtarı olur
                                               String ogretmenProgramKey =
                                                   widget.classId;
 
@@ -1530,7 +1794,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                         userRole:
                                                             widget.userRole,
                                                         scheduleDocId:
-                                                            ogretmenProgramKey, // Artık her öğretmenin kendi ID'si olacak
+                                                            ogretmenProgramKey,
                                                         sayfaBasligi:
                                                             "Kişisel Branş Programım",
                                                         canEdit: true,
@@ -1544,11 +1808,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       ),
                                     ),
                                   );
-                                }
-                                // 3. DURUM: İdareci (Admin) ise 3 seçenekli alt menü aç
-                                else if (widget.userRole == 'admin' ||
+                                } else if (widget.userRole == 'admin' ||
                                     widget.userRole == 'guidance_teacher') {
-                                  // Yükleniyor göstergesi ile modal açalım
                                   showModalBottomSheet(
                                     context: context,
                                     shape: const RoundedRectangleBorder(
@@ -1613,14 +1874,17 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                             ),
                                           ),
                                           const SizedBox(height: 5),
-                                          // Firestore'dan branch_teacher olanları dinamik çekelim
                                           Expanded(
                                             child: FutureBuilder<QuerySnapshot>(
                                               future: FirebaseFirestore.instance
                                                   .collection('classes')
                                                   .where(
                                                     'userRole',
-                                                    isEqualTo: 'branch_teacher',
+                                                    whereIn: [
+                                                      'branch_teacher',
+                                                      'english_teacher',
+                                                      'religious_teacher',
+                                                    ],
                                                   )
                                                   .get(),
                                               builder: (context, snapshot) {
@@ -1667,8 +1931,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                         data['teacherName'] ??
                                                         data['className'] ??
                                                         'Branş Öğretmeni';
-                                                    String docId = doc
-                                                        .id; // Bu öğretmenin programının kaydedileceği doküman ID'si
+                                                    String docId = doc.id;
 
                                                     return ListTile(
                                                       leading: const Icon(
@@ -1684,21 +1947,23 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                         Navigator.push(
                                                           context,
                                                           MaterialPageRoute(
-                                                            builder: (context) => HaftalikDersProgramiScreen(
-                                                              classId:
-                                                                  hedefClassId,
-                                                              isTeacher: true,
-                                                              userRole: widget
-                                                                  .userRole,
-                                                              scheduleDocId:
-                                                                  docId, // Öğretmene özel doküman ID'si
-                                                              sayfaBasligi:
-                                                                  "$ogretmenAdi Programı",
-                                                              canEdit:
-                                                                  false, // İdareci sadece görür
-                                                              isBranchSchedule:
-                                                                  true, // Şube seçmeli liste açılır
-                                                            ),
+                                                            builder: (context) =>
+                                                                HaftalikDersProgramiScreen(
+                                                                  classId:
+                                                                      hedefClassId,
+                                                                  isTeacher:
+                                                                      true,
+                                                                  userRole: widget
+                                                                      .userRole,
+                                                                  scheduleDocId:
+                                                                      docId,
+                                                                  sayfaBasligi:
+                                                                      "$ogretmenAdi Programı",
+                                                                  canEdit:
+                                                                      false,
+                                                                  isBranchSchedule:
+                                                                      true,
+                                                                ),
                                                           ),
                                                         );
                                                       },
@@ -1724,6 +1989,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 String? hedefClassId =
                                     await _getAktifHedefClassId();
                                 if (hedefClassId == null) return;
+
+                                String unvanliIsim =
+                                    await _getUnvanliOgretmenAdi();
+
                                 if (!mounted) return;
 
                                 showModalBottomSheet(
@@ -1770,7 +2039,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                               ?.uid ??
                                                           "ogretmen_id",
                                                       currentUserName:
-                                                          "Öğretmen",
+                                                          unvanliIsim,
                                                       isTeacher: true,
                                                       classId: hedefClassId,
                                                       className:
@@ -1808,9 +2077,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                               ?.uid ??
                                                           "ogretmen_id",
                                                       currentUserName:
-                                                          "Öğretmen",
-                                                      userRole: widget
-                                                          .userRole, // <--- Rolü buraya da ekleyin
+                                                          unvanliIsim,
+                                                      userRole: widget.userRole,
                                                     ),
                                               ),
                                             );
@@ -1860,7 +2128,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 if (hedefClassId == null) return;
                                 if (!mounted) return;
 
-                                // Sınıf adından seviyeyi ayıkla (Örn: "2/D" -> "2")
                                 String sinifSeviyesi =
                                     widget.className.contains('/')
                                     ? widget.className.split('/')[0]
@@ -1873,8 +2140,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       classId: hedefClassId,
                                       className: widget.className,
                                       userRole: widget.userRole,
-                                      grade:
-                                          sinifSeviyesi, // <--- Sınıf seviyesi buraya aktarılıyor
+                                      grade: sinifSeviyesi,
                                     ),
                                   ),
                                 );
@@ -1917,8 +2183,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     builder: (context) => OturmaDuzeniScreen(
                                       classId: hedefClassId,
                                       isTeacher: true,
-                                      userRole: widget
-                                          .userRole, // <--- BURAYI EKLEYİN
+                                      userRole: widget.userRole,
                                     ),
                                   ),
                                 );
@@ -2110,8 +2375,18 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                       }
 
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Center(
-                          child: Text("Bu sınıfta henüz kayıtlı öğrenci yok."),
+                        return Center(
+                          child: Text(
+                            isBransOgretmeniSecimYapabilir &&
+                                    _assignedBranches.isEmpty
+                                ? "Lütfen yukarıdaki menüden dersine girdiğiniz sınıfları seçin."
+                                : "Bu sınıfta henüz kayıtlı öğrenci yok.",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 15,
+                            ),
+                          ),
                         );
                       }
 

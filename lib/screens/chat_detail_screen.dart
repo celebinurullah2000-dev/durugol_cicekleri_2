@@ -68,7 +68,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         .collection('messages')
         .add({
           'senderId': widget.currentUserId,
-          'senderName': widget.currentUserName,
+          'senderName':
+              widget.currentUserName, // <--- Burası unvanlı ismi alıyor
           'text': text,
           'createdAtField': FieldValue.serverTimestamp(),
           'formattedDate': _getFormattedDate(),
