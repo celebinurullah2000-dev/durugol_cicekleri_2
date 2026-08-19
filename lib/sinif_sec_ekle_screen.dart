@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_types_as_parameter_names, use_build_context_synchronously, camel_case_types
+// ignore_for_file: use_build_context_synchronously, camel_case_types
 
 import 'dart:math';
 import 'package:durugol_cicekleri/YetkiTanimlaScreen.dart';
@@ -9,6 +9,7 @@ import 'Ogretmen_Ana_Sayfasi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart'; // <--- Lottie paketi eklendi
 
 class sinifseceklescreen extends StatefulWidget {
   final bool isTeacherMaster;
@@ -26,7 +27,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
   final List<String> _ataturkSozleri = [
     "Eğitimdir ki bir milleti; ya özgür, bağımsız, şanlı, yüksek bir topluluk halinde yaşatır; ya da esaret ve sefalete terk eder.",
     "Dünyada her şey için, medeniyet için, hayat için, başarı için en hakiki mürşit ilimdir, fendir.",
-    "Milletleri kurtaranlar yalnız ve ancak öğretmenlerdir. Öğretmenden, eğiticiden mahrum bir millet, henüz bir millet namını almak yeteneğini kazanmamıştır.",
+    "Milletleri kurtaranlar yalnız ve ancak öğretmenlerdir. Öğretm年から, eğiticiden mahrum bir millet, henüz bir millet namını almak yeteneğini kazanmamıştır.",
     "Eğitim kültürünü doğrudan doğruya halka yaymak, halkı aydınlatmak en büyük görevimizdir.",
     "Öğretmenler! Yeni nesil sizin eseriniz olacaktır.",
     "Çocuklarımızı ulusun bağımsızlığına, kendi benliğine, millî geleneklerine düşman olan hususlarla mücadele etmek lüzumu ile donatmalıyız.",
@@ -482,7 +483,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           int guidanceCount = guidanceTeachers.isNotEmpty ? 1 : 0;
           int classTeachersCardCount = 1; // Tüm sınıfları kapsayan tek ana kart
 
-          // +1 Atatürk kartı için
+          // +1 Atatürk Lottie kartı için
           int totalItemCount =
               adminCount +
               branchCount +
@@ -1092,7 +1093,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               }
 
-              // 5. EN SON ÖĞE: Atatürk Sözü ve Resmi Kartı
+              // 5. EN SON ÖĞE: Atatürk Sözü ve Lottie Animasyonlu Kartı
               if (index == totalItemCount - 1) {
                 return Container(
                   padding: const EdgeInsets.all(12),
@@ -1139,7 +1140,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Sağ Taraf: Yenile İkonu ve Atatürk Resmi
+                      // Sağ Taraf: Yenile İkonu ve Hafif Yuvarlatılmış Kutuda Lottie Animasyonu
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1158,25 +1159,25 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
+                          // Köşeleri hafif yuvarlatılmış (ClipRRect) kutu içinde Lottie
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              'assets/images/ataturk.png',
-                              width: 70,
-                              height: 70,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 70,
-                                  height: 70,
-                                  color: Colors.grey.shade200,
-                                  child: const Icon(
+                            child: Container(
+                              width: 75,
+                              height: 75,
+                              color: Colors.grey.shade50,
+                              child: Lottie.asset(
+                                'assets/animations/ata_animasyon.json',
+                                fit: BoxFit.cover,
+                                repeat: true,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
                                     Icons.person,
                                     color: Colors.grey,
                                     size: 30,
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ],

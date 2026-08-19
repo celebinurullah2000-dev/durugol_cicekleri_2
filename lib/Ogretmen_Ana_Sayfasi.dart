@@ -3,7 +3,8 @@
 import 'package:durugol_cicekleri/Etkinlikler_Screen.dart';
 import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk.dart';
 import 'package:durugol_cicekleri/Sinif_Istatistik_Siralama_Screen.dart';
-import 'package:durugol_cicekleri/ogretmen_randevu_screen.dart';
+import 'package:durugol_cicekleri/duyurular_screen.dart';
+//import 'package:durugol_cicekleri/ogretmen_randevu_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
 import 'package:durugol_cicekleri/screens/teacher_chat_audit_screen.dart';
 import 'package:durugol_cicekleri/sinif_sifreleri_screen.dart';
@@ -2234,6 +2235,28 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                               },
                             ),
                             _buildYetkiliHizliIslemButonu(
+                              key: 'duyurular',
+                              icon: Icons.campaign,
+                              label: "Duyurular",
+                              color: Colors.indigo,
+                              onTap: () async {
+                                String unvanliIsim =
+                                    await _getUnvanliOgretmenAdi();
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DuyurularScreen(
+                                      userRole: widget
+                                          .userRole, // Öğretmenin rolü ('admin', 'guidance_teacher', 'classroom_teacher' vb.) aktarılıyor
+                                      currentUserName:
+                                          unvanliIsim, // İsteğe bağlı olarak öğretmenin adını da iletebilirsiniz
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
                               key: 'devamsizlik',
                               icon: Icons.fact_check,
                               label: "Devamsızlık",
@@ -2254,7 +2277,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 );
                               },
                             ),
-                            _buildYetkiliHizliIslemButonu(
+                            /*_buildYetkiliHizliIslemButonu(
                               key: 'randevular',
                               icon: Icons.access_time,
                               label: "Randevular",
@@ -2273,7 +2296,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                   ),
                                 );
                               },
-                            ),
+                            ),*/
                           ].whereType<Widget>().toList(),
                         ),
                         const SizedBox(height: 6),

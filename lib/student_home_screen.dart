@@ -3,7 +3,7 @@
 import 'package:durugol_cicekleri/Ogrenci_Davranis_Screen.dart';
 import 'package:durugol_cicekleri/screens/chat_list_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
-import 'package:durugol_cicekleri/veli_randevu_screen.dart';
+//import 'package:durugol_cicekleri/veli_randevu_screen.dart';
 import 'package:flutter/material.dart'; // Scaffold, AppBar, Text vb. temel widgetlar için
 import 'package:shared_preferences/shared_preferences.dart'; // Çıkış yaparken oturumu silmek için
 import 'login_screen.dart'; // Çıkış yapınca tekrar giriş ekranına dönmek için
@@ -20,6 +20,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'duyurular_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   final String studentId;
@@ -49,7 +50,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         'profile_images/${widget.studentId}.jpg',
       );
 
-      // Web ve Mobil uyumlu yükleme yöntemi:
+      // Web و Mobil uyumlu yükleme yöntemi:
       if (kIsWeb) {
         // Web için byte olarak oku ve yükle
         var bytes = await image.readAsBytes();
@@ -223,7 +224,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   // Öğrenci bilgilerini SharedPreferences ve Firestore'dan yükleme
-  // Öğrenci bilgilerini SharedPreferences ve Firestore'dan yükleme
   Future<void> _loadStudentData() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -275,8 +275,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     setState(() {
       studentName = isim.isNotEmpty ? isim : "Öğrenci";
       classId = cId;
-      ogrenciProfilResmiBase64 =
-          yerelResimUrl; // Değişken adını korumak için buraya URL atıyoruz (isterseniz değişken adını profileImageUrl yapabilirsiniz)
+      ogrenciProfilResmiBase64 = yerelResimUrl;
 
       if (cId.isNotEmpty && mounted) {
         dogumGunuKontrolEtVeBildir(context, cId);
@@ -423,7 +422,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       /*{'title': 'Kurslarım', 'image': 'assets/images/kurslarim.png'},*/
       {'title': 'Çeşitli İşler', 'image': 'assets/images/cesitli_isler.png'},
       {'title': 'Oyunlar', 'image': 'assets/images/oyunlar.png'},
-      {'title': 'Randevular', 'image': 'assets/images/randevular.png'},
+      {'title': 'Duyurular', 'image': 'assets/images/duyurular.png'},
+      //{'title': 'Randevular', 'image': 'assets/images/randevular.png'},
       {'title': 'Sohbet Odaları', 'image': 'assets/images/sohbet.png'},
     ];
 
@@ -434,7 +434,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             // --- PROFİL FOTOĞRAFI VE KAMERA İKONU ---
             GestureDetector(
               onTap: () {
-                // Normal tıklamada resim varsa tam boy göster, yoksa galeri aç
                 if (ogrenciProfilResmiBase64 != null &&
                     ogrenciProfilResmiBase64!.isNotEmpty) {
                   _resmiTamBoyutGoster();
@@ -442,8 +441,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   _profilResmiDegistir();
                 }
               },
-              onLongPress:
-                  _profilResmiDegistir, // İsteyen yine uzun basarak değiştirebilir
+              onLongPress: _profilResmiDegistir,
               child: Stack(
                 children: [
                   CircleAvatar(
@@ -460,7 +458,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         ? const Icon(Icons.person, color: Colors.indigo)
                         : null,
                   ),
-                  // Sağ alt köşeye eklenen minik kamera ikonu
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -480,7 +477,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ],
               ),
             ),
-            // ----------------------------------------
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -525,11 +521,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(
-              Icons.vpn_key,
-              color: Colors.lightBlue,
-              size: 40,
-            ), // Şifre değiştirme ikonu
+            icon: const Icon(Icons.vpn_key, color: Colors.lightBlue, size: 40),
             tooltip: "Şifremi Değiştir",
             onPressed: () => _ogrenciSifreDegistir(context),
           ),
@@ -541,11 +533,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
-              await prefs.clear(); // Oturumu tamamen siler
+              await prefs.clear();
 
               if (!context.mounted) return;
 
-              // LoginScreen'e geri döndürür
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -562,372 +553,362 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             // Üst kısım: Menü Kartları (Grid)
             GridView.builder(
               itemCount: menuItems.length,
-              shrinkWrap:
-                  true, // Grid'in sadece kapladığı kadar yer tutmasını sağlar
-              physics:
-                  const NeverScrollableScrollPhysics(), // Tüm sayfanın kaydırılması için iç scroll'u kapatıyoruz
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 20,
                 mainAxisSpacing: 20,
-                childAspectRatio: 1.5,
+                childAspectRatio:
+                    1.15, // Yazının alta sığması için oran güncellendi
               ),
               itemBuilder: (context, index) {
                 String baslik = menuItems[index]['title']!;
+                String imagePath = menuItems[index]['image']!;
                 bool isOdevlerim = baslik == 'Ödevlerim';
 
-                // Eğer "Ödevlerim" kartı ise toplam okunmamış bildirim sayısını hesaplayalım
+                // Tıklama işlevini yöneten ana widget yapısı
+                void tiklamaAksiyonu() async {
+                  if (baslik == 'Okuduğum Kitaplar') {
+                    await IstatistikServisi.islemKaydet(
+                      studentId: widget.studentId,
+                      islemTuru: 'okudugum_kitaplar',
+                    );
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            OkudugumKitaplarScreen(studentId: widget.studentId),
+                      ),
+                    );
+                  } else if (baslik == 'Ödevlerim') {
+                    await IstatistikServisi.islemKaydet(
+                      studentId: widget.studentId,
+                      islemTuru: 'odevlerim',
+                    );
+
+                    if (classId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "Sınıf bilgisi yükleniyor, lütfen tekrar deneyin.",
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OdevlerimScreen(
+                          studentId: widget.studentId,
+                          classId: classId,
+                        ),
+                      ),
+                    );
+                  } else if (baslik == 'Çeşitli İşler') {
+                    await IstatistikServisi.islemKaydet(
+                      studentId: widget.studentId,
+                      islemTuru: 'cesitli_isler',
+                    );
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CesitliIslerScreen(
+                          studentId: widget.studentId,
+                          classId: classId,
+                        ),
+                      ),
+                    );
+                  } else if (baslik == 'Davranışlarım') {
+                    await IstatistikServisi.islemKaydet(
+                      studentId: widget.studentId,
+                      islemTuru: 'davranislarim',
+                    );
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OgrenciDavranisScreen(
+                          studentId: widget.studentId,
+                          classId: classId,
+                        ),
+                      ),
+                    );
+                  } else if (baslik == 'Denemelerim') {
+                    await IstatistikServisi.islemKaydet(
+                      studentId: widget.studentId,
+                      islemTuru: 'denemelerim',
+                    );
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OgrenciDenemelerScreen(
+                          studentId: widget.studentId,
+                          classId: classId,
+                        ),
+                      ),
+                    );
+                  } else if (baslik == 'Oyunlar') {
+                    await IstatistikServisi.islemKaydet(
+                      studentId: widget.studentId,
+                      islemTuru: 'oyunlar',
+                    );
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OyunlarMenuScreen(
+                          studentId: widget.studentId,
+                          classId: classId,
+                        ),
+                      ),
+                    );
+                  } else if (baslik == 'Duyurular') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DuyurularScreen(
+                          userRole: 'student',
+                          currentUserName: studentName,
+                        ),
+                      ),
+                    );
+                  } else if (baslik == 'Sohbet Odaları') {
+                    showModalBottomSheet(
+                      context: context,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                      ),
+                      builder: (bottomSheetContext) => Container(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              "İletişim Alanı Seçin",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Divider(),
+                            ListTile(
+                              leading: const Icon(
+                                Icons.campaign,
+                                color: Colors.pinkAccent,
+                                size: 30,
+                              ),
+                              title: const Text("Sınıf Duvarı"),
+                              subtitle: const Text(
+                                "Ortak paylaşımlar ve duyurular",
+                              ),
+                              onTap: () {
+                                Navigator.pop(bottomSheetContext);
+                                IstatistikServisi.islemKaydet(
+                                  studentId: widget.studentId,
+                                  islemTuru: 'sinif_duvari',
+                                );
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ClassFeedScreen(
+                                      currentUserId: widget.studentId,
+                                      currentUserName: studentName,
+                                      isTeacher: false,
+                                      classId: classId,
+                                      className: className,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            ListTile(
+                              leading: const Icon(
+                                Icons.forum,
+                                color: Colors.indigo,
+                                size: 30,
+                              ),
+                              title: const Text("Sohbet Odaları"),
+                              subtitle: const Text(
+                                "Bireysel ve grup mesajlaşmaları",
+                              ),
+                              onTap: () {
+                                Navigator.pop(bottomSheetContext);
+                                IstatistikServisi.islemKaydet(
+                                  studentId: widget.studentId,
+                                  islemTuru: 'sohbet_odalari',
+                                );
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ChatListScreen(
+                                      currentUserId: widget.studentId,
+                                      classId: classId,
+                                      currentUserName: studentName,
+                                      isTeacher: false,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("$baslik bölümü yapım aşamasında!"),
+                      ),
+                    );
+                  }
+                }
+
+                // Kartın içindeki resmin kartı tam kaplaması için yapı
                 Widget kartIcerigi = InkWell(
                   borderRadius: BorderRadius.circular(18),
-                  onTap: () async {
-                    // Tıklama aksiyonları aynı kalıyor...
-                    if (baslik == 'Okuduğum Kitaplar') {
-                      await IstatistikServisi.islemKaydet(
-                        studentId: widget.studentId,
-                        islemTuru: 'okudugum_kitaplar',
-                      );
-                      if (!context.mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OkudugumKitaplarScreen(
-                            studentId: widget.studentId,
-                          ),
-                        ),
-                      );
-                    } else if (baslik == 'Ödevlerim') {
-                      await IstatistikServisi.islemKaydet(
-                        studentId: widget.studentId,
-                        islemTuru: 'odevlerim',
-                      );
-
-                      if (classId.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Sınıf bilgisi yükleniyor, lütfen tekrar deneyin.",
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OdevlerimScreen(
-                            studentId: widget.studentId,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    } else if (baslik == 'Çeşitli İşler') {
-                      await IstatistikServisi.islemKaydet(
-                        studentId: widget.studentId,
-                        islemTuru: 'cesitli_isler',
-                      );
-                      if (!context.mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CesitliIslerScreen(
-                            studentId: widget.studentId,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    } else if (baslik == 'Davranışlarım') {
-                      await IstatistikServisi.islemKaydet(
-                        studentId: widget.studentId,
-                        islemTuru: 'davranislarim',
-                      );
-                      if (!context.mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OgrenciDavranisScreen(
-                            studentId: widget.studentId,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    } else if (baslik == 'Denemelerim') {
-                      await IstatistikServisi.islemKaydet(
-                        studentId: widget.studentId,
-                        islemTuru: 'denemelerim',
-                      );
-                      if (!context.mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OgrenciDenemelerScreen(
-                            studentId: widget.studentId,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    } else if (baslik == 'Oyunlar') {
-                      await IstatistikServisi.islemKaydet(
-                        studentId: widget.studentId,
-                        islemTuru: 'oyunlar',
-                      );
-                      if (!context.mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OyunlarMenuScreen(
-                            studentId: widget.studentId,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    } else if (baslik == 'Randevular') {
-                      await IstatistikServisi.islemKaydet(
-                        studentId: widget.studentId,
-                        islemTuru: 'randevular',
-                      );
-                      if (!context.mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => VeliRandevuScreen(
-                            studentId: widget.studentId,
-                            classId: classId,
-                            studentName: studentName,
-                          ),
-                        ),
-                      );
-                    } else if (baslik == 'Sohbet Odaları') {
-                      showModalBottomSheet(
-                        context: context,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20),
-                          ),
-                        ),
-                        builder: (bottomSheetContext) => Container(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                "İletişim Alanı Seçin",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Divider(),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.campaign,
-                                  color: Colors.pinkAccent,
-                                  size: 30,
-                                ),
-                                title: const Text("Sınıf Duvarı"),
-                                subtitle: const Text(
-                                  "Ortak paylaşımlar ve duyurular",
-                                ),
-                                onTap: () {
-                                  Navigator.pop(
-                                    bottomSheetContext,
-                                  ); // Önce alt menüyü kapatıyoruz
-
-                                  // İstatistiği arka planda kaydedip sayfayı açıyoruz
-                                  IstatistikServisi.islemKaydet(
-                                    studentId: widget.studentId,
-                                    islemTuru: 'sinif_duvari',
-                                  );
-
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ClassFeedScreen(
-                                        currentUserId: widget.studentId,
-                                        currentUserName: studentName,
-                                        isTeacher: false,
-                                        classId: classId,
-                                        className: className,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.forum,
-                                  color: Colors.indigo,
-                                  size: 30,
-                                ),
-                                title: const Text("Sohbet Odaları"),
-                                subtitle: const Text(
-                                  "Bireysel ve grup mesajlaşmaları",
-                                ),
-                                onTap: () {
-                                  Navigator.pop(
-                                    bottomSheetContext,
-                                  ); // Önce alt menüyü kapatıyoruz
-
-                                  // İstatistiği arka planda kaydedip sayfayı açıyoruz
-                                  IstatistikServisi.islemKaydet(
-                                    studentId: widget.studentId,
-                                    islemTuru: 'sohbet_odalari',
-                                  );
-
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ChatListScreen(
-                                        currentUserId: widget.studentId,
-                                        classId: classId,
-                                        currentUserName: studentName,
-                                        isTeacher: false,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("$baslik bölümü yapım aşamasında!"),
-                        ),
-                      );
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 15.0),
-                            child: Image.asset(
-                              menuItems[index]['image']!,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 15.0),
-                          child: Text(
-                            baslik,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ],
+                  onTap: tiklamaAksiyonu,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.contain, // Resim kartı tamamen doldurur
+                      width: double.infinity,
+                      height: double.infinity,
                     ),
                   ),
                 );
 
-                return Card(
-                  elevation: 2,
-                  shadowColor: Colors.indigo.withValues(alpha: 0.2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: isOdevlerim && classId.isNotEmpty
-                      ? StreamBuilder<QuerySnapshot>(
-                          // 1. Kitap ödevlerini dinle
-                          stream: FirebaseFirestore.instance
-                              .collection('students')
-                              .doc(widget.studentId)
-                              .collection('odevler')
-                              .snapshots(),
-                          builder: (context, odevSnap) {
-                            return StreamBuilder<QuerySnapshot>(
-                              // 2. Sınıf işlerini dinle
-                              stream: FirebaseFirestore.instance
-                                  .collection('classes')
-                                  .doc(classId)
-                                  .collection('sinif_isleri')
-                                  .snapshots(),
-                              builder: (context, sinifIsleriSnap) {
-                                return StreamBuilder<QuerySnapshot>(
-                                  // 3. Öğrencinin sınıf işi verilerini dinle
-                                  stream: FirebaseFirestore.instance
-                                      .collection('students')
-                                      .doc(widget.studentId)
-                                      .collection('is_verileri')
-                                      .snapshots(),
-                                  builder: (context, ogrenciVeriSnap) {
-                                    int toplamBildirim = 0;
+                // Kartın kendisi ve hemen altında başlık yazısı
+                return Column(
+                  children: [
+                    Expanded(
+                      child: Card(
+                        elevation: 3,
+                        shadowColor: Colors.indigo.withValues(alpha: 0.2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: isOdevlerim && classId.isNotEmpty
+                            ? StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('students')
+                                    .doc(widget.studentId)
+                                    .collection('odevler')
+                                    .snapshots(),
+                                builder: (context, odevSnap) {
+                                  return StreamBuilder<QuerySnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('classes')
+                                        .doc(classId)
+                                        .collection('sinif_isleri')
+                                        .snapshots(),
+                                    builder: (context, sinifIsleriSnap) {
+                                      return StreamBuilder<QuerySnapshot>(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('students')
+                                            .doc(widget.studentId)
+                                            .collection('is_verileri')
+                                            .snapshots(),
+                                        builder: (context, ogrenciVeriSnap) {
+                                          int toplamBildirim = 0;
 
-                                    // Kitap ödevleri okunmamış sayısı (Ödevlerim butona tıklanınca okundu olacağı için anında 0'a düşer)
-                                    if (odevSnap.hasData) {
-                                      for (var doc in odevSnap.data!.docs) {
-                                        var data =
-                                            doc.data() as Map<String, dynamic>;
-                                        // Eğer 'okundu' alanı true DEĞİLSE (false veya null ise) okunmamıştır
-                                        if (data['okundu'] != true) {
-                                          toplamBildirim++;
-                                        }
-                                      }
-                                    }
+                                          if (odevSnap.hasData) {
+                                            for (var doc
+                                                in odevSnap.data!.docs) {
+                                              var data =
+                                                  doc.data()
+                                                      as Map<String, dynamic>;
+                                              if (data['okundu'] != true) {
+                                                toplamBildirim++;
+                                              }
+                                            }
+                                          }
 
-                                    // Sınıf işleri (görevler) okunmamış sayısı (Sadece Görevlerim sekmesine tıklanana kadar saymaya devam eder)
-                                    if (sinifIsleriSnap.hasData &&
-                                        ogrenciVeriSnap.hasData) {
-                                      var tumIsler = sinifIsleriSnap.data!.docs;
-                                      var ogrenciVerileri = {
-                                        for (var d
-                                            in ogrenciVeriSnap.data!.docs)
-                                          d.id: d.data(),
-                                      };
+                                          if (sinifIsleriSnap.hasData &&
+                                              ogrenciVeriSnap.hasData) {
+                                            var tumIsler =
+                                                sinifIsleriSnap.data!.docs;
+                                            var ogrenciVerileri = {
+                                              for (var d
+                                                  in ogrenciVeriSnap.data!.docs)
+                                                d.id: d.data(),
+                                            };
 
-                                      for (var isDoc in tumIsler) {
-                                        String isId = isDoc.id;
-                                        var veri =
-                                            ogrenciVerileri[isId]
-                                                as Map<String, dynamic>?;
-                                        if (veri == null ||
-                                            veri['okundu'] == false) {
-                                          toplamBildirim++;
-                                        }
-                                      }
-                                    }
+                                            for (var isDoc in tumIsler) {
+                                              String isId = isDoc.id;
+                                              var veri =
+                                                  ogrenciVerileri[isId]
+                                                      as Map<String, dynamic>?;
+                                              if (veri == null ||
+                                                  veri['okundu'] == false) {
+                                                toplamBildirim++;
+                                              }
+                                            }
+                                          }
 
-                                    return Stack(
-                                      children: [
-                                        Positioned.fill(child: kartIcerigi),
-                                        if (toplamBildirim > 0)
-                                          Positioned(
-                                            top: 8,
-                                            right: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(7),
-                                              decoration: const BoxDecoration(
-                                                color: Colors.red,
-                                                shape: BoxShape.circle,
+                                          return Stack(
+                                            children: [
+                                              Positioned.fill(
+                                                child: kartIcerigi,
                                               ),
-                                              child: Text(
-                                                "$toplamBildirim",
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
+                                              if (toplamBildirim > 0)
+                                                Positioned(
+                                                  top: 8,
+                                                  right: 8,
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(7),
+                                                    decoration:
+                                                        const BoxDecoration(
+                                                          color: Colors.red,
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                    child: Text(
+                                                      "$toplamBildirim",
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            );
-                          },
-                        )
-                      : kartIcerigi,
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  );
+                                },
+                              )
+                            : kartIcerigi,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Yazı artık kartın altında yer alıyor
+                    Text(
+                      baslik,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 );
               },
             ),
