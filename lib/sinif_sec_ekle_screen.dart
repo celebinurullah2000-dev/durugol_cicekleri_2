@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, camel_case_types
+// ignore_for_file: avoid_types_as_parameter_names, use_build_context_synchronously, camel_case_types
 
 import 'dart:math';
 import 'package:durugol_cicekleri/YetkiTanimlaScreen.dart';
@@ -480,10 +480,15 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           int adminCount = admins.isNotEmpty ? 1 : 0;
           int branchCount = branchTeachers.isNotEmpty ? 1 : 0;
           int guidanceCount = guidanceTeachers.isNotEmpty ? 1 : 0;
+          int classTeachersCardCount = 1; // Tüm sınıfları kapsayan tek ana kart
 
-          // +1 ekleyerek son öğe olarak Atatürk kartını listeye dahil ediyoruz
+          // +1 Atatürk kartı için
           int totalItemCount =
-              adminCount + branchCount + guidanceCount + seviyeler.length + 1;
+              adminCount +
+              branchCount +
+              guidanceCount +
+              classTeachersCardCount +
+              1;
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -902,14 +907,14 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               }
 
-              // 4. Normal Sınıf Seviyeleri (1, 2, 3, 4)
-              int offset = adminCount + branchCount + guidanceCount;
-              int gradeIndex = index - offset;
-
-              if (gradeIndex >= 0 && gradeIndex < seviyeler.length) {
-                String gradeVal = seviyeler[gradeIndex];
-                List<QueryDocumentSnapshot> siniflar =
-                    groupedClasses[gradeVal] ?? [];
+              // 4. "Sınıf Öğretmenleri" Ana Kartı (1, 2, 3 ve 4. Sınıfları İçinde Tutar)
+              int classTeachersCardIndex =
+                  adminCount + branchCount + guidanceCount;
+              if (index == classTeachersCardIndex) {
+                int toplamSinifSayisi = groupedClasses.values.fold(
+                  0,
+                  (sum, list) => sum + list.length,
+                );
 
                 return Card(
                   elevation: 3,
@@ -923,134 +928,171 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                   child: ExpansionTile(
                     leading: CircleAvatar(
                       backgroundColor: Colors.indigo.shade50,
-                      child: Text(
-                        "$gradeVal.",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.indigo,
-                        ),
-                      ),
+                      child: const Icon(Icons.school, color: Colors.indigo),
                     ),
-                    title: Text(
-                      "$gradeVal. Sınıflar",
-                      style: const TextStyle(
+                    title: const Text(
+                      "Sınıf Öğretmenleri",
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                         color: Colors.indigo,
                       ),
                     ),
-                    subtitle: Text("${siniflar.length} kayıtlı öğe"),
-                    children: [
-                      if (siniflar.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Text(
-                            "Bu seviyede henüz kayıt yok.",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        )
-                      else
-                        ...siniflar.map((doc) {
-                          var classData = doc.data() as Map<String, dynamic>;
-                          String classId = doc.id;
-                          String className = classData['className'] ?? 'Sınıf';
-                          String teacherName =
-                              classData['teacherName'] ?? 'Belirtilmemiş';
-                          String correctPassword = classData['password'] ?? '';
-                          String grade = classData['grade'] ?? '1';
-                          String branch = classData['branch'] ?? 'A';
-                          String userRole =
-                              classData['userRole'] ?? 'classroom_teacher';
+                    subtitle: Text("$toplamSinifSayisi sınıf kayıtlı"),
+                    children: seviyeler.map((gradeVal) {
+                      List<QueryDocumentSnapshot> siniflar =
+                          groupedClasses[gradeVal] ?? [];
 
-                          return Container(
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: ListTile(
-                              title: Text(
-                                className,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.indigo.shade100),
+                        ),
+                        child: ExpansionTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.indigo.shade50,
+                            child: Text(
+                              "$gradeVal.",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
                               ),
-                              subtitle: Text("Yetkili: $teacherName"),
-                              trailing: widget.isTeacherMaster
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.blue,
-                                            size: 20,
-                                          ),
-                                          onPressed: () {
-                                            _sifreDogrulaVaIslemYap(
-                                              context,
-                                              correctPassword,
-                                              className,
-                                              () {
-                                                _sinifDuzenleDialog(
-                                                  context,
-                                                  classId,
-                                                  grade,
-                                                  branch,
-                                                  teacherName,
-                                                  userRole,
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.red,
-                                            size: 20,
-                                          ),
-                                          onPressed: () {
-                                            _sifreDogrulaVaIslemYap(
-                                              context,
-                                              correctPassword,
-                                              className,
-                                              () {
-                                                _sinifSil(
-                                                  context,
-                                                  classId,
-                                                  className,
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    )
-                                  : null,
-                              onTap: () {
-                                _sifreDogrulaVeIslemYardimcisi(
-                                  context,
-                                  correctPassword,
-                                  className,
-                                  classId,
-                                  userRole,
-                                );
-                              },
                             ),
-                          );
-                        }),
-                      const SizedBox(height: 8),
-                    ],
+                          ),
+                          title: Text(
+                            "$gradeVal. Sınıflar",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.indigo,
+                            ),
+                          ),
+                          subtitle: Text("${siniflar.length} şube kayıtlı"),
+                          children: [
+                            if (siniflar.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: Text(
+                                  "Bu seviyede henüz kayıt yok.",
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              )
+                            else
+                              ...siniflar.map((doc) {
+                                var classData =
+                                    doc.data() as Map<String, dynamic>;
+                                String classId = doc.id;
+                                String className =
+                                    classData['className'] ?? 'Sınıf';
+                                String teacherName =
+                                    classData['teacherName'] ?? 'Belirtilmemiş';
+                                String correctPassword =
+                                    classData['password'] ?? '';
+                                String grade = classData['grade'] ?? '1';
+                                String branch = classData['branch'] ?? 'A';
+                                String userRole =
+                                    classData['userRole'] ??
+                                    'classroom_teacher';
+
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    title: Text(
+                                      className,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    subtitle: Text("Yetkili: $teacherName"),
+                                    trailing: widget.isTeacherMaster
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.edit,
+                                                  color: Colors.blue,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () {
+                                                  _sifreDogrulaVaIslemYap(
+                                                    context,
+                                                    correctPassword,
+                                                    className,
+                                                    () {
+                                                      _sinifDuzenleDialog(
+                                                        context,
+                                                        classId,
+                                                        grade,
+                                                        branch,
+                                                        teacherName,
+                                                        userRole,
+                                                      );
+                                                    },
+                                                  );
+                                                },
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () {
+                                                  _sifreDogrulaVaIslemYap(
+                                                    context,
+                                                    correctPassword,
+                                                    className,
+                                                    () {
+                                                      _sinifSil(
+                                                        context,
+                                                        classId,
+                                                        className,
+                                                      );
+                                                    },
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          )
+                                        : null,
+                                    onTap: () {
+                                      _sifreDogrulaVeIslemYardimcisi(
+                                        context,
+                                        correctPassword,
+                                        className,
+                                        classId,
+                                        userRole,
+                                      );
+                                    },
+                                  ),
+                                );
+                              }),
+                            const SizedBox(height: 6),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                 );
               }
 
-              // 5. EN SON ÖĞE: 4. Sınıf Kartının Altındaki Atatürk Sözü ve Resmi Kartı
+              // 5. EN SON ÖĞE: Atatürk Sözü ve Resmi Kartı
               if (index == totalItemCount - 1) {
                 return Container(
                   padding: const EdgeInsets.all(12),

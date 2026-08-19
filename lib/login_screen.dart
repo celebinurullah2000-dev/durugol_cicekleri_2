@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student_home_screen.dart';
-import 'package:video_player/video_player.dart'; // <--- Video oynatıcı paketi eklendi
+import 'package:lottie/lottie.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,9 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isRoleSelected = false;
   bool _sifreGizli = true;
-
-  // Video Oynatıcı Kontrolcüsü
-  late VideoPlayerController _videoController;
 
   String? _selectedGradeLevel; // Seçilen sınıf seviyesi (1, 2, 3, 4)
   String? _selectedBranch; // Seçilen şube harfi (A, B, C, D, E, F, G, H, I, J)
@@ -48,28 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _checkSavedClass();
     _loadClasses();
-
-    // Videoyu güvenli başlatma ve hata yakalama
-    _videoController =
-        VideoPlayerController.asset('assets/animations/logo_motion.mp4')
-          ..initialize()
-              .then((_) {
-                if (mounted) {
-                  setState(() {
-                    _videoController.setLooping(true);
-                    _videoController.setVolume(0.0);
-                    _videoController.play();
-                  });
-                }
-              })
-              .catchError((error) {
-                debugPrint("Video yüklenirken hata oluştu: $error");
-              });
   }
 
   @override
   void dispose() {
-    _videoController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -202,6 +181,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ekranGenisligi = MediaQuery.of(context).size.width;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -217,7 +198,8 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 30),
+              // --- RESMİN YÜKSEKLİĞİNİN YARISI KADAR (70 px) BOŞLUK ---
+              const SizedBox(height: 70),
               Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 child: Image.asset(
@@ -227,25 +209,41 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              // --- LOGO MOTION VİDEO ALANI ---
-              SizedBox(
-                height: 150,
-                width: 150,
-                child: _videoController.value.isInitialized
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: FittedBox(
-                          fit: BoxFit.cover,
-                          child: SizedBox(
-                            width: _videoController.value.size.width,
-                            height: _videoController.value.size.height,
-                            child: VideoPlayer(_videoController),
+              // --- LOGO MOTION DİNAMİK VE DAİRESEL MASKELENMİŞ LOTTİE ALANI ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 120,
+                    maxWidth: 200,
+                    minHeight: 120,
+                    maxHeight: 200,
+                  ),
+                  child: SizedBox(
+                    width: ekranGenisligi * 0.35,
+                    height: ekranGenisligi * 0.35,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            spreadRadius: 2,
                           ),
-                        ),
-                      )
-                    : const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        ],
                       ),
+                      child: ClipOval(
+                        child: Lottie.asset(
+                          'assets/animations/logo_motion.json',
+                          fit: BoxFit.cover,
+                          repeat: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
 
