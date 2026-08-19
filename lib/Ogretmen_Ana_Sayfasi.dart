@@ -1264,7 +1264,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                           CircularProgressIndicator(color: Colors.indigo),
                           SizedBox(width: 20),
                           Text(
-                            "Ödev tüm öğrencilere gönderiliyor...",
+                            "Ödev tüm sınıflara gönderiliyor...",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -1274,45 +1274,89 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 },
               );
 
-              var studentsSnapshot = await FirebaseFirestore.instance
-                  .collection('students')
-                  .where('classId', isEqualTo: hedefClassId)
-                  .get();
+              // Hedef sınıf ID'lerini belirleyelim
+              List<String> hedefClassIdListesi = [];
 
-              for (var studentDoc in studentsSnapshot.docs) {
-                var odevlerRef = studentDoc.reference.collection('odevler');
+              bool isBransOgretmeni =
+                  widget.userRole == 'english_teacher' ||
+                  widget.userRole == 'religious_teacher';
 
-                var existingOdev = await odevlerRef
-                    .where('tarihStr', isEqualTo: secilenTarihStr)
+              if (isBransOgretmeni) {
+                if (_assignedBranches.isEmpty) {
+                  if (dialogContext != null &&
+                      Navigator.canPop(dialogContext!)) {
+                    Navigator.pop(dialogContext!);
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "Lütfen önce dersine girdiğiniz sınıfları seçin!",
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                // Seçilen tüm şubelerin classId'lerini bulalım
+                for (String branchName in _assignedBranches) {
+                  var classQuery = await FirebaseFirestore.instance
+                      .collection('classes')
+                      .where('className', isEqualTo: branchName)
+                      .get();
+
+                  if (classQuery.docs.isNotEmpty) {
+                    hedefClassIdListesi.add(classQuery.docs.first.id);
+                  }
+                }
+              } else {
+                hedefClassIdListesi.add(hedefClassId);
+              }
+
+              // Bulunan her bir sınıfın öğrencilerine ödevi gönder
+              for (String targetClassId in hedefClassIdListesi) {
+                var studentsSnapshot = await FirebaseFirestore.instance
+                    .collection('students')
+                    .where('classId', isEqualTo: targetClassId)
                     .get();
 
-                if (existingOdev.docs.isNotEmpty) {
-                  var docId = existingOdev.docs.first.id;
-                  var mevcutVeri = existingOdev.docs.first.data();
-                  List mevcutKitaplar = List.from(mevcutVeri['kitaplar'] ?? []);
+                for (var studentDoc in studentsSnapshot.docs) {
+                  var odevlerRef = studentDoc.reference.collection('odevler');
 
-                  mevcutKitaplar.add({
-                    'kitapAdi': kitapAdi,
-                    'sayfaAraligi': sayfaAraligi,
-                    'aciklama': aciklama,
-                    'durum': 'bekliyor',
-                  });
+                  var existingOdev = await odevlerRef
+                      .where('tarihStr', isEqualTo: secilenTarihStr)
+                      .get();
 
-                  await odevlerRef.doc(docId).update({
-                    'kitaplar': mevcutKitaplar,
-                  });
-                } else {
-                  await odevlerRef.add({
-                    'tarihStr': secilenTarihStr,
-                    'kitaplar': [
-                      {
-                        'kitapAdi': kitapAdi,
-                        'sayfaAraligi': sayfaAraligi,
-                        'aciklama': aciklama,
-                        'durum': 'bekliyor',
-                      },
-                    ],
-                  });
+                  if (existingOdev.docs.isNotEmpty) {
+                    var docId = existingOdev.docs.first.id;
+                    var mevcutVeri = existingOdev.docs.first.data();
+                    List mevcutKitaplar = List.from(
+                      mevcutVeri['kitaplar'] ?? [],
+                    );
+
+                    mevcutKitaplar.add({
+                      'kitapAdi': kitapAdi,
+                      'sayfaAraligi': sayfaAraligi,
+                      'aciklama': aciklama,
+                      'durum': 'bekliyor',
+                    });
+
+                    await odevlerRef.doc(docId).update({
+                      'kitaplar': mevcutKitaplar,
+                    });
+                  } else {
+                    await odevlerRef.add({
+                      'tarihStr': secilenTarihStr,
+                      'kitaplar': [
+                        {
+                          'kitapAdi': kitapAdi,
+                          'sayfaAraligi': sayfaAraligi,
+                          'aciklama': aciklama,
+                          'durum': 'bekliyor',
+                        },
+                      ],
+                    });
+                  }
                 }
               }
 
@@ -1326,7 +1370,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
               _scaffoldMessengerKey.currentState?.showSnackBar(
                 const SnackBar(
                   content: Text(
-                    "Ödevler başarıyla gönderildi! ✅",
+                    "Ödevler seçilen tüm sınıflara başarıyla gönderildi! ✅",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
@@ -1384,7 +1428,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   Future<List<Map<String, dynamic>>> _getOgrenciler() async {
     List<Map<String, dynamic>> ogrenciListesi = [];
 
-    // İngilizce veya Din öğretmeni henüz hiçbir şube seçmediyse boş liste döndür
+    // İngilizce veya Din öğretmeni henüz hiçbir şube seçmediyse boş liste döndür[cite: 11]
     bool isBransOgretmeni =
         widget.userRole == 'english_teacher' ||
         widget.userRole == 'religious_teacher';
