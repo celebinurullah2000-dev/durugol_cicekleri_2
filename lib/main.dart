@@ -10,6 +10,7 @@ import 'login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // FirebaseFirestore hatası için
 import 'student_home_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,8 +69,15 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Durugöl Çiçekleri',
+      debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('tr', 'TR')],
+      locale: const Locale('tr', 'TR'),
       // main.dart içinde MaterialApp'in home kısmı:
       home: initialRole == 'teacher'
           ? const sinifseceklescreen()

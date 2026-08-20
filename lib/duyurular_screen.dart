@@ -4,14 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DuyurularScreen extends StatelessWidget {
-  final String
-  userRole; // 'admin', 'guidance_teacher', 'classroom_teacher', 'student' vb.
-  final String currentUserName; // Yayınlayan kişinin gerçek adı veya unvanı
+  final String userRole;
+  final String currentUserName;
+  final String currentUserId;
 
   const DuyurularScreen({
     super.key,
     required this.userRole,
     required this.currentUserName,
+    required this.currentUserId,
   });
 
   void _duyuruDialogGoster(
@@ -21,6 +22,9 @@ class DuyurularScreen extends StatelessWidget {
     String? mevcutIcerik,
     String? mevcutBaslangicTarihi,
     String? mevcutBitisTarihi,
+    String? mevcutBaslangicSaati,
+    String? mevcutBitisSaati,
+    bool mevcutEtkilesim = false,
     required String kategori,
   }) {
     final TextEditingController baslikController = TextEditingController(
@@ -35,6 +39,15 @@ class DuyurularScreen extends StatelessWidget {
     );
     ValueNotifier<String?> bitisTarihiNotifier = ValueNotifier<String?>(
       mevcutBitisTarihi,
+    );
+    ValueNotifier<String?> baslangicSaatiNotifier = ValueNotifier<String?>(
+      mevcutBaslangicSaati,
+    );
+    ValueNotifier<String?> bitisSaatiNotifier = ValueNotifier<String?>(
+      mevcutBitisSaati,
+    );
+    ValueNotifier<bool> etkilesimNotifier = ValueNotifier<bool>(
+      mevcutEtkilesim,
     );
 
     bool yetkiliMi = false;
@@ -81,7 +94,46 @@ class DuyurularScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              // Başlangıç Tarihi Seçimi
+
+              ValueListenableBuilder<bool>(
+                valueListenable: etkilesimNotifier,
+                builder: (context, etkilesimVal, child) {
+                  return SwitchListTile(
+                    title: const Text(
+                      "Katılım İsteği (Etkileşim)",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Öğrencilere 'Katılacağım' veya 'Katılmayacağım' seçeneği sunulur.",
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    value: etkilesimVal,
+                    onChanged: (val) {
+                      etkilesimNotifier.value = val;
+                    },
+                    activeThumbColor: Colors.indigo,
+                    contentPadding: EdgeInsets.zero,
+                  );
+                },
+              ),
+
+              const Divider(height: 24),
+
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Başlangıç Bilgileri (Zorunlu değil)",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
               ValueListenableBuilder<String?>(
                 valueListenable: baslangicTarihiNotifier,
                 builder: (context, baslangicVal, child) {
@@ -90,14 +142,17 @@ class DuyurularScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           baslangicVal == null || baslangicVal.isEmpty
-                              ? "Başlangıç Tarihi Seçilmedi"
-                              : "Başlangıç: $baslangicVal",
-                          style: const TextStyle(fontSize: 13),
+                              ? "Tarih seçilmedi"
+                              : "Tarih: $baslangicVal",
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                       TextButton.icon(
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        label: const Text("Seç"),
+                        icon: const Icon(Icons.calendar_today, size: 14),
+                        label: const Text(
+                          "Tarih Seç",
+                          style: TextStyle(fontSize: 12),
+                        ),
                         onPressed: () async {
                           DateTime? picked = await showDatePicker(
                             context: context,
@@ -115,7 +170,7 @@ class DuyurularScreen extends StatelessWidget {
                         IconButton(
                           icon: const Icon(
                             Icons.clear,
-                            size: 16,
+                            size: 14,
                             color: Colors.red,
                           ),
                           onPressed: () => baslangicTarihiNotifier.value = null,
@@ -124,7 +179,72 @@ class DuyurularScreen extends StatelessWidget {
                   );
                 },
               ),
-              // Bitiş Tarihi Seçimi
+              ValueListenableBuilder<String?>(
+                valueListenable: baslangicSaatiNotifier,
+                builder: (context, saatVal, child) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          saatVal == null || saatVal.isEmpty
+                              ? "Saat seçilmedi"
+                              : "Saat: $saatVal",
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.access_time, size: 14),
+                        label: const Text(
+                          "Saat Seç",
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onPressed: () async {
+                          TimeOfDay? pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                            builder: (context, child) {
+                              return MediaQuery(
+                                data: MediaQuery.of(
+                                  context,
+                                ).copyWith(alwaysUse24HourFormat: true),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (pickedTime != null) {
+                            baslangicSaatiNotifier.value =
+                                "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
+                          }
+                        },
+                      ),
+                      if (saatVal != null && saatVal.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.clear,
+                            size: 14,
+                            color: Colors.red,
+                          ),
+                          onPressed: () => baslangicSaatiNotifier.value = null,
+                        ),
+                    ],
+                  );
+                },
+              ),
+
+              const Divider(height: 24),
+
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Bitiş Bilgileri (Zorunlu değil)",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
               ValueListenableBuilder<String?>(
                 valueListenable: bitisTarihiNotifier,
                 builder: (context, bitisVal, child) {
@@ -133,14 +253,17 @@ class DuyurularScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           bitisVal == null || bitisVal.isEmpty
-                              ? "Bitiş Tarihi Seçilmedi"
-                              : "Bitiş: $bitisVal",
-                          style: const TextStyle(fontSize: 13),
+                              ? "Tarih seçilmedi"
+                              : "Tarih: $bitisVal",
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                       TextButton.icon(
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        label: const Text("Seç"),
+                        icon: const Icon(Icons.calendar_today, size: 14),
+                        label: const Text(
+                          "Tarih Seç",
+                          style: TextStyle(fontSize: 12),
+                        ),
                         onPressed: () async {
                           DateTime? picked = await showDatePicker(
                             context: context,
@@ -158,10 +281,61 @@ class DuyurularScreen extends StatelessWidget {
                         IconButton(
                           icon: const Icon(
                             Icons.clear,
-                            size: 16,
+                            size: 14,
                             color: Colors.red,
                           ),
                           onPressed: () => bitisTarihiNotifier.value = null,
+                        ),
+                    ],
+                  );
+                },
+              ),
+              ValueListenableBuilder<String?>(
+                valueListenable: bitisSaatiNotifier,
+                builder: (context, saatVal, child) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          saatVal == null || saatVal.isEmpty
+                              ? "Saat seçilmedi"
+                              : "Saat: $saatVal",
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.access_time, size: 14),
+                        label: const Text(
+                          "Saat Seç",
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onPressed: () async {
+                          TimeOfDay? pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                            builder: (context, child) {
+                              return MediaQuery(
+                                data: MediaQuery.of(
+                                  context,
+                                ).copyWith(alwaysUse24HourFormat: true),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (pickedTime != null) {
+                            bitisSaatiNotifier.value =
+                                "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
+                          }
+                        },
+                      ),
+                      if (saatVal != null && saatVal.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.clear,
+                            size: 14,
+                            color: Colors.red,
+                          ),
+                          onPressed: () => bitisSaatiNotifier.value = null,
                         ),
                     ],
                   );
@@ -203,12 +377,19 @@ class DuyurularScreen extends StatelessWidget {
                 'category': kategori,
                 'author': yayinlayanIsim,
                 'startDate': baslangicTarihiNotifier.value,
+                'startTime': baslangicSaatiNotifier.value,
                 'endDate': bitisTarihiNotifier.value,
+                'endTime': bitisSaatiNotifier.value,
+                'isInteractive': etkilesimNotifier.value,
                 'isManuallyEnded': false,
               };
 
               if (docId == null) {
                 veriMap['timestamp'] = FieldValue.serverTimestamp();
+                veriMap['likes'] = [];
+                veriMap['views'] = [];
+                veriMap['readBy'] = [];
+                veriMap['responses'] = {};
                 await FirebaseFirestore.instance
                     .collection('announcements')
                     .add(veriMap);
@@ -264,7 +445,6 @@ class DuyurularScreen extends StatelessWidget {
     );
   }
 
-  // Tarih metnini (GG.AA.YYYY) DateTime nesnesine çeviren yardımcı fonksiyon
   DateTime? _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return null;
     try {
@@ -278,6 +458,34 @@ class DuyurularScreen extends StatelessWidget {
       }
     } catch (_) {}
     return null;
+  }
+
+  Future<void> _duyuruyuOkunduVeGoruntulendiIsaretle(
+    String docId,
+    Map<String, dynamic> data,
+  ) async {
+    DocumentReference docRef = FirebaseFirestore.instance
+        .collection('announcements')
+        .doc(docId);
+
+    List views = List.from(data['views'] ?? []);
+    List readBy = List.from(data['readBy'] ?? []);
+
+    bool guncelleGerekli = false;
+
+    if (!views.contains(currentUserId)) {
+      views.add(currentUserId);
+      guncelleGerekli = true;
+    }
+
+    if (!readBy.contains(currentUserId)) {
+      readBy.add(currentUserId);
+      guncelleGerekli = true;
+    }
+
+    if (guncelleGerekli) {
+      await docRef.update({'views': views, 'readBy': readBy});
+    }
   }
 
   @override
@@ -367,21 +575,78 @@ class DuyurularScreen extends StatelessWidget {
     required List duyuruListesi,
     required bool ekleyebilirMi,
   }) {
+    int okunmamisSayisi = 0;
+    for (var doc in duyuruListesi) {
+      var data = doc.data() as Map<String, dynamic>;
+      List readBy = data['readBy'] ?? [];
+      if (!readBy.contains(currentUserId)) {
+        okunmamisSayisi++;
+      }
+    }
+
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: renk.withValues(alpha: 0.1),
-          child: Icon(ikon, color: renk),
+        leading: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CircleAvatar(
+              backgroundColor: renk.withValues(alpha: 0.1),
+              child: Icon(ikon, color: renk),
+            ),
+            if (okunmamisSayisi > 0)
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    "$okunmamisSayisi",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
-        title: Text(
-          baslik,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: renk,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                baslik,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: renk,
+                ),
+              ),
+            ),
+            if (okunmamisSayisi > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Text(
+                  "$okunmamisSayisi okunmamış",
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
         ),
         subtitle: Text("${duyuruListesi.length} duyuru aktif"),
         trailing: Row(
@@ -415,8 +680,29 @@ class DuyurularScreen extends StatelessWidget {
               String content = data['content'] ?? '';
               String author = data['author'] ?? 'Yönetim';
               String? startDate = data['startDate'];
+              String? startTime = data['startTime'];
               String? endDate = data['endDate'];
+              String? endTime = data['endTime'];
+              bool isInteractive = data['isInteractive'] ?? false;
               bool isManuallyEnded = data['isManuallyEnded'] ?? false;
+
+              List likes = data['likes'] ?? [];
+              List views = data['views'] ?? [];
+              List readBy = data['readBy'] ?? [];
+              Map<String, dynamic> responses = Map<String, dynamic>.from(
+                data['responses'] ?? {},
+              );
+
+              bool isLikedByMe = likes.contains(currentUserId);
+              bool isReadByMe = readBy.contains(currentUserId);
+              String? myResponse = responses[currentUserId];
+
+              int katilacakSayisi = 0;
+              int katilmayacakSayisi = 0;
+              responses.forEach((key, value) {
+                if (value == 'katilacak') katilacakSayisi++;
+                if (value == 'katilmayacak') katilmayacakSayisi++;
+              });
 
               Color? durumRengi;
               if (startDate != null || endDate != null) {
@@ -425,7 +711,6 @@ class DuyurularScreen extends StatelessWidget {
                 } else {
                   DateTime simdi = DateTime.now();
                   DateTime bugun = DateTime(simdi.year, simdi.month, simdi.day);
-
                   DateTime? bitisTarihi = _parseDate(endDate);
 
                   bool bittiMi = false;
@@ -445,137 +730,370 @@ class DuyurularScreen extends StatelessWidget {
 
               bool islemYetkisi = ekleyebilirMi;
 
+              String baslangicMetni = "";
+              if (startDate != null && startDate.isNotEmpty) {
+                baslangicMetni = "Başlangıç: $startDate";
+                if (startTime != null && startTime.isNotEmpty) {
+                  baslangicMetni += " $startTime";
+                }
+              }
+
+              String bitisMetni = "";
+              if (endDate != null && endDate.isNotEmpty) {
+                bitisMetni = "Bitiş: $endDate";
+                if (endTime != null && endTime.isNotEmpty) {
+                  bitisMetni += " $endTime";
+                }
+              }
+
+              // HER DUYURU İÇİN KENDİ İÇİNDE AÇILIR KAPANIR (ExpansionTile) YAPI
               return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: isReadByMe
+                      ? Colors.grey.shade50
+                      : Colors.blue.shade50.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: renk.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: isReadByMe
+                        ? renk.withValues(alpha: 0.2)
+                        : Colors.blue.shade300,
+                    width: isReadByMe ? 1 : 1.5,
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              if (durumRengi != null) ...[
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: durumRengi,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ],
+                child: ExpansionTile(
+                  onExpansionChanged: (isOpen) {
+                    if (isOpen) {
+                      _duyuruyuOkunduVeGoruntulendiIsaretle(docId, data);
+                    }
+                  },
+                  leading: durumRengi != null
+                      ? Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: durumRengi,
+                            shape: BoxShape.circle,
                           ),
-                        ),
-                        if (islemYetkisi)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (userRole == 'admin' &&
-                                  kategoriKey == 'okul_idaresi' &&
-                                  !isManuallyEnded)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.stop_circle,
-                                    size: 18,
-                                    color: Colors.orange,
-                                  ),
-                                  tooltip: "Etkinliği / Duyuruyu Sonlandır",
-                                  onPressed: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('announcements')
-                                        .doc(docId)
-                                        .update({'isManuallyEnded': true});
-                                  },
-                                ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  size: 18,
-                                  color: Colors.blue,
-                                ),
-                                onPressed: () {
-                                  _duyuruDialogGoster(
-                                    context,
-                                    docId: docId,
-                                    mevcutBaslik: title,
-                                    mevcutIcerik: content,
-                                    mevcutBaslangicTarihi: startDate,
-                                    mevcutBitisTarihi: endDate,
-                                    kategori: kategoriKey,
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  size: 18,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () => _duyuruSil(context, docId),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(content, style: const TextStyle(fontSize: 14)),
-                    const SizedBox(height: 8),
-                    if ((startDate != null && startDate.isNotEmpty) ||
-                        (endDate != null && endDate.isNotEmpty)) ...[
-                      const Divider(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          if (startDate != null && startDate.isNotEmpty)
-                            Text(
-                              "Başlangıç Tarihi: $startDate",
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blueGrey,
-                              ),
-                            ),
-                          if (endDate != null && endDate.isNotEmpty)
-                            Text(
-                              "Bitiş Tarihi: $endDate",
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blueGrey,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        "Yayınlayan: $author",
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
+                        )
+                      : const Icon(
+                          Icons.notifications_active,
+                          size: 18,
                           color: Colors.grey,
                         ),
+                  title: Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: isReadByMe
+                          ? FontWeight.bold
+                          : FontWeight.w900,
+                      fontSize: 14,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (islemYetkisi) ...[
+                        if (userRole == 'admin' &&
+                            kategoriKey == 'okul_idaresi' &&
+                            !isManuallyEnded)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.stop_circle,
+                              size: 18,
+                              color: Colors.orange,
+                            ),
+                            tooltip: "Duyuruyu Sonlandır",
+                            onPressed: () async {
+                              await FirebaseFirestore.instance
+                                  .collection('announcements')
+                                  .doc(docId)
+                                  .update({'isManuallyEnded': true});
+                            },
+                          ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit,
+                            size: 18,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () {
+                            _duyuruDialogGoster(
+                              context,
+                              docId: docId,
+                              mevcutBaslik: title,
+                              mevcutIcerik: content,
+                              mevcutBaslangicTarihi: startDate,
+                              mevcutBaslangicSaati: startTime,
+                              mevcutBitisTarihi: endDate,
+                              mevcutBitisSaati: endTime,
+                              mevcutEtkilesim: isInteractive,
+                              kategori: kategoriKey,
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                          onPressed: () => _duyuruSil(context, docId),
+                        ),
+                      ],
+                      const Icon(Icons.expand_more, size: 20),
+                    ],
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(content, style: const TextStyle(fontSize: 14)),
+                          const SizedBox(height: 8),
+
+                          if (isInteractive) ...[
+                            const Divider(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.indigo.shade50.withValues(
+                                  alpha: 0.5,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.indigo.shade100,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Katılım Durumu:",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: Colors.indigo,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                myResponse == 'katilacak'
+                                                ? Colors.green
+                                                : Colors.white,
+                                            foregroundColor:
+                                                myResponse == 'katilacak'
+                                                ? Colors.white
+                                                : Colors.green,
+                                            elevation: myResponse == 'katilacak'
+                                                ? 2
+                                                : 0,
+                                            side: const BorderSide(
+                                              color: Colors.green,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 4,
+                                            ),
+                                          ),
+                                          icon: const Icon(
+                                            Icons.check_circle,
+                                            size: 16,
+                                          ),
+                                          label: const Text(
+                                            "Katılacağım",
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                          onPressed: () async {
+                                            Map<String, dynamic> yeniResponses =
+                                                Map.from(responses);
+                                            yeniResponses[currentUserId] =
+                                                'katilacak';
+                                            await FirebaseFirestore.instance
+                                                .collection('announcements')
+                                                .doc(docId)
+                                                .update({
+                                                  'responses': yeniResponses,
+                                                });
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                myResponse == 'katilmayacak'
+                                                ? Colors.red
+                                                : Colors.white,
+                                            foregroundColor:
+                                                myResponse == 'katilmayacak'
+                                                ? Colors.white
+                                                : Colors.red,
+                                            elevation:
+                                                myResponse == 'katilmayacak'
+                                                ? 2
+                                                : 0,
+                                            side: const BorderSide(
+                                              color: Colors.red,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 4,
+                                            ),
+                                          ),
+                                          icon: const Icon(
+                                            Icons.cancel,
+                                            size: 16,
+                                          ),
+                                          label: const Text(
+                                            "Katılmayacağım",
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                          onPressed: () async {
+                                            Map<String, dynamic> yeniResponses =
+                                                Map.from(responses);
+                                            yeniResponses[currentUserId] =
+                                                'katilmayacak';
+                                            await FirebaseFirestore.instance
+                                                .collection('announcements')
+                                                .doc(docId)
+                                                .update({
+                                                  'responses': yeniResponses,
+                                                });
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Katılacaklar: $katilacakSayisi kişi",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green.shade700,
+                                        ),
+                                      ),
+                                      Text(
+                                        "Katılmayacaklar: $katilmayacakSayisi kişi",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          if (baslangicMetni.isNotEmpty ||
+                              bitisMetni.isNotEmpty) ...[
+                            const Divider(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (baslangicMetni.isNotEmpty)
+                                  Text(
+                                    baslangicMetni,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                if (bitisMetni.isNotEmpty)
+                                  Text(
+                                    bitisMetni,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                          const Divider(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      isLikedByMe
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () async {
+                                      List yeniLikes = List.from(likes);
+                                      if (isLikedByMe) {
+                                        yeniLikes.remove(currentUserId);
+                                      } else {
+                                        yeniLikes.add(currentUserId);
+                                      }
+                                      await FirebaseFirestore.instance
+                                          .collection('announcements')
+                                          .doc(docId)
+                                          .update({'likes': yeniLikes});
+                                    },
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "${likes.length}",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.visibility,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Görüntüleme: ${views.length}",
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    "Yayınlayan: $author",
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],

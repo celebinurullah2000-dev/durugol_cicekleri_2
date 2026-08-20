@@ -1,5 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.durugol_cicekleri">
+    <queries>
+        <intent>
+            <action android:name="Intent.ACTION_VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="Intent.ACTION_VIEW" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
     <application
         android:label="Durugöl Çiçekleri"
         android:name="${applicationName}"

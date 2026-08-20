@@ -16,6 +16,7 @@ import 'add_student_screen.dart';
 import 'TopluOdevScreen.dart';
 import 'TarihBazliOdevYoneticisiScreen.dart';
 import 'SinifIsTakipScreen.dart';
+import 'faydali_linkler_screen.dart';
 import 'nobetci_screen.dart';
 import 'kitap_okuma_takip_screen.dart';
 import 'student_detail_screen.dart';
@@ -2234,25 +2235,68 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 );
                               },
                             ),
-                            _buildYetkiliHizliIslemButonu(
-                              key: 'duyurular',
-                              icon: Icons.campaign,
-                              label: "Duyurular",
-                              color: Colors.indigo,
-                              onTap: () async {
-                                String unvanliIsim =
-                                    await _getUnvanliOgretmenAdi();
-                                if (!mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => DuyurularScreen(
-                                      userRole: widget
-                                          .userRole, // Öğretmenin rolü ('admin', 'guidance_teacher', 'classroom_teacher' vb.) aktarılıyor
-                                      currentUserName:
-                                          unvanliIsim, // İsteğe bağlı olarak öğretmenin adını da iletebilirsiniz
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('announcements')
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                int toplamOkunmamis = 0;
+                                if (snapshot.hasData) {
+                                  for (var doc in snapshot.data!.docs) {
+                                    var data =
+                                        doc.data() as Map<String, dynamic>;
+                                    List readBy = data['readBy'] ?? [];
+                                    if (!readBy.contains(widget.classId)) {
+                                      toplamOkunmamis++;
+                                    }
+                                  }
+                                }
+
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    _buildHizliIslemButonu(
+                                      icon: Icons.campaign,
+                                      label: "Duyurular",
+                                      color: Colors.indigo,
+                                      onTap: () async {
+                                        String unvanliIsim =
+                                            await _getUnvanliOgretmenAdi();
+                                        if (!mounted) return;
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                DuyurularScreen(
+                                                  userRole: widget.userRole,
+                                                  currentUserName: unvanliIsim,
+                                                  currentUserId: widget.classId,
+                                                ),
+                                          ),
+                                        );
+                                      },
                                     ),
-                                  ),
+                                    if (toplamOkunmamis > 0)
+                                      Positioned(
+                                        right: 4,
+                                        top: 4,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Text(
+                                            "$toplamOkunmamis",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 );
                               },
                             ),
@@ -2424,6 +2468,72 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       className: widget.className,
                                     ),
                                   ),
+                                );
+                              },
+                            ),
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('useful_links')
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                int okunmamisSayisi = 0;
+                                if (snapshot.hasData) {
+                                  for (var doc in snapshot.data!.docs) {
+                                    var data =
+                                        doc.data() as Map<String, dynamic>;
+                                    List views = data['views'] ?? [];
+                                    if (!views.contains(widget.classId)) {
+                                      // Öğretmen ID veya classId
+                                      okunmamisSayisi++;
+                                    }
+                                  }
+                                }
+
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    _buildHizliIslemButonu(
+                                      icon: Icons.link,
+                                      label: "Faydalı Linkler",
+                                      color: Colors.purpleAccent,
+                                      onTap: () async {
+                                        String unvanliIsim =
+                                            await _getUnvanliOgretmenAdi();
+                                        if (!mounted) return;
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                FaydaliLinklerScreen(
+                                                  userRole: widget.userRole,
+                                                  currentUserName: unvanliIsim,
+                                                  currentUserId: widget.classId,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    if (okunmamisSayisi > 0)
+                                      Positioned(
+                                        right: 4,
+                                        top: 4,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Text(
+                                            "$okunmamisSayisi",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 );
                               },
                             ),

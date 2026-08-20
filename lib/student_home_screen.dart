@@ -674,6 +674,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         builder: (context) => DuyurularScreen(
                           userRole: 'student',
                           currentUserName: studentName,
+                          currentUserId: widget
+                              .studentId, // <--- EKSİK OLAN PARAMETRE EKLENDİ
                         ),
                       ),
                     );

@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, camel_case_types
+// ignore_for_file: avoid_types_as_parameter_names, use_build_context_synchronously, camel_case_types
 
 import 'dart:math';
 import 'package:durugol_cicekleri/YetkiTanimlaScreen.dart';
