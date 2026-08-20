@@ -79,6 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Navigator.pop(context);
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('userRole', 'teacher');
+                await prefs.setBool('isMaster', true);
                 if (!mounted) return;
 
                 Navigator.pushReplacement(
@@ -108,6 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _normalOgretmenGiris() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userRole', 'teacher');
+    await prefs.setBool('isMaster', false);
     if (!mounted) return;
     Navigator.pushReplacement(
       context,

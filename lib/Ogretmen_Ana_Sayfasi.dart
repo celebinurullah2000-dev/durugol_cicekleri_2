@@ -16,6 +16,7 @@ import 'add_student_screen.dart';
 import 'TopluOdevScreen.dart';
 import 'TarihBazliOdevYoneticisiScreen.dart';
 import 'SinifIsTakipScreen.dart';
+import 'ders_kitaplari_screen.dart';
 import 'faydali_linkler_screen.dart';
 import 'nobetci_screen.dart';
 import 'kitap_okuma_takip_screen.dart';
@@ -2316,6 +2317,28 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                     builder: (context) => DevamsizlikScreen(
                                       classId: hedefClassId,
                                       userRole: widget.userRole,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildYetkiliHizliIslemButonu(
+                              key: 'ders_kitaplari',
+                              icon: Icons.menu_book,
+                              label: "Ders Kitapları",
+                              color: Colors.deepPurple,
+                              onTap: () async {
+                                String unvanliIsim =
+                                    await _getUnvanliOgretmenAdi();
+                                if (!mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DersKitaplariScreen(
+                                      currentUserId: widget
+                                          .classId, // veya oturum açan öğretmen ID'si
+                                      userRole: widget.userRole,
+                                      currentUserName: unvanliIsim,
                                     ),
                                   ),
                                 );
