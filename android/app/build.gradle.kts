@@ -1,3 +1,12 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -7,12 +16,21 @@ plugins {
 }
 
 android {
-    namespace = "com.example.durugol_cicekleri"
+    namespace = "com.nurullah_celebi.durugol_cicekleri"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+            storePassword = keystoreProperties.getProperty("storePassword")
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.example.durugol_cicekleri"
+        applicationId = "com.nurullah_celebi.durugol_cicekleri" // Paket adınızı buraya da güncelledik
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode.toInt()
@@ -28,7 +46,8 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            // Artık debug yerine oluşturduğumuz release imzasını kullanacak
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

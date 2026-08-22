@@ -12,7 +12,12 @@
           "package_name": "com.example.durugol_cicekleri"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "250493326515-5h4cs2snn5o9useq1mdq0k9g1774nt2b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDcLbHaKNTuDOJy98KE4KqGZ40Z-Fyu7ns"
@@ -20,7 +25,55 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250493326515-5h4cs2snn5o9useq1mdq0k9g1774nt2b.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "250493326515-to8aq9031es3a3tdeq7c2sehjd50fj0t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.durugolCicekleri"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250493326515:android:60d4be79ccc0cf2b7e8cc6",
+        "android_client_info": {
+          "package_name": "com.nurullah_celebi.durugol_cicekleri"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250493326515-5h4cs2snn5o9useq1mdq0k9g1774nt2b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcLbHaKNTuDOJy98KE4KqGZ40Z-Fyu7ns"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250493326515-5h4cs2snn5o9useq1mdq0k9g1774nt2b.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "250493326515-to8aq9031es3a3tdeq7c2sehjd50fj0t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.durugolCicekleri"
+              }
+            }
+          ]
         }
       }
     }
