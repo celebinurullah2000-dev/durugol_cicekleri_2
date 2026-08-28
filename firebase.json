@@ -1,1 +1,39 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"durugol-cicekleri","appId":"1:250493326515:android:e39e75c28f0caf2b7e8cc6","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"durugol-cicekleri","configurations":{"android":"1:250493326515:android:e39e75c28f0caf2b7e8cc6","ios":"1:250493326515:ios:2d091d7c1d6320377e8cc6","macos":"1:250493326515:ios:2d091d7c1d6320377e8cc6","web":"1:250493326515:web:5829a9273346bc967e8cc6","windows":"1:250493326515:web:42c9ce9f4d0d06ce7e8cc6"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "durugol-cicekleri",
+          "appId": "1:250493326515:android:e39e75c28f0caf2b7e8cc6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "durugol-cicekleri",
+          "configurations": {
+            "android": "1:250493326515:android:e39e75c28f0caf2b7e8cc6",
+            "ios": "1:250493326515:ios:2d091d7c1d6320377e8cc6",
+            "macos": "1:250493326515:ios:2d091d7c1d6320377e8cc6",
+            "web": "1:250493326515:web:5829a9273346bc967e8cc6",
+            "windows": "1:250493326515:web:42c9ce9f4d0d06ce7e8cc6"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

@@ -695,7 +695,6 @@ class DuyurularScreen extends StatelessWidget {
 
               bool isLikedByMe = likes.contains(currentUserId);
               bool isReadByMe = readBy.contains(currentUserId);
-              String? myResponse = responses[currentUserId];
 
               int katilacakSayisi = 0;
               int katilmayacakSayisi = 0;
@@ -781,8 +780,11 @@ class DuyurularScreen extends StatelessWidget {
                           size: 18,
                           color: Colors.grey,
                         ),
+                  // DÜZELTME BURADA YAPILDI: Row ve Expanded kaldırıldı, doğrudan Text verildi.
                   title: Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight: isReadByMe
                           ? FontWeight.bold
@@ -878,94 +880,78 @@ class DuyurularScreen extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
+                                  const Divider(height: 12),
                                   Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Expanded(
-                                        child: ElevatedButton.icon(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                myResponse == 'katilacak'
-                                                ? Colors.green
-                                                : Colors.white,
-                                            foregroundColor:
-                                                myResponse == 'katilacak'
-                                                ? Colors.white
-                                                : Colors.green,
-                                            elevation: myResponse == 'katilacak'
-                                                ? 2
-                                                : 0,
-                                            side: const BorderSide(
-                                              color: Colors.green,
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 4,
-                                            ),
-                                          ),
-                                          icon: const Icon(
-                                            Icons.check_circle,
-                                            size: 16,
-                                          ),
-                                          label: const Text(
-                                            "Katılacağım",
-                                            style: TextStyle(fontSize: 12),
-                                          ),
-                                          onPressed: () async {
-                                            Map<String, dynamic> yeniResponses =
-                                                Map.from(responses);
-                                            yeniResponses[currentUserId] =
-                                                'katilacak';
-                                            await FirebaseFirestore.instance
-                                                .collection('announcements')
-                                                .doc(docId)
-                                                .update({
-                                                  'responses': yeniResponses,
-                                                });
-                                          },
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: ElevatedButton.icon(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                myResponse == 'katilmayacak'
-                                                ? Colors.red
-                                                : Colors.white,
-                                            foregroundColor:
-                                                myResponse == 'katilmayacak'
-                                                ? Colors.white
-                                                : Colors.red,
-                                            elevation:
-                                                myResponse == 'katilmayacak'
-                                                ? 2
-                                                : 0,
-                                            side: const BorderSide(
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              isLikedByMe
+                                                  ? Icons.favorite
+                                                  : Icons.favorite_border,
                                               color: Colors.red,
+                                              size: 20,
                                             ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 4,
+                                            constraints: const BoxConstraints(),
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () async {
+                                              List yeniLikes = List.from(likes);
+                                              if (isLikedByMe) {
+                                                yeniLikes.remove(currentUserId);
+                                              } else {
+                                                yeniLikes.add(currentUserId);
+                                              }
+                                              await FirebaseFirestore.instance
+                                                  .collection('announcements')
+                                                  .doc(docId)
+                                                  .update({'likes': yeniLikes});
+                                            },
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            "${likes.length}",
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
                                             ),
                                           ),
-                                          icon: const Icon(
-                                            Icons.cancel,
-                                            size: 16,
-                                          ),
-                                          label: const Text(
-                                            "Katılmayacağım",
-                                            style: TextStyle(fontSize: 12),
-                                          ),
-                                          onPressed: () async {
-                                            Map<String, dynamic> yeniResponses =
-                                                Map.from(responses);
-                                            yeniResponses[currentUserId] =
-                                                'katilmayacak';
-                                            await FirebaseFirestore.instance
-                                                .collection('announcements')
-                                                .doc(docId)
-                                                .update({
-                                                  'responses': yeniResponses,
-                                                });
-                                          },
+                                        ],
+                                      ),
+                                      // SAĞ TARAF: Taşmayı önlemek için Expanded ve Flexible eklendi
+                                      Expanded(
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            const Icon(
+                                              Icons.visibility,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              "Gör: ${views.length}", // Metni biraz kısaltabiliriz veya aynı bırakabilirsiniz
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                "Yayınlayan: $author",
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontStyle: FontStyle.italic,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
