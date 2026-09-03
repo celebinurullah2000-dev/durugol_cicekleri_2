@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student_home_screen.dart';
 import 'package:lottie/lottie.dart';
+import 'ogrenci_yukleme_screen.dart'; // Toplu öğrenci yükleme sayfanızın importu (dosya adınıza göre kontrol edin)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -87,6 +88,54 @@ class _LoginScreenState extends State<LoginScreen> {
                   MaterialPageRoute(
                     builder: (_) =>
                         const sinifseceklescreen(isTeacherMaster: true),
+                  ),
+                );
+              } else {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Hatalı sabit şifre!"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text("Giriş Yap"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Toplu öğrenci yükleme ekranına şifre korumalı geçiş fonksiyonu
+  void _yoneticiSifresiIleOgrentiYuklemeyeGit() {
+    TextEditingController masterController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Toplu Yükleme Yönetici Girişi"),
+        content: TextField(
+          controller: masterController,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: "Yönetici Şifrenizi Girin",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("İptal"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (masterController.text.trim() == "19781980") {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const OgrenciYuklemeScreen(),
                   ),
                 );
               } else {
@@ -196,248 +245,272 @@ class _LoginScreenState extends State<LoginScreen> {
             colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
           ),
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        child: SafeArea(
+          child: Stack(
             children: [
-              // --- RESMİN YÜKSEKLİĞİNİN YARISI KADAR (70 px) BOŞLUK ---
-              const SizedBox(height: 70),
-              Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: Image.asset(
-                  'assets/images/durugol_ilkokulu.png',
-                  height: 140,
-                  fit: BoxFit.contain,
-                ),
-              ),
-
-              // --- LOGO MOTION DİNAMİK VE DAİRESEL MASKELENMİŞ LOTTİE ALANI ---
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: 120,
-                    maxWidth: 200,
-                    minHeight: 120,
-                    maxHeight: 200,
-                  ),
-                  child: SizedBox(
-                    width: ekranGenisligi * 0.35,
-                    height: ekranGenisligi * 0.35,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            spreadRadius: 2,
+              // Ana İçerik
+              SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 50),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: Image.asset(
+                        'assets/images/durugol_ilkokulu.png',
+                        height: 140,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: 120,
+                          maxWidth: 200,
+                          minHeight: 120,
+                          maxHeight: 200,
+                        ),
+                        child: SizedBox(
+                          width: ekranGenisligi * 0.35,
+                          height: ekranGenisligi * 0.35,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Lottie.asset(
+                                'assets/animations/logo_motion.json',
+                                fit: BoxFit.cover,
+                                repeat: true,
+                              ),
+                            ),
                           ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildSinifGorseli(),
+                    const SizedBox(height: 20),
+                    if (!_isRoleSelected) ...[
+                      Row(
+                        children: [
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: _buildRoleButton(
+                              "",
+                              "assets/images/ogretmen2.png",
+                              () => _normalOgretmenGiris(),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: _buildRoleButton(
+                              "",
+                              "assets/images/ogrenci.png",
+                              () => setState(() => _isRoleSelected = true),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
                         ],
                       ),
-                      child: ClipOval(
-                        child: Lottie.asset(
-                          'assets/animations/logo_motion.json',
-                          fit: BoxFit.cover,
-                          repeat: true,
+                    ] else ...[
+                      const Text(
+                        "Öğrenci Girişi",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
                         ),
                       ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              _buildSinifGorseli(),
-              const SizedBox(height: 20),
-              if (!_isRoleSelected) ...[
-                Row(
-                  children: [
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: _buildRoleButton(
-                        "",
-                        "assets/images/ogretmen2.png",
-                        () => _normalOgretmenGiris(),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: _buildRoleButton(
-                        "",
-                        "assets/images/ogrenci.png",
-                        () => setState(() => _isRoleSelected = true),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                  ],
-                ),
-              ] else ...[
-                const Text(
-                  "Öğrenci Girişi",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                if (_savedClassId == null) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 5,
-                                  spreadRadius: 1,
+                      const SizedBox(height: 20),
+                      if (_savedClassId == null) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 5,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _selectedGradeLevel,
+                                      hint: const Text("Sınıf"),
+                                      isExpanded: true,
+                                      items: _gradeLevels.map((level) {
+                                        return DropdownMenuItem<String>(
+                                          value: level,
+                                          child: Text("$level. Sınıf"),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _selectedGradeLevel = val;
+                                          _updateSelectedClassId();
+                                        });
+                                      },
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedGradeLevel,
-                                hint: const Text("Sınıf"),
-                                isExpanded: true,
-                                items: _gradeLevels.map((level) {
-                                  return DropdownMenuItem<String>(
-                                    value: level,
-                                    child: Text("$level. Sınıf"),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedGradeLevel = val;
-                                    _updateSelectedClassId();
-                                  });
-                                },
                               ),
-                            ),
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 5,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _selectedBranch,
+                                      hint: const Text("Şube"),
+                                      isExpanded: true,
+                                      items: _branchList.map((branch) {
+                                        return DropdownMenuItem<String>(
+                                          value: branch,
+                                          child: Text("$branch Şubesi"),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _selectedBranch = val;
+                                          _updateSelectedClassId();
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 5,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedBranch,
-                                hint: const Text("Şube"),
-                                isExpanded: true,
-                                items: _branchList.map((branch) {
-                                  return DropdownMenuItem<String>(
-                                    value: branch,
-                                    child: Text("$branch Şubesi"),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedBranch = val;
-                                    _updateSelectedClassId();
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
+                        const SizedBox(height: 20),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                Container(
-                  width: 300,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        spreadRadius: 2,
+                      Container(
+                        width: 300,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _passwordController,
+                          obscureText: _sifreGizli,
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: "Şifrenizi yazın",
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _sifreGizli
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _sifreGizli = !_sifreGizli;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      InkWell(
+                        onTap: () => _login(context),
+                        child: Container(
+                          width: 250,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            image: const DecorationImage(
+                              image: AssetImage(
+                                'assets/images/giris_butonu.png',
+                              ),
+                              fit: BoxFit.contain,
+                            ),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      InkWell(
+                        onTap: () => setState(() {
+                          _isRoleSelected = false;
+                          _passwordController.clear();
+                          _sifreGizli = true;
+                        }),
+                        child: Container(
+                          width: 200,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            image: const DecorationImage(
+                              image: AssetImage(
+                                'assets/images/geri_butonu.png',
+                              ),
+                              fit: BoxFit.contain,
+                            ),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                  child: TextField(
-                    controller: _passwordController,
-                    obscureText: _sifreGizli,
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: "Şifrenizi yazın",
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _sifreGizli ? Icons.visibility_off : Icons.visibility,
-                          color: Colors.grey,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _sifreGizli = !_sifreGizli;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 30),
+              ),
 
-                InkWell(
-                  onTap: () => _login(context),
-                  child: Container(
-                    width: 250,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/giris_butonu.png'),
-                        fit: BoxFit.contain,
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
+              // Sağ Üst Köşeye Şifre Korumalı Gizli / Kolay Erişim Butonu
+              Positioned(
+                top: 10,
+                right: 10,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.cloud_upload,
+                    color: Colors.indigo,
+                    size: 28,
                   ),
+                  onPressed: () => _yoneticiSifresiIleOgrentiYuklemeyeGit(),
+                  tooltip: "Toplu Öğrenci Yükle",
                 ),
-                const SizedBox(height: 20),
-
-                InkWell(
-                  onTap: () => setState(() {
-                    _isRoleSelected = false;
-                    _passwordController.clear();
-                    _sifreGizli = true;
-                  }),
-                  child: Container(
-                    width: 200,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/geri_butonu.png'),
-                        fit: BoxFit.contain,
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),
