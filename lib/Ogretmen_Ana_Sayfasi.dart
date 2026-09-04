@@ -4,7 +4,6 @@ import 'package:durugol_cicekleri/Etkinlikler_Screen.dart';
 import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk.dart';
 import 'package:durugol_cicekleri/Sinif_Istatistik_Siralama_Screen.dart';
 import 'package:durugol_cicekleri/duyurular_screen.dart';
-//import 'package:durugol_cicekleri/ogretmen_randevu_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
 import 'package:durugol_cicekleri/screens/teacher_chat_audit_screen.dart';
 import 'package:durugol_cicekleri/sinif_sifreleri_screen.dart';
@@ -105,9 +104,8 @@ Future<void> bildirimGoster(String baslik, String aciklama) async {
 class OgretmenAnaSayfasi extends StatefulWidget {
   final String classId;
   final String className;
-  final String
-  userRole; // Rol ('classroom_teacher', 'branch_teacher', 'admin', 'guidance_teacher' vb.)
-  final List<String> assignedClassIds; // Seçilen/Atanan sınıf ID'leri
+  final String userRole;
+  final List<String> assignedClassIds;
 
   const OgretmenAnaSayfasi({
     super.key,
@@ -140,8 +138,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     'I',
     'J',
   ];
-  List<String> _assignedBranches =
-      []; // Branş ve rehber öğretmenler için şubeler
+  List<String> _assignedBranches = [];
 
   @override
   void initState() {
@@ -156,7 +153,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     _randevuDinle();
   }
 
-  // Öğretmenin daha önce kaydettiği şubeleri ve ilk filtre değerlerini çekme
   Future<void> _ogretmenBilgileriniYukle() async {
     try {
       var doc = await FirebaseFirestore.instance
@@ -210,9 +206,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     }
   }
 
-  // Aktif filtrelere göre mevcut sınıf ID'sini bulma
   Future<String?> _getAktifHedefClassId() async {
-    if (widget.userRole == 'classroom_teacher') {
+    if (widget.userRole == 'classroom_teacher' ||
+        widget.userRole == 'special_education_teacher' ||
+        widget.userRole == 'kindergarten_teacher') {
       return widget.classId;
     }
 
@@ -230,7 +227,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     return null;
   }
 
-  // Branş ve Rehber öğretmenler için şube seçim dialogu
   void _subeSecimDialogGoster(BuildContext context) async {
     var querySnapshot = await FirebaseFirestore.instance
         .collection('classes')
@@ -347,7 +343,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     );
   }
 
-  // Şube listesi belirleme
   List<String> _getMevcutSubeler() {
     bool cokluSinifSecebilir =
         widget.userRole == 'english_teacher' ||
@@ -371,7 +366,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     return liste;
   }
 
-  // Sınıf seviyesi listesi belirleme
   List<String> _getMevcutSeviyeler() {
     bool cokluSinifSecebilir =
         widget.userRole == 'english_teacher' ||
@@ -416,6 +410,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
           return "$adSoyad (Din Kültürü Öğretmeni)";
         } else if (rol == 'guidance_teacher') {
           return "$adSoyad (Rehber Öğretmen)";
+        } else if (rol == 'special_education_teacher') {
+          return "$adSoyad (Özel Eğitim Öğretmeni)";
+        } else if (rol == 'kindergarten_teacher') {
+          return "$adSoyad (Ana Sınıfı Öğretmeni)";
         } else if (rol == 'branch_teacher') {
           return "$adSoyad (Branş Öğretmeni)";
         } else {
@@ -432,7 +430,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   bool _yetkilerYukleniyor = true;
 
   Future<void> _kullaniciYetkileriniGetir() async {
-    if (widget.userRole == 'classroom_teacher') {
+    if (widget.userRole == 'classroom_teacher' ||
+        widget.userRole == 'special_education_teacher' ||
+        widget.userRole == 'kindergarten_teacher') {
       setState(() {
         _yetkilerYukleniyor = false;
       });
@@ -845,7 +845,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         classId: hedefClassId,
                         isTeacher:
                             widget.userRole.trim().toLowerCase() ==
-                            'classroom_teacher',
+                                'classroom_teacher' ||
+                            widget.userRole.trim().toLowerCase() ==
+                                'special_education_teacher' ||
+                            widget.userRole.trim().toLowerCase() ==
+                                'kindergarten_teacher',
                       ),
                     ),
                   );
@@ -863,7 +867,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         classId: hedefClassId,
                         isTeacher:
                             widget.userRole.trim().toLowerCase() ==
-                            'classroom_teacher',
+                                'classroom_teacher' ||
+                            widget.userRole.trim().toLowerCase() ==
+                                'special_education_teacher' ||
+                            widget.userRole.trim().toLowerCase() ==
+                                'kindergarten_teacher',
                       ),
                     ),
                   );
@@ -884,7 +892,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                         classId: hedefClassId,
                         isTeacher:
                             widget.userRole.trim().toLowerCase() ==
-                            'classroom_teacher',
+                                'classroom_teacher' ||
+                            widget.userRole.trim().toLowerCase() ==
+                                'special_education_teacher' ||
+                            widget.userRole.trim().toLowerCase() ==
+                                'kindergarten_teacher',
                       ),
                     ),
                   );
@@ -1291,7 +1303,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 },
               );
 
-              // Hedef sınıf ID'lerini belirleyelim
               List<String> hedefClassIdListesi = [];
 
               bool cokluSinifSecebilir =
@@ -1316,7 +1327,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                   return;
                 }
 
-                // Seçilen tüm şubelerin classId'lerini bulalım
                 for (String branchName in _assignedBranches) {
                   var classQuery = await FirebaseFirestore.instance
                       .collection('classes')
@@ -1331,7 +1341,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 hedefClassIdListesi.add(hedefClassId);
               }
 
-              // Bulunan her bir sınıfın öğrencilerine ödevi gönder
               for (String targetClassId in hedefClassIdListesi) {
                 var studentsSnapshot = await FirebaseFirestore.instance
                     .collection('students')
@@ -1520,6 +1529,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   }) {
     bool gosterilsinMi =
         widget.userRole == 'classroom_teacher' ||
+        widget.userRole == 'special_education_teacher' ||
+        widget.userRole == 'kindergarten_teacher' ||
         widget.userRole == 'admin' ||
         widget.userRole == 'branch_teacher' ||
         widget.userRole == 'english_teacher' ||
@@ -1539,7 +1550,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
   @override
   Widget build(BuildContext context) {
-    bool isSinifOgretmeni = widget.userRole == 'classroom_teacher';
+    bool isSinifOgretmeni =
+        widget.userRole == 'classroom_teacher' ||
+        widget.userRole == 'special_education_teacher' ||
+        widget.userRole == 'kindergarten_teacher';
+
     bool isYetkili =
         widget.userRole == 'admin' ||
         widget.userRole == 'branch_teacher' ||
@@ -1547,7 +1562,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         widget.userRole == 'religious_teacher' ||
         widget.userRole == 'guidance_teacher';
 
-    // REHBER ÖĞRETMEN DE BURAYA DAHİL EDİLDİ
     bool cokluSinifSecebilirButonuGoster =
         widget.userRole == 'english_teacher' ||
         widget.userRole == 'religious_teacher' ||
@@ -1766,7 +1780,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 if (hedefClassId == null) return;
                                 if (!mounted) return;
 
-                                if (widget.userRole == 'classroom_teacher') {
+                                if (widget.userRole == 'classroom_teacher' ||
+                                    widget.userRole ==
+                                        'special_education_teacher' ||
+                                    widget.userRole == 'kindergarten_teacher') {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -2274,27 +2291,31 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 return Stack(
                                   clipBehavior: Clip.none,
                                   children: [
-                                    _buildHizliIslemButonu(
-                                      icon: Icons.campaign,
-                                      label: "Duyurular",
-                                      color: Colors.indigo,
-                                      onTap: () async {
-                                        String unvanliIsim =
-                                            await _getUnvanliOgretmenAdi();
-                                        if (!mounted) return;
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                DuyurularScreen(
-                                                  userRole: widget.userRole,
-                                                  currentUserName: unvanliIsim,
-                                                  currentUserId: widget.classId,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                    _buildYetkiliHizliIslemButonu(
+                                          key: 'duyurular',
+                                          icon: Icons.campaign,
+                                          label: "Duyurular",
+                                          color: Colors.indigo,
+                                          onTap: () async {
+                                            String unvanliIsim =
+                                                await _getUnvanliOgretmenAdi();
+                                            if (!mounted) return;
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    DuyurularScreen(
+                                                      userRole: widget.userRole,
+                                                      currentUserName:
+                                                          unvanliIsim,
+                                                      currentUserId:
+                                                          widget.classId,
+                                                    ),
+                                              ),
+                                            );
+                                          },
+                                        ) ??
+                                        const SizedBox.shrink(),
                                     if (toplamOkunmamis > 0)
                                       Positioned(
                                         right: 4,
@@ -2390,9 +2411,17 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       classId: hedefClassId,
                                       isTeacher:
                                           widget.userRole
-                                              .trim()
-                                              .toLowerCase() ==
-                                          'classroom_teacher',
+                                                  .trim()
+                                                  .toLowerCase() ==
+                                              'classroom_teacher' ||
+                                          widget.userRole
+                                                  .trim()
+                                                  .toLowerCase() ==
+                                              'special_education_teacher' ||
+                                          widget.userRole
+                                                  .trim()
+                                                  .toLowerCase() ==
+                                              'kindergarten_teacher',
                                     ),
                                   ),
                                 );
@@ -2416,9 +2445,17 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                           classId: hedefClassId,
                                           isTeacher:
                                               widget.userRole
-                                                  .trim()
-                                                  .toLowerCase() ==
-                                              'classroom_teacher',
+                                                      .trim()
+                                                      .toLowerCase() ==
+                                                  'classroom_teacher' ||
+                                              widget.userRole
+                                                      .trim()
+                                                      .toLowerCase() ==
+                                                  'special_education_teacher' ||
+                                              widget.userRole
+                                                      .trim()
+                                                      .toLowerCase() ==
+                                                  'kindergarten_teacher',
                                         ),
                                   ),
                                 );
@@ -2441,9 +2478,17 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       classId: hedefClassId,
                                       isTeacher:
                                           widget.userRole
-                                              .trim()
-                                              .toLowerCase() ==
-                                          'classroom_teacher',
+                                                  .trim()
+                                                  .toLowerCase() ==
+                                              'classroom_teacher' ||
+                                          widget.userRole
+                                                  .trim()
+                                                  .toLowerCase() ==
+                                              'special_education_teacher' ||
+                                          widget.userRole
+                                                  .trim()
+                                                  .toLowerCase() ==
+                                              'kindergarten_teacher',
                                     ),
                                   ),
                                 );
@@ -2511,27 +2556,31 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 return Stack(
                                   clipBehavior: Clip.none,
                                   children: [
-                                    _buildHizliIslemButonu(
-                                      icon: Icons.link,
-                                      label: "Faydalı Linkler",
-                                      color: Colors.purpleAccent,
-                                      onTap: () async {
-                                        String unvanliIsim =
-                                            await _getUnvanliOgretmenAdi();
-                                        if (!mounted) return;
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                FaydaliLinklerScreen(
-                                                  userRole: widget.userRole,
-                                                  currentUserName: unvanliIsim,
-                                                  currentUserId: widget.classId,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                    _buildYetkiliHizliIslemButonu(
+                                          key: 'faydali_linkler',
+                                          icon: Icons.link,
+                                          label: "Faydalı Linkler",
+                                          color: Colors.purpleAccent,
+                                          onTap: () async {
+                                            String unvanliIsim =
+                                                await _getUnvanliOgretmenAdi();
+                                            if (!mounted) return;
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    FaydaliLinklerScreen(
+                                                      userRole: widget.userRole,
+                                                      currentUserName:
+                                                          unvanliIsim,
+                                                      currentUserId:
+                                                          widget.classId,
+                                                    ),
+                                              ),
+                                            );
+                                          },
+                                        ) ??
+                                        const SizedBox.shrink(),
                                     if (okunmamisSayisi > 0)
                                       Positioned(
                                         right: 4,
