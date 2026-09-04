@@ -10,1794 +10,329 @@ class OgrenciYuklemeScreen extends StatefulWidget {
 
 class _OgrenciYuklemeScreenState extends State<OgrenciYuklemeScreen> {
   bool _isUploading = false;
-  String _durumMesaji = "Yüklemeye hazır (Toplam 822 öğrenci).";
+  String _durumMesaji = "Yüklemeye hazır";
 
   // Doğrudan firstName, lastName ve password içeren liste
   final List<Map<String, String>> ogrenciListesi = [
     {
-      "firstName": "DEFNE",
-      "lastName": "AKTÜRK",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "defne",
-    },
-    {
-      "firstName": "MEVA",
-      "lastName": "KARAMEŞE",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "meva",
-    },
-    {
-      "firstName": "ALYA",
-      "lastName": "GEDİK",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "alya",
-    },
-    {
-      "firstName": "ÖYKÜ MİRA",
-      "lastName": "YÜCE",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "öykümira",
-    },
-    {
-      "firstName": "ZEYNEP",
-      "lastName": "SAĞLAM",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "zeynep",
-    },
-    {
-      "firstName": "HAZAL ECE",
-      "lastName": "ÖZDEMİR",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "hazalece",
-    },
-    {
-      "firstName": "BEYZA",
-      "lastName": "KÖSE",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "beyza",
-    },
-    {
-      "firstName": "LAVİNYA",
-      "lastName": "ŞAHİN",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "lavinya",
-    },
-    {
-      "firstName": "İPEK",
-      "lastName": "KÖROĞLU",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "ipek",
-    },
-    {
-      "firstName": "HİLAL",
-      "lastName": "YILDIZ",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "hilal",
-    },
-    {
-      "firstName": "ELİF",
-      "lastName": "AKDOĞAN",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "elif",
-    },
-    {
-      "firstName": "EYLÜL ECEM",
-      "lastName": "TAŞAR",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "eylülecem",
-    },
-    {
-      "firstName": "AMİNE HÜMA",
-      "lastName": "DİLİBAL",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "aminehüma",
-    },
-    {
-      "firstName": "DURU",
-      "lastName": "PULAT",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "duru",
-    },
-    {
-      "firstName": "HATİCE REYYAN",
-      "lastName": "AKBAŞ",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "haticereyyan",
-    },
-    {
-      "firstName": "ZENNURE",
-      "lastName": "TAŞDEMİR",
-      "cinsiyet": "K",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "zennure",
-    },
-    {
-      "firstName": "YAMAN",
-      "lastName": "GÜZELOLUK",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "yaman",
-    },
-    {
-      "firstName": "EDİZ",
-      "lastName": "KOCA",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "ediz",
-    },
-    {
-      "firstName": "ÇINAR AZİZ",
-      "lastName": "GEDİK",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "çinaraziz",
-    },
-    {
-      "firstName": "MUHAMMED DENİZ",
-      "lastName": "KURNAZ",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "muhammeddeniz",
-    },
-    {
-      "firstName": "DORUK",
-      "lastName": "AKATA",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "doruk",
-    },
-    {
-      "firstName": "MEHMET ALP",
-      "lastName": "ERDEM",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "mehmetalp",
-    },
-    {
-      "firstName": "FURKAN",
-      "lastName": "ZAVALSIZ",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "furkan",
-    },
-    {
-      "firstName": "İBRAHİM METE",
-      "lastName": "SAĞRA",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "ibrahimmete",
-    },
-    {
-      "firstName": "MİRAN ASAF",
-      "lastName": "ALTUNIŞIK",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "miranasaf",
-    },
-    {
-      "firstName": "MUHAMMED BATU",
-      "lastName": "KESKİN",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "muhammedbatu",
-    },
-    {
-      "firstName": "GÜRKAN TAHA",
-      "lastName": "ASLAN",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "gürkantaha",
-    },
-    {
-      "firstName": "ALİ ASAF",
-      "lastName": "KULAKCI",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "aliasaf",
-    },
-    {
-      "firstName": "ÇINAR ATA",
-      "lastName": "ÇARKÇI",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "çinarata",
-    },
-    {
-      "firstName": "MUHAMMED ALİ",
-      "lastName": "GÜZELHAN",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "muhammedali",
-    },
-    {
-      "firstName": "ZAFER",
-      "lastName": "ÖZTÜRK",
-      "cinsiyet": "E",
-      "classId": "tGXTLucW74nbAIzJIm12",
-      "password": "zafer",
-    },
-    {
-      "firstName": "EBRAR AHSEN",
-      "lastName": "BAYRAK",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "ebrarahsen",
-    },
-    {
-      "firstName": "DURU",
-      "lastName": "BAFRA",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "duru",
-    },
-    {
-      "firstName": "MEVA SU",
-      "lastName": "BUDAK",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "mevasu",
-    },
-    {
-      "firstName": "CANSU",
-      "lastName": "GÜNDAY",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "cansu",
-    },
-    {
-      "firstName": "ZEYNEP SENA",
-      "lastName": "ÖZTÜRK",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "zeynepsena",
-    },
-    {
-      "firstName": "SELVA ZEYNEP",
-      "lastName": "KARAKIŞLA",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "selvazeynep",
-    },
-    {
-      "firstName": "DERİN",
-      "lastName": "DEDE",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "derin",
-    },
-    {
-      "firstName": "BESTE ASEL",
-      "lastName": "ŞAHİN",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "besteasel",
-    },
-    {
-      "firstName": "İPEK UMAY",
-      "lastName": "TANRIVERMİŞ",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "ipekumay",
-    },
-    {
-      "firstName": "ZEREN ECE",
-      "lastName": "TİKENCE",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "zerenece",
-    },
-    {
-      "firstName": "ELANUR",
-      "lastName": "ÖZBUCAK",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "elanur",
-    },
-    {
-      "firstName": "HÜMA",
-      "lastName": "ER",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "hüma",
-    },
-    {
-      "firstName": "LİYANUR İZGİ",
-      "lastName": "ŞAHİN",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "liyanurizgi",
-    },
-    {
-      "firstName": "GÜNEŞ LİNA",
-      "lastName": "KARADENİZ",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "güneşlina",
-    },
-    {
-      "firstName": "YAVUZ SELİM",
-      "lastName": "AYDIN",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "yavuzselim",
-    },
-    {
-      "firstName": "HİZİR ALİ",
-      "lastName": "EKİN",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "hizirali",
-    },
-    {
-      "firstName": "KEREM",
+      "firstName": "ELİF ASYA",
       "lastName": "KURT",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "kerem",
-    },
-    {
-      "firstName": "EGEMEN",
-      "lastName": "ÖNER",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "egemen",
-    },
-    {
-      "firstName": "OĞUZ KAAN",
-      "lastName": "ÇELİK",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "oğuzkaan",
-    },
-    {
-      "firstName": "ÖMER ASAF",
-      "lastName": "YAMAN",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "ömerasaf",
-    },
-    {
-      "firstName": "OZAN",
-      "lastName": "KALPAKLIOĞLU",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "ozan",
-    },
-    {
-      "firstName": "DORUK ALP",
-      "lastName": "DUĞAN",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "dorukalp",
-    },
-    {
-      "firstName": "ÇAĞAN ASLAN",
-      "lastName": "ÇETİNKAYA",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "çağanaslan",
-    },
-    {
-      "firstName": "ÖMER ASLAN",
-      "lastName": "BAŞ",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "ömeraslan",
-    },
-    {
-      "firstName": "EMİR EYMEN",
-      "lastName": "YAŞAR",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "emireymen",
-    },
-    {
-      "firstName": "EMİR",
-      "lastName": "SAĞSEN",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "emir",
-    },
-    {
-      "firstName": "EMİR TİMUR",
-      "lastName": "KANBUR",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "emirtimur",
-    },
-    {
-      "firstName": "EMİRALP",
-      "lastName": "PAMUK",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "emiralp",
-    },
-    {
-      "firstName": "KAAN",
-      "lastName": "UZUNLAR",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "kaan",
-    },
-    {
-      "firstName": "KUZEY",
-      "lastName": "KOÇ",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "kuzey",
-    },
-    {
-      "firstName": "YAVUZ KAAN",
-      "lastName": "ŞAHİN",
-
-      "cinsiyet": "E",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "yavuzkaan",
-    },
-    {
-      "firstName": "GÜNEŞ",
-      "lastName": "YILMAZ",
-
-      "cinsiyet": "K",
-      "classId": "7WZSkVUocJAGtzPj9y1X",
-      "password": "güneş",
-    },
-    {
-      "firstName": "ERVA",
-      "lastName": "SANCAK",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "erva",
-    },
-    {
-      "firstName": "MİLA",
-      "lastName": "GÜNAYDIN",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "mila",
-    },
-    {
-      "firstName": "ZÜMRA",
-      "lastName": "ER",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "zümra",
-    },
-    {
-      "firstName": "ECEMSU",
-      "lastName": "ELMAS",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "ecemsu",
-    },
-    {
-      "firstName": "EBRAR BÜŞRA",
-      "lastName": "SOKU",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "ebrarbüşra",
-    },
-    {
-      "firstName": "ALYA NAZ",
-      "lastName": "SEVEN",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "alyanaz",
-    },
-    {
-      "firstName": "EZEL",
-      "lastName": "YILMAZ",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "ezel",
-    },
-    {
-      "firstName": "İKRA HAYAL",
-      "lastName": "YILDIRIM",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "ikrahayal",
-    },
-    {
-      "firstName": "ASEL DURU",
-      "lastName": "ALTUNIŞIK",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "aselduru",
-    },
-    {
-      "firstName": "GÖKÇE ASEL",
-      "lastName": "ÇAKMAK",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "gökçeasel",
-    },
-    {
-      "firstName": "ESLEM ADA",
-      "lastName": "SÜME",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "eslemada",
-    },
-    {
-      "firstName": "KUMSAL",
-      "lastName": "ARSLAN",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "kumsal",
-    },
-    {
-      "firstName": "ZEYNEP",
-      "lastName": "GÖKBULUT",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "zeynep",
-    },
-    {
-      "firstName": "GÖKÇE MELEK",
-      "lastName": "GÜL",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "gökçemelek",
-    },
-    {
-      "firstName": "İDİL ERVA",
-      "lastName": "OKUYAN",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "idilerva",
-    },
-    {
-      "firstName": "TUĞSEM",
-      "lastName": "ÇATAL",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "tuğsem",
-    },
-    {
-      "firstName": "ASEL",
-      "lastName": "BULGURU",
-
-      "cinsiyet": "K",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "asel",
-    },
-    {
-      "firstName": "KAYRA TUNA",
-      "lastName": "BAŞ",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "kayratuna",
-    },
-    {
-      "firstName": "İNAN ASLAN",
-      "lastName": "ELMAS",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "inanaslan",
-    },
-    {
-      "firstName": "BAHTİYAR ASAF",
-      "lastName": "SOYLU",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "bahtiyarasaf",
-    },
-    {
-      "firstName": "ATAMAN ERK",
-      "lastName": "YILMAZ",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "atamanerk",
-    },
-    {
-      "firstName": "YUSUF TAHA",
-      "lastName": "ALTUNBAŞ",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "yusuftaha",
-    },
-    {
-      "firstName": "AHMET EFE",
-      "lastName": "AYDIN",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "ahmetefe",
-    },
-    {
-      "firstName": "ASİL ASRIN",
-      "lastName": "ALBAYRAK",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "asilasrin",
-    },
-    {
-      "firstName": "ALPASLAN",
-      "lastName": "AKYILDIZ",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "alpaslan",
-    },
-    {
-      "firstName": "DEMİR",
-      "lastName": "TÜRCAN",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "demir",
-    },
-    {
-      "firstName": "DENİZHAN",
-      "lastName": "OCAK",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "denizhan",
-    },
-    {
-      "firstName": "DORUK",
-      "lastName": "ELİKCİOĞLU",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "doruk",
-    },
-    {
-      "firstName": "TOPRAK",
-      "lastName": "ATEŞ",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "toprak",
-    },
-    {
-      "firstName": "YUSUF POYRAZ",
-      "lastName": "ÇAKIR",
-
-      "cinsiyet": "E",
-      "classId": "f34faXbksjn3ay7WAsZP",
-      "password": "yusufpoyraz",
-    },
-    {
-      "firstName": "ESLEM",
-      "lastName": "AKOLUK",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "eslem",
-    },
-    {
-      "firstName": "SERENAY",
-      "lastName": "KARA",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "serenay",
-    },
-    {
-      "firstName": "MİRA",
-      "lastName": "YÜKSEL",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "mira",
-    },
-    {
-      "firstName": "ZÜLEYHA",
-      "lastName": "ŞAHİN",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "züleyha",
-    },
-    {
-      "firstName": "ÖYKÜ",
-      "lastName": "ÖZEL",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "öykü",
-    },
-    {
-      "firstName": "MELİKE BAHAR",
-      "lastName": "ÖZTÜRK",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "melikebahar",
-    },
-    {
-      "firstName": "İPEK MEVA",
-      "lastName": "DEMİR",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "ipekmeva",
-    },
-    {
-      "firstName": "EYLÜL",
-      "lastName": "BAYAZIDOĞLU",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "eylül",
-    },
-    {
-      "firstName": "ALYA",
-      "lastName": "ALVER",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "alya",
-    },
-    {
-      "firstName": "ASYA EYLÜL",
-      "lastName": "ÖZTÜRK",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "asyaeylül",
-    },
-    {
-      "firstName": "AYŞE SARE",
-      "lastName": "TEKİN",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "ayşesare",
-    },
-    {
-      "firstName": "BEYZA SARE",
-      "lastName": "BAŞ",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "beyzasare",
-    },
-    {
-      "firstName": "MİLA",
-      "lastName": "TİRYAKİ",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "mila",
-    },
-    {
-      "firstName": "SENANUR",
-      "lastName": "YILMAZ",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "senanur",
-    },
-    {
-      "firstName": "SERRA ALYA",
-      "lastName": "DURU",
-
-      "cinsiyet": "K",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "serraalya",
-    },
-    {
-      "firstName": "DENİZ",
-      "lastName": "BAKAÇ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "deniz",
-    },
-    {
-      "firstName": "KUZEY ARAS",
-      "lastName": "DEMİRBAŞ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "kuzeyaras",
-    },
-    {
-      "firstName": "AREL",
-      "lastName": "HÜLÜR",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "arel",
-    },
-    {
-      "firstName": "SİRAC",
-      "lastName": "GÜL",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "sirac",
-    },
-    {
-      "firstName": "EMİN BERK",
-      "lastName": "ÇELEBİ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "eminberk",
-    },
-    {
-      "firstName": "URAS",
-      "lastName": "DÖNMEZ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "uras",
-    },
-    {
-      "firstName": "DENİZ EFE",
-      "lastName": "KURU",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "denizefe",
-    },
-    {
-      "firstName": "UTKU EMİR",
-      "lastName": "ÇAKIR",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "utkuemir",
-    },
-    {
-      "firstName": "GÖKTUĞ",
-      "lastName": "GÖKÇE",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "göktuğ",
-    },
-    {
-      "firstName": "YİĞİT ALP",
-      "lastName": "BOZKURT",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "yiğitalp",
-    },
-    {
-      "firstName": "KERİM",
-      "lastName": "GÜNDÜZ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "kerim",
-    },
-    {
-      "firstName": "KEREM",
-      "lastName": "GÜNDÜZ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "kerem",
-    },
-    {
-      "firstName": "ATAHAN",
-      "lastName": "DANIŞ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "atahan",
-    },
-    {
-      "firstName": "FURKAN",
-      "lastName": "YILMAZ",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "furkan",
-    },
-    {
-      "firstName": "ÖMER AGAH",
-      "lastName": "İŞLER",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "ömeragah",
-    },
-    {
-      "firstName": "YAĞIZ",
-      "lastName": "İNCE",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "yağız",
-    },
-    {
-      "firstName": "BULUT İHSAN",
-      "lastName": "KELEBEK",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "bulutihsan",
-    },
-    {
-      "firstName": "ARDA TUĞRA",
-      "lastName": "YAKIŞAN",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "ardatuğra",
-    },
-    {
-      "firstName": "MUSTAFA CAN",
-      "lastName": "PALAVAR",
-
-      "cinsiyet": "E",
-      "classId": "TU1vvDUl3eJV7HYUswVa",
-      "password": "mustafacan",
-    },
-    {
-      "firstName": "ASUDE HÜMA",
-      "lastName": "DURSUN",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "asudehüma",
-    },
-    {
-      "firstName": "BEYZA GÖKSU",
-      "lastName": "ALKURT",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "beyzagöksu",
-    },
-    {
-      "firstName": "EYLÜL SEVİM",
-      "lastName": "DUMAN",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "eylülsevim",
-    },
-    {
-      "firstName": "ELİSA",
-      "lastName": "ÖZDEMİR",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "elisa",
-    },
-    {
-      "firstName": "ELİF LİNA",
-      "lastName": "TUZLUSU",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "eliflina",
-    },
-    {
-      "firstName": "YAĞMUR",
-      "lastName": "GÖZPINAR",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "yağmur",
-    },
-    {
-      "firstName": "EBRAR TUANA",
-      "lastName": "ŞENEL",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ebrartuana",
-    },
-    {
-      "firstName": "ALYA",
-      "lastName": "TÜRCAN",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "alya",
-    },
-    {
-      "firstName": "ÖYKÜ",
-      "lastName": "ÇAPKIN",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "öykü",
-    },
-    {
-      "firstName": "ÖZGÜ",
-      "lastName": "ÇAVAŞ",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "özgü",
-    },
-    {
-      "firstName": "ALİNA",
-      "lastName": "KURT",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "alina",
-    },
-    {
-      "firstName": "EBRAR",
-      "lastName": "ÖZDEN",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ebrar",
-    },
-    {
-      "firstName": "ELİF DEREN",
-      "lastName": "BOLAT",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "elifderen",
-    },
-    {
-      "firstName": "İPEK NEVA",
-      "lastName": "GÜNAYDIN",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ipekneva",
-    },
-    {
-      "firstName": "MELEK NİL",
-      "lastName": "GÜNAYDIN",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "meleknil",
-    },
-    {
-      "firstName": "ZEYNEP",
-      "lastName": "SAKA",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "zeynep",
-    },
-    {
-      "firstName": "ZEYNEP HAFSA",
-      "lastName": "KILIÇ",
-
-      "cinsiyet": "K",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "zeynephafsa",
-    },
-    {
-      "firstName": "ALİ KEREM",
-      "lastName": "KARAGÖL",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "alikerem",
-    },
-    {
-      "firstName": "BAYRAM YALIN",
-      "lastName": "USTA",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "bayramyalin",
-    },
-    {
-      "firstName": "AHMET ARAS",
-      "lastName": "AK",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ahmetaras",
-    },
-    {
-      "firstName": "MİRAÇ ALİ",
-      "lastName": "KURNAZ",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "miraçali",
-    },
-    {
-      "firstName": "YİĞİT ALP",
-      "lastName": "AVCI",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "yiğitalp",
-    },
-    {
-      "firstName": "ERTUĞRUL",
-      "lastName": "ASAL",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ertuğrul",
-    },
-    {
-      "firstName": "İSMET",
-      "lastName": "ÖZMEN",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ismet",
-    },
-    {
-      "firstName": "ATA",
-      "lastName": "ÖZPEHLİVAN",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ata",
-    },
-    {
-      "firstName": "ÇAĞLAR ALP",
-      "lastName": "ATİNKAYA",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "çağlaralp",
-    },
-    {
-      "firstName": "DEMİR",
-      "lastName": "BEŞİRLİ",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "demir",
-    },
-    {
-      "firstName": "KAĞAN",
-      "lastName": "UĞURLU",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "kağan",
-    },
-    {
-      "firstName": "ÖMER ASAF",
-      "lastName": "APAYDIN",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ömerasaf",
-    },
-    {
-      "firstName": "SARP",
-      "lastName": "POYRAZ",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "sarp",
-    },
-    {
-      "firstName": "ABDÜLKERİM",
-      "lastName": "KAYKANA",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "abdülkerim",
-    },
-    {
-      "firstName": "AYAZ",
-      "lastName": "ÖZATA",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "ayaz",
-    },
-    {
-      "firstName": "ÇINAR ALP",
-      "lastName": "GENÇALİOĞLU",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "çinaralp",
-    },
-    {
-      "firstName": "MEHMET EFE",
-      "lastName": "ÖZTÜRK",
-
-      "cinsiyet": "E",
-      "classId": "k5UNiQIMBdDHCd8Soo8E",
-      "password": "mehmetefe",
-    },
-    {
-      "firstName": "KARDELEN",
-      "lastName": "KÖKSAL",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "kardelen",
-    },
-    {
-      "firstName": "ZEYNEP DURU",
-      "lastName": "BÖLEK",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "zeynepduru",
-    },
-    {
-      "firstName": "BERİL",
-      "lastName": "BAYHAN",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "beril",
-    },
-    {
-      "firstName": "ASYA",
-      "lastName": "ÇALIŞKAN",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "asya",
-    },
-    {
-      "firstName": "EKİN",
-      "lastName": "TAŞ",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "ekin",
-    },
-    {
-      "firstName": "ZEYNEP MİRA",
-      "lastName": "YURTSEVEN",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "zeynepmira",
-    },
-    {
-      "firstName": "ZEYNEP",
-      "lastName": "ÇAKIR",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "zeynep",
-    },
-    {
-      "firstName": "ELİF",
-      "lastName": "ADIGÜZEL",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "elif",
-    },
-    {
-      "firstName": "AHSEN",
-      "lastName": "AKDOĞAN",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "ahsen",
-    },
-    {
-      "firstName": "HAFSA ZEHRA",
-      "lastName": "KESKİN",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "hafsazehra",
-    },
-    {
-      "firstName": "İLKEM NİL",
-      "lastName": "AKMAN",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "ilkemnil",
-    },
-    {
-      "firstName": "REYYAN MEVA",
-      "lastName": "KARA",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "reyyanmeva",
-    },
-    {
-      "firstName": "ŞEYMA",
-      "lastName": "TANIŞ",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "şeyma",
-    },
-    {
-      "firstName": "AZRA",
-      "lastName": "SEMİZ",
-
-      "cinsiyet": "K",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "azra",
-    },
-    {
-      "firstName": "MUHAMMED TALHA",
-      "lastName": "GÜNEŞ",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "muhammedtalha",
-    },
-    {
-      "firstName": "MUHAMMED ERİM",
-      "lastName": "TURAN",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "muhammederim",
-    },
-    {
-      "firstName": "ÇAĞAN ULAŞ",
-      "lastName": "SÜRGÜLÜ",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "çağanulaş",
-    },
-    {
-      "firstName": "ALİ",
-      "lastName": "ARSLANTÜRK",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "ali",
-    },
-    {
-      "firstName": "EMİR ÜNAL",
-      "lastName": "SOYSAL",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "emirünal",
-    },
-    {
-      "firstName": "ENSAR TAHA",
-      "lastName": "CENGİZ",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "ensartaha",
-    },
-    {
-      "firstName": "ALİ HAMZA",
-      "lastName": "ACAR",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "alihamza",
-    },
-    {
-      "firstName": "POYRAZ",
-      "lastName": "BAHTİYAR",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "poyraz",
-    },
-    {
-      "firstName": "ATLAS",
-      "lastName": "İNCE",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "atlas",
-    },
-    {
-      "firstName": "ATA",
-      "lastName": "KILIÇ",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "ata",
-    },
-    {
-      "firstName": "EYMEN",
-      "lastName": "ERKEK",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "eymen",
-    },
-    {
-      "firstName": "DENİZ",
-      "lastName": "AKSU",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "deniz",
-    },
-    {
-      "firstName": "BURAK",
-      "lastName": "SAKA",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "burak",
-    },
-    {
-      "firstName": "MUSTAFA EDİZ",
-      "lastName": "TURAN",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "mustafaediz",
-    },
-    {
-      "firstName": "UTKU",
-      "lastName": "KAYMAZ",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "utku",
-    },
-    {
-      "firstName": "YAMAÇ",
-      "lastName": "KILIÇ",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "yamaç",
-    },
-    {
-      "firstName": "YAVUZ SELİM",
-      "lastName": "ÖZTÜRK",
-
-      "cinsiyet": "E",
-      "classId": "sBGYab6r5KRTAznooQI5",
-      "password": "yavuzselim",
-    },
-    {
-      "firstName": "DERİN",
-      "lastName": "AKBULUT",
-
-      "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "derin",
-    },
-    {
-      "firstName": "NİHAN",
-      "lastName": "KIR",
-
-      "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "nihan",
-    },
-    {
-      "firstName": "ZEYNEP ELA",
-      "lastName": "ŞENGÜN",
-
-      "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "zeynepela",
-    },
-    {
-      "firstName": "ECREN",
-      "lastName": "ÖZKAN",
-
-      "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "ecren",
-    },
-    {
-      "firstName": "CEYLAN LENA",
-      "lastName": "DENİZ",
-
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "ceylanlena",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "elifasya",
     },
     {
-      "firstName": "AYŞE",
-      "lastName": "KARGİ",
-
+      "firstName": "EMİNE ELA",
+      "lastName": "TEPELİ",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "ayşe",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "emineela",
     },
     {
       "firstName": "BERRA",
-      "lastName": "TURAN",
-
+      "lastName": "YILMAZ",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
+      "classId": "mJhIkdf3VSezptHZeIj4",
       "password": "berra",
     },
     {
-      "firstName": "İKRA",
-      "lastName": "DİLAVER",
-
+      "firstName": "BEYZANUR",
+      "lastName": "ŞAHİN",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "ikra",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "beyzanur",
     },
     {
-      "firstName": "BİLGE HÜMA",
-      "lastName": "TÜRKMEN",
-
+      "firstName": "EYLÜL",
+      "lastName": "ERZURUMLUOĞLU",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "bilgehüma",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "eylül",
     },
     {
-      "firstName": "YAĞMUR",
-      "lastName": "ATAMAN",
-
+      "firstName": "ELANUR",
+      "lastName": "KELEŞ",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "yağmur",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "elanur",
     },
     {
-      "firstName": "EBREN AMİNE",
-      "lastName": "DOĞAN",
-
+      "firstName": "BİLGENAZ",
+      "lastName": "TURHAN",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "ebrenamine",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "bilgenaz",
     },
     {
-      "firstName": "TUNAY",
-      "lastName": "GÜNDOĞDU",
-
+      "firstName": "DURU",
+      "lastName": "DUMAN",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "tunay",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "duru",
     },
     {
-      "firstName": "ARYA SU",
-      "lastName": "CANDAN",
-
+      "firstName": "ELİZ",
+      "lastName": "AKTAŞ",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "aryasu",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "eliz",
     },
     {
-      "firstName": "ELİF ZÜMRA",
-      "lastName": "ÖZDEN",
-
+      "firstName": "İZEL",
+      "lastName": "AKTAŞ",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "elifzümra",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "izel",
     },
     {
-      "firstName": "MİRAY ESLEM",
-      "lastName": "KEPENEK",
-
+      "firstName": "GÜLÇE NEHİR",
+      "lastName": "ŞEHİTTEPE",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "mirayeslem",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "gülçenehir",
     },
     {
-      "firstName": "ZÜMRA",
-      "lastName": "AYDINHAN",
-
+      "firstName": "İKRA NUR",
+      "lastName": "KAPLAN",
+      "sinif": "4-D",
       "cinsiyet": "K",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "zümra",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "ikranur",
     },
     {
-      "firstName": "GÖKAY",
-      "lastName": "ALTINDEĞER",
-
-      "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "gökay",
+      "firstName": "LİNA",
+      "lastName": "KOÇ",
+      "sinif": "4-D",
+      "cinsiyet": "K",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "lina",
     },
     {
-      "firstName": "YAHYA",
-      "lastName": "YAŞA",
-
-      "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "yahya",
+      "firstName": "MAHPERİ",
+      "lastName": "GEM",
+      "sinif": "4-D",
+      "cinsiyet": "K",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "mahperi",
     },
     {
-      "firstName": "MİRAÇ EFE",
-      "lastName": "SAĞSEN",
-
-      "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "miraçefe",
+      "firstName": "MELİKE UMAY",
+      "lastName": "COŞKUN",
+      "sinif": "4-D",
+      "cinsiyet": "K",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "melikeumay",
     },
     {
-      "firstName": "URAS",
-      "lastName": "KILIÇ",
-
-      "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "uras",
+      "firstName": "SERRANUR",
+      "lastName": "DEMİRBAŞ",
+      "sinif": "4-D",
+      "cinsiyet": "K",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "serranur",
     },
     {
-      "firstName": "MEHMET SELİM",
-      "lastName": "YILMAZ",
-
-      "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "mehmetselim",
+      "firstName": "SUEDA",
+      "lastName": "ALTMIŞDÖRTOĞLU",
+      "sinif": "4-D",
+      "cinsiyet": "K",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "sueda",
     },
     {
-      "firstName": "DEMİR URAS",
-      "lastName": "ÖZİPEK",
-
-      "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "demiruras",
+      "firstName": "ZEYNEP NUR",
+      "lastName": "DERELİ",
+      "sinif": "4-D",
+      "cinsiyet": "K",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "zeynepnur",
     },
     {
-      "firstName": "DORUK SELAMİ",
-      "lastName": "ERSÖZ",
-
+      "firstName": "YILDIRIM",
+      "lastName": "BAYAZIDOĞLU",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "dorukselami",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "yıldırım",
     },
     {
-      "firstName": "CAN",
-      "lastName": "GÜVELİ",
-
+      "firstName": "SELİM",
+      "lastName": "ERTÜRK",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "can",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "selim",
     },
     {
-      "firstName": "OKTAY TALHA",
-      "lastName": "EV",
-
+      "firstName": "ALPARSLAN YABGU",
+      "lastName": "VARLIK",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "oktaytalha",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "alparslanyabgu",
     },
     {
-      "firstName": "YAVUZ",
-      "lastName": "ŞENYURT",
-
+      "firstName": "YİĞİT",
+      "lastName": "KURU",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "yavuz",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "yiğit",
     },
     {
-      "firstName": "FURKAN CAN",
-      "lastName": "GÖNÜL",
-
+      "firstName": "AHMET SEDAT",
+      "lastName": "COŞKUN",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "furkancan",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "ahmetsedat",
     },
     {
-      "firstName": "YUSUF KEREM",
-      "lastName": "GÜNGÖR",
-
+      "firstName": "ALİ TURAN",
+      "lastName": "BURHAN",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "yusufkerem",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "alituran",
     },
     {
-      "firstName": "DORUK AZMİ",
-      "lastName": "GÖÇ",
-
+      "firstName": "ALPEREN",
+      "lastName": "KOCAKOÇ",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "dorukazmi",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "alperen",
     },
     {
-      "firstName": "SEMİH",
-      "lastName": "KUVAN",
-
+      "firstName": "ARAZ",
+      "lastName": "AKKUZU",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "semih",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "araz",
     },
     {
-      "firstName": "ASLAN",
-      "lastName": "DÖNMEZ",
-
+      "firstName": "AYHAN AYAZ",
+      "lastName": "AYDOĞDU",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "aslan",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "ayhanayaz",
     },
     {
-      "firstName": "DENİZ",
-      "lastName": "KARAOĞLU",
-
+      "firstName": "ÖMER TOPRAK",
+      "lastName": "ALTUNTAŞ",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "deniz",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "ömertoprak",
     },
     {
-      "firstName": "EREN ENGİN",
-      "lastName": "KEPENEK",
-
+      "firstName": "BAHTİYAR ÇINAR",
+      "lastName": "ÇAKIR",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "erenengin",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "bahtiyarçınar",
     },
     {
-      "firstName": "ATEŞ",
-      "lastName": "KAVGACI",
-
+      "firstName": "BARAN SALİM",
+      "lastName": "ÖZTÜRK",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
-      "password": "ateş",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "baransalim",
+    },
+    {
+      "firstName": "ÇINAR OLCAY",
+      "lastName": "SENDAŞ",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "çınarolcay",
+    },
+    {
+      "firstName": "FATİH",
+      "lastName": "YÜKSEL",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "fatih",
+    },
+    {
+      "firstName": "FIRAT",
+      "lastName": "ÇABUK",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "fırat",
+    },
+    {
+      "firstName": "YAVUZ SELİM",
+      "lastName": "KIR",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "yavuzselim",
+    },
+    {
+      "firstName": "GÜNEY GURUR",
+      "lastName": "GÜNDAY",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "güneygurur",
+    },
+    {
+      "firstName": "MEHMET AKİF",
+      "lastName": "BULUT",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "mehmetakif",
+    },
+    {
+      "firstName": "YİĞİT EGE",
+      "lastName": "AYDOĞAN",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "yiğitege",
     },
     {
       "firstName": "YAMAN",
-      "lastName": "AKGÜL",
-
+      "lastName": "AKBAL",
+      "sinif": "4-D",
       "cinsiyet": "E",
-      "classId": "zDqrDpfK2c2JApWZKcTS",
+      "classId": "mJhIkdf3VSezptHZeIj4",
       "password": "yaman",
+    },
+    {
+      "firstName": "SEYYİD AHMED",
+      "lastName": "ŞAHİN",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "seyyidahmed",
+    },
+    {
+      "firstName": "YUSUF ARDA",
+      "lastName": "ERCAN",
+      "sinif": "4-D",
+      "cinsiyet": "E",
+      "classId": "mJhIkdf3VSezptHZeIj4",
+      "password": "yusufarda",
     },
   ];
 

@@ -9,7 +9,7 @@ import 'Ogretmen_Ana_Sayfasi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart'; // <--- Lottie paketi eklendi
+import 'package:lottie/lottie.dart';
 
 class sinifseceklescreen extends StatefulWidget {
   final bool isTeacherMaster;
@@ -23,22 +23,15 @@ class sinifseceklescreen extends StatefulWidget {
 class _sinifseceklescreenState extends State<sinifseceklescreen> {
   final List<String> _branches = ['A', 'B', 'C', 'D', 'E', 'F', 'H', 'I', 'J'];
 
-  // Atatürk'ün Eğitim, Motivasyon ve Kişisel Gelişim Sözleri Listesi
   final List<String> _ataturkSozleri = [
     "Eğitimdir ki bir milleti; ya özgür, bağımsız, şanlı, yüksek bir topluluk halinde yaşatır; ya da esaret ve sefalete terk eder.",
     "Dünyada her şey için, medeniyet için, hayat için, başarı için en hakiki mürşit ilimdir, fendir.",
-    "Milletleri kurtaranlar yalnız ve ancak öğretmenlerdir. Öğretm年から, eğiticiden mahrum bir millet, henüz bir millet namını almak yeteneğini kazanmamıştır.",
+    "Milletleri kurtaranlar yalnız ve ancak öğretmenlerdir.",
     "Eğitim kültürünü doğrudan doğruya halka yaymak, halkı aydınlatmak en büyük görevimizdir.",
     "Öğretmenler! Yeni nesil sizin eseriniz olacaktır.",
-    "Çocuklarımızı ulusun bağımsızlığına, kendi benliğine, millî geleneklerine düşman olan hususlarla mücadele etmek lüzumu ile donatmalıyız.",
     "Hayatta en hakiki mürşit ilimdir.",
-    "Beni görmek demek mutlaka yüzümü görmek demek değildir. Benim fikirlerimi, benim duygularımı anlıyorsanız ve hissediyorsanız bu yeterlidir.",
-    "Fikriyat ve zihniyet terbiyesi, maddî terbiye ile beraber yürütülmelidir.",
-    "Çalışmadan, yorulmadan ve üretenmeden, rahat yaşamak isteyen toplumlar; evvela haysiyetlerini, sonra hürriyetlerini ve daha sonra istiklal ve istikballerini kaybederler.",
-    "Zafer, 'Zafer benimdir' diyebilenindir. Başaracağım diyebilen ise başarıya ulaşabilir.",
     "Umutsuz durumlar yoktur, umutsuz insanlar vardır. Ben hiçbir zaman umudumu yitirmedim.",
-    "Milli eğitim inancı, milli iradenin kalbidir.",
-    "Gençler! Cesaretimizi takviye eden ve idame eden sizsiniz. Siz almakta olduğunuz terbiye ve irfan ile insanlık medeniyetinin, vatan sevgisinin en kıymetli timsali olacaksınız.",
+    "Gençler! Cesaretimizi takviye eden ve idame eden sizsiniz.",
   ];
 
   late String _secilenSoz;
@@ -49,7 +42,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
     _rastgeleSozSec();
   }
 
-  // Her girişte veya yenile butonuna basıldığında rastgele bir söz seçen fonksiyon
   void _rastgeleSozSec() {
     final random = Random();
     setState(() {
@@ -128,25 +120,33 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
       text: mevcutTeacherName,
     );
 
+    String baslikMetni = "Sınıfı Düzenle";
+    if (userRole == 'admin') baslikMetni = "İdareciyi Düzenle";
+    if (userRole == 'guidance_teacher') {
+      baslikMetni = "Rehber Öğretmeni Düzenle";
+    }
+    if (userRole == 'special_education_teacher') {
+      baslikMetni = "Özel Eğitim Öğretmenini Düzenle";
+    }
+    if (userRole == 'kindergarten_teacher') {
+      baslikMetni = "Ana Sınıfı Öğretmenini Düzenle";
+    }
+
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text(
-                userRole == 'admin'
-                    ? "İdareciyi Düzenle"
-                    : (userRole == 'guidance_teacher'
-                          ? "Rehber Öğretmeni Düzenle"
-                          : "Sınıfı Düzenle"),
-              ),
+              title: Text(baslikMetni),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (userRole != 'admin' &&
-                        userRole != 'guidance_teacher') ...[
+                        userRole != 'guidance_teacher' &&
+                        userRole != 'special_education_teacher' &&
+                        userRole != 'kindergarten_teacher') ...[
                       DropdownButtonFormField<String>(
                         initialValue: selectedGrade,
                         decoration: const InputDecoration(
@@ -193,13 +193,9 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                           );
                         }),
                       ],
-                      decoration: InputDecoration(
-                        labelText: userRole == 'admin'
-                            ? "İdareci Adı Soyadı"
-                            : (userRole == 'guidance_teacher'
-                                  ? "Rehber Öğretmen Adı Soyadı"
-                                  : "Öğretmen Adı Soyadı"),
-                        border: const OutlineInputBorder(),
+                      decoration: const InputDecoration(
+                        labelText: "Adı Soyadı",
+                        border: OutlineInputBorder(),
                       ),
                     ),
                   ],
@@ -219,6 +215,10 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                         ? "İdareci: $yeniTeacherName"
                         : (userRole == 'guidance_teacher'
                               ? "Rehber Öğretmen: $yeniTeacherName"
+                              : userRole == 'special_education_teacher'
+                              ? "Özel Eğitim: $yeniTeacherName"
+                              : userRole == 'kindergarten_teacher'
+                              ? "Ana Sınıfı: $yeniTeacherName"
                               : "$selectedGrade/$selectedBranch");
 
                     bool? onay = await showDialog<bool>(
@@ -247,16 +247,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                           .doc(classId)
                           .update({
                             'className': yeniClassName,
-                            'grade':
-                                (userRole == 'admin' ||
-                                    userRole == 'guidance_teacher')
-                                ? ''
-                                : selectedGrade,
-                            'branch':
-                                (userRole == 'admin' ||
-                                    userRole == 'guidance_teacher')
-                                ? ''
-                                : selectedBranch,
                             'teacherName': yeniTeacherName,
                           });
 
@@ -297,7 +287,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(context);
-
               await FirebaseFirestore.instance
                   .collection('classes')
                   .doc(classId)
@@ -371,6 +360,8 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           List<QueryDocumentSnapshot> admins = [];
           List<QueryDocumentSnapshot> branchTeachers = [];
           List<QueryDocumentSnapshot> guidanceTeachers = [];
+          List<QueryDocumentSnapshot> specialEducationTeachers = [];
+          List<QueryDocumentSnapshot> kindergartenTeachers = [];
 
           for (var doc in allDocs) {
             var data = doc.data() as Map<String, dynamic>;
@@ -378,12 +369,16 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
 
             if (userRole == 'admin') {
               admins.add(doc);
+            } else if (userRole == 'guidance_teacher') {
+              guidanceTeachers.add(doc);
             } else if (userRole == 'branch_teacher' ||
                 userRole == 'english_teacher' ||
                 userRole == 'religious_teacher') {
               branchTeachers.add(doc);
-            } else if (userRole == 'guidance_teacher') {
-              guidanceTeachers.add(doc);
+            } else if (userRole == 'special_education_teacher') {
+              specialEducationTeachers.add(doc);
+            } else if (userRole == 'kindergarten_teacher') {
+              kindergartenTeachers.add(doc);
             } else {
               String grade = data['grade'] ?? '1';
               if (groupedClasses.containsKey(grade)) {
@@ -392,40 +387,18 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
             }
           }
 
-          // İdarecileri Protokol ve Türkçe Alfabetik Sıraya Göre Sıralama
+          // Sıralama fonksiyonları
           admins.sort((a, b) {
             var dataA = a.data() as Map<String, dynamic>;
             var dataB = b.data() as Map<String, dynamic>;
+            String isimA = dataA['teacherName'] ?? '';
+            String isimB = dataB['teacherName'] ?? '';
+            return isimA.toLowerCase().compareTo(isimB.toLowerCase());
+          });
 
-            String unvanA = (dataA['unvan'] ?? dataA['className'] ?? '')
-                .toString()
-                .toLowerCase();
-            String unvanB = (dataB['unvan'] ?? dataB['className'] ?? '')
-                .toString()
-                .toLowerCase();
-
-            int protokolPuani(String unvan) {
-              if (unvan.contains('müdür') &&
-                  !unvan.contains('başyardımcısı') &&
-                  !unvan.contains('yardımcısı')) {
-                return 1;
-              }
-              if (unvan.contains('başyardımcısı')) {
-                return 2;
-              }
-              if (unvan.contains('yardımcısı')) {
-                return 3;
-              }
-              return 4;
-            }
-
-            int puanA = protokolPuani(unvanA);
-            int puanB = protokolPuani(unvanB);
-
-            if (puanA != puanB) {
-              return puanA.compareTo(puanB);
-            }
-
+          guidanceTeachers.sort((a, b) {
+            var dataA = a.data() as Map<String, dynamic>;
+            var dataB = b.data() as Map<String, dynamic>;
             String isimA = dataA['teacherName'] ?? '';
             String isimB = dataB['teacherName'] ?? '';
             return isimA.toLowerCase().compareTo(isimB.toLowerCase());
@@ -434,33 +407,22 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           branchTeachers.sort((a, b) {
             var dataA = a.data() as Map<String, dynamic>;
             var dataB = b.data() as Map<String, dynamic>;
-
-            String roleA = dataA['userRole'] ?? '';
-            String roleB = dataB['userRole'] ?? '';
-
-            int bransPuani(String role) {
-              if (role == 'english_teacher') return 1;
-              if (role == 'religious_teacher') return 2;
-              return 3;
-            }
-
-            int puanA = bransPuani(roleA);
-            int puanB = bransPuani(roleB);
-
-            if (puanA != puanB) {
-              return puanA.compareTo(puanB);
-            }
-
             String isimA = dataA['teacherName'] ?? '';
             String isimB = dataB['teacherName'] ?? '';
             return isimA.toLowerCase().compareTo(isimB.toLowerCase());
           });
 
-          // Rehber Öğretmenleri Türkçe Alfabetik Sıralama
-          guidanceTeachers.sort((a, b) {
+          specialEducationTeachers.sort((a, b) {
             var dataA = a.data() as Map<String, dynamic>;
             var dataB = b.data() as Map<String, dynamic>;
+            String isimA = dataA['teacherName'] ?? '';
+            String isimB = dataB['teacherName'] ?? '';
+            return isimA.toLowerCase().compareTo(isimB.toLowerCase());
+          });
 
+          kindergartenTeachers.sort((a, b) {
+            var dataA = a.data() as Map<String, dynamic>;
+            var dataB = b.data() as Map<String, dynamic>;
             String isimA = dataA['teacherName'] ?? '';
             String isimB = dataB['teacherName'] ?? '';
             return isimA.toLowerCase().compareTo(isimB.toLowerCase());
@@ -479,17 +441,20 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
           List<String> seviyeler = ['1', '2', '3', '4'];
 
           int adminCount = admins.isNotEmpty ? 1 : 0;
-          int branchCount = branchTeachers.isNotEmpty ? 1 : 0;
           int guidanceCount = guidanceTeachers.isNotEmpty ? 1 : 0;
-          int classTeachersCardCount = 1; // Tüm sınıfları kapsayan tek ana kart
+          int branchCount = branchTeachers.isNotEmpty ? 1 : 0;
+          int specialEduCount = specialEducationTeachers.isNotEmpty ? 1 : 0;
+          int kindergartenCount = kindergartenTeachers.isNotEmpty ? 1 : 0;
+          int classTeachersCardCount = 1;
 
-          // +1 Atatürk Lottie kartı için
           int totalItemCount =
               adminCount +
-              branchCount +
               guidanceCount +
+              branchCount +
+              specialEduCount +
+              kindergartenCount +
               classTeachersCardCount +
-              1;
+              1; // Lottie
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -497,420 +462,82 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
             itemBuilder: (context, index) {
               // 1. İdareciler Kartı
               if (admins.isNotEmpty && index == 0) {
-                return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 4,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: ExpansionTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.purple.shade50,
-                      child: const Icon(
-                        Icons.admin_panel_settings,
-                        color: Colors.purple,
-                      ),
-                    ),
-                    title: const Text(
-                      "Okul İdarecileri ve Yöneticiler",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.purple,
-                      ),
-                    ),
-                    subtitle: Text("${admins.length} idareci kayıtlı"),
-                    children: admins.map((doc) {
-                      var adminData = doc.data() as Map<String, dynamic>;
-                      String adminId = doc.id;
-                      String adminName = adminData['teacherName'] ?? 'İdareci';
-                      String correctPassword = adminData['password'] ?? '';
-                      String userRole = adminData['userRole'] ?? 'admin';
-                      String idareciRolAciklamasi =
-                          adminData['unvan'] ?? 'İdareci';
-
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.purple.shade100),
-                        ),
-                        child: ListTile(
-                          title: Row(
-                            children: [
-                              Text(
-                                adminName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Text(
-                            "($idareciRolAciklamasi)",
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.purple,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          trailing: widget.isTeacherMaster
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        _sifreDogrulaVaIslemYap(
-                                          context,
-                                          correctPassword,
-                                          adminName,
-                                          () {
-                                            _sinifDuzenleDialog(
-                                              context,
-                                              adminId,
-                                              '',
-                                              '',
-                                              adminName,
-                                              userRole,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        _sifreDogrulaVaIslemYap(
-                                          context,
-                                          correctPassword,
-                                          adminName,
-                                          () {
-                                            _sinifSil(
-                                              context,
-                                              adminId,
-                                              adminName,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                )
-                              : null,
-                          onTap: () {
-                            _sifreDogrulaVeIslemYardimcisi(
-                              context,
-                              correctPassword,
-                              adminName,
-                              adminId,
-                              userRole,
-                            );
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                return _buildKartWidget(
+                  context,
+                  baslik: "Okul İdarecileri ve Yöneticiler",
+                  ikon: Icons.admin_panel_settings,
+                  renk: Colors.purple,
+                  belgeListesi: admins,
+                  altAciklama: "${admins.length} idareci kayıtlı",
                 );
               }
 
-              // 2. Branş Öğretmenleri Kartı
-              int branchTeacherCardIndex = adminCount;
-              if (branchTeachers.isNotEmpty &&
-                  index == branchTeacherCardIndex) {
-                return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 4,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: ExpansionTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.orange.shade50,
-                      child: const Icon(Icons.menu_book, color: Colors.orange),
-                    ),
-                    title: const Text(
-                      "Branş Öğretmenleri",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.orange,
-                      ),
-                    ),
-                    subtitle: Text(
-                      "${branchTeachers.length} branş öğretmeni kayıtlı",
-                    ),
-                    children: branchTeachers.map((doc) {
-                      var teacherData = doc.data() as Map<String, dynamic>;
-                      String teacherId = doc.id;
-                      String teacherName =
-                          teacherData['teacherName'] ?? 'Branş Öğretmeni';
-                      String correctPassword = teacherData['password'] ?? '';
-                      String userRole =
-                          teacherData['userRole'] ?? 'branch_teacher';
-
-                      String rolAciklamasi = "Branş Öğretmeni";
-                      if (userRole == 'english_teacher') {
-                        rolAciklamasi = "İngilizce Öğretmeni";
-                      } else if (userRole == 'religious_teacher') {
-                        rolAciklamasi = "Din Kültürü Öğretmeni";
-                      }
-
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.shade100),
-                        ),
-                        child: ListTile(
-                          title: Row(
-                            children: [
-                              Text(
-                                teacherName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Text(
-                            "($rolAciklamasi)",
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          trailing: widget.isTeacherMaster
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        _sifreDogrulaVaIslemYap(
-                                          context,
-                                          correctPassword,
-                                          teacherName,
-                                          () {
-                                            _sinifDuzenleDialog(
-                                              context,
-                                              teacherId,
-                                              '',
-                                              '',
-                                              teacherName,
-                                              userRole,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        _sifreDogrulaVaIslemYap(
-                                          context,
-                                          correctPassword,
-                                          teacherName,
-                                          () {
-                                            _sinifSil(
-                                              context,
-                                              teacherId,
-                                              teacherName,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                )
-                              : null,
-                          onTap: () {
-                            _sifreDogrulaVeIslemYardimcisi(
-                              context,
-                              correctPassword,
-                              teacherName,
-                              teacherId,
-                              userRole,
-                            );
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              }
-
-              // 3. Rehber Öğretmenler Kartı
-              int guidanceCardIndex = adminCount + branchCount;
-              if (guidanceTeachers.isNotEmpty && index == guidanceCardIndex) {
-                return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 4,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: ExpansionTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.teal.shade50,
-                      child: const Icon(
-                        Icons.support_agent,
-                        color: Colors.teal,
-                      ),
-                    ),
-                    title: const Text(
-                      "Rehber Öğretmenler",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.teal,
-                      ),
-                    ),
-                    subtitle: Text(
+              // 2. Rehber Öğretmenler Kartı (İdarecilerin altına taşındı)
+              int guidanceIndex = adminCount;
+              if (guidanceTeachers.isNotEmpty && index == guidanceIndex) {
+                return _buildKartWidget(
+                  context,
+                  baslik: "Rehber Öğretmenler",
+                  ikon: Icons.support_agent,
+                  renk: Colors.teal,
+                  belgeListesi: guidanceTeachers,
+                  altAciklama:
                       "${guidanceTeachers.length} rehber öğretmen kayıtlı",
-                    ),
-                    children: guidanceTeachers.map((doc) {
-                      var guidanceData = doc.data() as Map<String, dynamic>;
-                      String guidanceId = doc.id;
-                      String guidanceName =
-                          guidanceData['teacherName'] ?? 'Rehber Öğretmen';
-                      String correctPassword = guidanceData['password'] ?? '';
-                      String userRole =
-                          guidanceData['userRole'] ?? 'guidance_teacher';
-
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.teal.shade100),
-                        ),
-                        child: ListTile(
-                          title: Row(
-                            children: [
-                              Text(
-                                guidanceName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: const Text(
-                            "Rehber Öğretmen",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.teal,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          trailing: widget.isTeacherMaster
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        _sifreDogrulaVaIslemYap(
-                                          context,
-                                          correctPassword,
-                                          guidanceName,
-                                          () {
-                                            _sinifDuzenleDialog(
-                                              context,
-                                              guidanceId,
-                                              '',
-                                              '',
-                                              guidanceName,
-                                              userRole,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                        size: 20,
-                                      ),
-                                      onPressed: () {
-                                        _sifreDogrulaVaIslemYap(
-                                          context,
-                                          correctPassword,
-                                          guidanceName,
-                                          () {
-                                            _sinifSil(
-                                              context,
-                                              guidanceId,
-                                              guidanceName,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                )
-                              : null,
-                          onTap: () {
-                            _sifreDogrulaVeIslemYardimcisi(
-                              context,
-                              correctPassword,
-                              guidanceName,
-                              guidanceId,
-                              userRole,
-                            );
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
                 );
               }
 
-              // 4. "Sınıf Öğretmenleri" Ana Kartı (1, 2, 3 ve 4. Sınıfları İçinde Tutar)
+              // 3. Branş Öğretmenleri Kartı
+              int branchIndex = adminCount + guidanceCount;
+              if (branchTeachers.isNotEmpty && index == branchIndex) {
+                return _buildKartWidget(
+                  context,
+                  baslik: "Branş Öğretmenleri",
+                  ikon: Icons.menu_book,
+                  renk: Colors.orange,
+                  belgeListesi: branchTeachers,
+                  altAciklama:
+                      "${branchTeachers.length} branş öğretmeni kayıtlı",
+                );
+              }
+
+              // 4. Özel Eğitim Kartı (Yeni)
+              int specialEduIndex = adminCount + guidanceCount + branchCount;
+              if (specialEducationTeachers.isNotEmpty &&
+                  index == specialEduIndex) {
+                return _buildKartWidget(
+                  context,
+                  baslik: "Özel Eğitim",
+                  ikon: Icons.accessibility_new,
+                  renk: Colors.brown,
+                  belgeListesi: specialEducationTeachers,
+                  altAciklama:
+                      "${specialEducationTeachers.length} özel eğitim kaydı var",
+                );
+              }
+
+              // 5. Ana Sınıf Kartı (Yeni)
+              int kindergartenIndex =
+                  adminCount + guidanceCount + branchCount + specialEduCount;
+              if (kindergartenTeachers.isNotEmpty &&
+                  index == kindergartenIndex) {
+                return _buildKartWidget(
+                  context,
+                  baslik: "Ana Sınıfı",
+                  ikon: Icons.child_care,
+                  renk: Colors.pink,
+                  belgeListesi: kindergartenTeachers,
+                  altAciklama:
+                      "${kindergartenTeachers.length} ana sınıfı kaydı var",
+                );
+              }
+
+              // 6. Sınıf Öğretmenleri Ana Kartı
               int classTeachersCardIndex =
-                  adminCount + branchCount + guidanceCount;
+                  adminCount +
+                  guidanceCount +
+                  branchCount +
+                  specialEduCount +
+                  kindergartenCount;
               if (index == classTeachersCardIndex) {
                 int toplamSinifSayisi = groupedClasses.values.fold(
                   0,
@@ -1093,7 +720,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               }
 
-              // 5. EN SON ÖĞE: Atatürk Sözü ve Lottie Animasyonlu Kartı
+              // 7. Atatürk Sözü ve Lottie
               if (index == totalItemCount - 1) {
                 return Container(
                   padding: const EdgeInsets.all(12),
@@ -1112,7 +739,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                   ),
                   child: Row(
                     children: [
-                      // Sol Taraf: Atatürk'ün Sözü
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1140,7 +766,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Sağ Taraf: Yenile İkonu ve Hafif Yuvarlatılmış Kutuda Lottie Animasyonu
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1159,7 +784,6 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          // Köşeleri hafif yuvarlatılmış (ClipRRect) kutu içinde Lottie
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
@@ -1206,13 +830,143 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
     );
   }
 
+  Widget _buildKartWidget(
+    BuildContext context, {
+    required String baslik,
+    required IconData ikon,
+    required Color renk,
+    required List<QueryDocumentSnapshot> belgeListesi,
+    required String altAciklama,
+  }) {
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: renk.withValues(alpha: 0.1),
+          child: Icon(ikon, color: renk),
+        ),
+        title: Text(
+          baslik,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: renk,
+          ),
+        ),
+        subtitle: Text(altAciklama),
+        children: belgeListesi.map((doc) {
+          var data = doc.data() as Map<String, dynamic>;
+          String itemId = doc.id;
+          String itemName = data['teacherName'] ?? 'Kayıt';
+          String correctPassword = data['password'] ?? '';
+          String userRole = data['userRole'] ?? '';
+
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: renk.withValues(alpha: 0.2)),
+            ),
+            child: ListTile(
+              title: Text(
+                itemName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                baslik,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: renk,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: widget.isTeacherMaster
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _sifreDogrulaVaIslemYap(
+                              context,
+                              correctPassword,
+                              itemName,
+                              () {
+                                _sinifDuzenleDialog(
+                                  context,
+                                  itemId,
+                                  '',
+                                  '',
+                                  itemName,
+                                  userRole,
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _sifreDogrulaVaIslemYap(
+                              context,
+                              correctPassword,
+                              itemName,
+                              () {
+                                _sinifSil(context, itemId, itemName);
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    )
+                  : null,
+              onTap: () {
+                _sifreDogrulaVeIslemYardimcisi(
+                  context,
+                  correctPassword,
+                  itemName,
+                  itemId,
+                  userRole,
+                );
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   void _sifreDogrulaVeIslemYardimcisi(
     BuildContext context,
     String correctPassword,
     String className,
     String classId,
     String userRole,
-  ) {
+  ) async {
+    DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
+        .collection('classes')
+        .doc(classId)
+        .get();
+
+    List<String> assignedClasses = [];
+    if (docSnapshot.exists && docSnapshot.data() != null) {
+      var data = docSnapshot.data() as Map<String, dynamic>;
+      assignedClasses = List<String>.from(data['assignedClassIds'] ?? []);
+    }
+
+    if (!context.mounted) return;
+
     TextEditingController passwordInputController = TextEditingController();
 
     showDialog(
@@ -1237,33 +991,17 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               if (passwordInputController.text.trim() == correctPassword) {
                 Navigator.pop(context);
 
-                if (userRole == 'english_teacher' ||
-                    userRole == 'religious_teacher' ||
-                    userRole == 'admin' ||
-                    userRole == 'guidance_teacher') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OgretmenAnaSayfasi(
-                        classId: classId,
-                        className: className,
-                        userRole: userRole,
-                        assignedClassIds: [],
-                      ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OgretmenAnaSayfasi(
+                      classId: classId,
+                      className: className,
+                      userRole: userRole,
+                      assignedClassIds: assignedClasses,
                     ),
-                  );
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OgretmenAnaSayfasi(
-                        classId: classId,
-                        className: className,
-                        userRole: userRole,
-                      ),
-                    ),
-                  );
-                }
+                  ),
+                );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

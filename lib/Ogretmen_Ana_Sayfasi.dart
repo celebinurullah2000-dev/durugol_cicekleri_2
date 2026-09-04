@@ -105,7 +105,8 @@ Future<void> bildirimGoster(String baslik, String aciklama) async {
 class OgretmenAnaSayfasi extends StatefulWidget {
   final String classId;
   final String className;
-  final String userRole; // Rol ('classroom_teacher', 'branch_teacher', 'admin')
+  final String
+  userRole; // Rol ('classroom_teacher', 'branch_teacher', 'admin', 'guidance_teacher' vb.)
   final List<String> assignedClassIds; // Seçilen/Atanan sınıf ID'leri
 
   const OgretmenAnaSayfasi({
@@ -139,7 +140,8 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     'I',
     'J',
   ];
-  List<String> _assignedBranches = []; // Sadece branş öğretmenleri için şubeler
+  List<String> _assignedBranches =
+      []; // Branş ve rehber öğretmenler için şubeler
 
   @override
   void initState() {
@@ -168,8 +170,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         setState(() {
           _assignedBranches = savedBranches.map((e) => e.toString()).toList();
 
-          if (widget.userRole == 'english_teacher' ||
-              widget.userRole == 'religious_teacher') {
+          bool cokluSinifSecebilir =
+              widget.userRole == 'english_teacher' ||
+              widget.userRole == 'religious_teacher' ||
+              widget.userRole == 'guidance_teacher';
+
+          if (cokluSinifSecebilir) {
             if (_assignedBranches.isNotEmpty) {
               var parts = _assignedBranches.first.split('/');
               if (parts.length == 2) {
@@ -188,8 +194,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
       }
     } catch (e) {
       setState(() {
-        if (widget.userRole == 'english_teacher' ||
-            widget.userRole == 'religious_teacher') {
+        bool cokluSinifSecebilir =
+            widget.userRole == 'english_teacher' ||
+            widget.userRole == 'religious_teacher' ||
+            widget.userRole == 'guidance_teacher';
+
+        if (cokluSinifSecebilir) {
           _filtreliGrade = null;
           _filtreliBranch = null;
         } else {
@@ -220,11 +230,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     return null;
   }
 
-  // Branş öğretmenleri için şube seçim dialogu
+  // Branş ve Rehber öğretmenler için şube seçim dialogu
   void _subeSecimDialogGoster(BuildContext context) async {
     var querySnapshot = await FirebaseFirestore.instance
         .collection('classes')
-        .where('grade', whereIn: ['2', '3', '4'])
+        .where('grade', whereIn: ['1', '2', '3', '4'])
         .get();
 
     List<Map<String, String>> tumSiniflar = [];
@@ -257,7 +267,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text("Dersine Girdiğiniz Sınıflar"),
+              title: const Text("İlgilendiğiniz / Sorumlu Olduğunuz Sınıflar"),
               content: SizedBox(
                 width: double.maxFinite,
                 height: 350,
@@ -321,7 +331,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
-                          "Ders programı şubeleriniz güncellendi! ✅",
+                          "Sınıf seçimleriniz başarıyla güncellendi! ✅",
                         ),
                         backgroundColor: Colors.green,
                       ),
@@ -339,10 +349,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
   // Şube listesi belirleme
   List<String> _getMevcutSubeler() {
-    bool isBransOgretmeni =
+    bool cokluSinifSecebilir =
         widget.userRole == 'english_teacher' ||
-        widget.userRole == 'religious_teacher';
-    if (!isBransOgretmeni) {
+        widget.userRole == 'religious_teacher' ||
+        widget.userRole == 'guidance_teacher';
+
+    if (!cokluSinifSecebilir) {
       return _branchListesi;
     }
 
@@ -361,10 +373,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
   // Sınıf seviyesi listesi belirleme
   List<String> _getMevcutSeviyeler() {
-    bool isBransOgretmeni =
+    bool cokluSinifSecebilir =
         widget.userRole == 'english_teacher' ||
-        widget.userRole == 'religious_teacher';
-    if (!isBransOgretmeni) {
+        widget.userRole == 'religious_teacher' ||
+        widget.userRole == 'guidance_teacher';
+
+    if (!cokluSinifSecebilir) {
       return ['1', '2', '3', '4'];
     }
 
@@ -1280,11 +1294,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
               // Hedef sınıf ID'lerini belirleyelim
               List<String> hedefClassIdListesi = [];
 
-              bool isBransOgretmeni =
+              bool cokluSinifSecebilir =
                   widget.userRole == 'english_teacher' ||
-                  widget.userRole == 'religious_teacher';
+                  widget.userRole == 'religious_teacher' ||
+                  widget.userRole == 'guidance_teacher';
 
-              if (isBransOgretmeni) {
+              if (cokluSinifSecebilir) {
                 if (_assignedBranches.isEmpty) {
                   if (dialogContext != null &&
                       Navigator.canPop(dialogContext!)) {
@@ -1293,7 +1308,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
-                        "Lütfen önce dersine girdiğiniz sınıfları seçin!",
+                        "Lütfen önce ilgili olduğunuz sınıfları seçin!",
                       ),
                       backgroundColor: Colors.red,
                     ),
@@ -1431,11 +1446,12 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   Future<List<Map<String, dynamic>>> _getOgrenciler() async {
     List<Map<String, dynamic>> ogrenciListesi = [];
 
-    // İngilizce veya Din öğretmeni henüz hiçbir şube seçmediyse boş liste döndür[cite: 11]
-    bool isBransOgretmeni =
+    bool cokluSinifSecebilir =
         widget.userRole == 'english_teacher' ||
-        widget.userRole == 'religious_teacher';
-    if (isBransOgretmeni && _assignedBranches.isEmpty) {
+        widget.userRole == 'religious_teacher' ||
+        widget.userRole == 'guidance_teacher';
+
+    if (cokluSinifSecebilir && _assignedBranches.isEmpty) {
       return [];
     }
 
@@ -1531,9 +1547,11 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         widget.userRole == 'religious_teacher' ||
         widget.userRole == 'guidance_teacher';
 
-    bool isBransOgretmeniSecimYapabilir =
+    // REHBER ÖĞRETMEN DE BURAYA DAHİL EDİLDİ
+    bool cokluSinifSecebilirButonuGoster =
         widget.userRole == 'english_teacher' ||
-        widget.userRole == 'religious_teacher';
+        widget.userRole == 'religious_teacher' ||
+        widget.userRole == 'guidance_teacher';
 
     List<String> mevcutSeviyeler = _getMevcutSeviyeler();
     List<String> mevcutSubeler = _getMevcutSubeler();
@@ -1554,10 +1572,10 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
-          if (isBransOgretmeniSecimYapabilir)
+          if (cokluSinifSecebilirButonuGoster)
             IconButton(
               icon: const Icon(Icons.checklist),
-              tooltip: "Dersine Girdiğim Sınıfları Seç",
+              tooltip: "İlgilendiğim Sınıfları Seç",
               onPressed: () => _subeSecimDialogGoster(context),
             ),
           IconButton(
@@ -2167,7 +2185,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                             _buildYetkiliHizliIslemButonu(
                               key: 'denemeler',
                               icon: Icons.edit_note,
-                              label: "Denemeler",
+                              label: "Değerlendirmeler",
                               color: Colors.indigo,
                               onTap: () async {
                                 String? hedefClassId =
@@ -2335,8 +2353,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => DersKitaplariScreen(
-                                      currentUserId: widget
-                                          .classId, // veya oturum açan öğretmen ID'si
+                                      currentUserId: widget.classId,
                                       userRole: widget.userRole,
                                       currentUserName: unvanliIsim,
                                     ),
@@ -2344,26 +2361,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                 );
                               },
                             ),
-                            /*_buildYetkiliHizliIslemButonu(
-                              key: 'randevular',
-                              icon: Icons.access_time,
-                              label: "Randevular",
-                              color: Colors.orange,
-                              onTap: () async {
-                                String? hedefClassId =
-                                    await _getAktifHedefClassId();
-                                if (hedefClassId == null) return;
-                                if (!mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => OgretmenRandevuScreen(
-                                      classId: hedefClassId,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),*/
                           ].whereType<Widget>().toList(),
                         ),
                         const SizedBox(height: 6),
@@ -2506,7 +2503,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                         doc.data() as Map<String, dynamic>;
                                     List views = data['views'] ?? [];
                                     if (!views.contains(widget.classId)) {
-                                      // Öğretmen ID veya classId
                                       okunmamisSayisi++;
                                     }
                                   }
@@ -2577,9 +2573,9 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return Center(
                           child: Text(
-                            isBransOgretmeniSecimYapabilir &&
+                            cokluSinifSecebilirButonuGoster &&
                                     _assignedBranches.isEmpty
-                                ? "Lütfen yukarıdaki menüden dersine girdiğiniz sınıfları seçin."
+                                ? "Lütfen yukarıdaki menüden ilgilendiğiniz sınıfları seçin."
                                 : "Bu sınıfta henüz kayıtlı öğrenci yok.",
                             textAlign: TextAlign.center,
                             style: const TextStyle(

@@ -696,6 +696,9 @@ class DuyurularScreen extends StatelessWidget {
               bool isLikedByMe = likes.contains(currentUserId);
               bool isReadByMe = readBy.contains(currentUserId);
 
+              // Kullanıcının katılım durumu ('katilacak', 'katilmayacak' veya null)
+              String? myResponse = responses[currentUserId];
+
               int katilacakSayisi = 0;
               int katilmayacakSayisi = 0;
               responses.forEach((key, value) {
@@ -745,7 +748,6 @@ class DuyurularScreen extends StatelessWidget {
                 }
               }
 
-              // HER DUYURU İÇİN KENDİ İÇİNDE AÇILIR KAPANIR (ExpansionTile) YAPI
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
@@ -780,7 +782,6 @@ class DuyurularScreen extends StatelessWidget {
                           size: 18,
                           color: Colors.grey,
                         ),
-                  // DÜZELTME BURADA YAPILDI: Row ve Expanded kaldırıldı, doğrudan Text verildi.
                   title: Text(
                     title,
                     maxLines: 1,
@@ -858,7 +859,7 @@ class DuyurularScreen extends StatelessWidget {
                           if (isInteractive) ...[
                             const Divider(height: 12),
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: Colors.indigo.shade50.withValues(
                                   alpha: 0.5,
@@ -872,91 +873,126 @@ class DuyurularScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    "Katılım Durumu:",
+                                    "Katılım Durumu / Oylama:",
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                       color: Colors.indigo,
                                     ),
                                   ),
-                                  const SizedBox(height: 6),
-                                  const Divider(height: 12),
+                                  const SizedBox(height: 8),
+                                  // --- EKLENEN "KATILACAĞIM" VE "KATILMAYACAĞIM" BUTONLARI ---
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        children: [
-                                          IconButton(
-                                            icon: Icon(
-                                              isLikedByMe
-                                                  ? Icons.favorite
-                                                  : Icons.favorite_border,
-                                              color: Colors.red,
-                                              size: 20,
-                                            ),
-                                            constraints: const BoxConstraints(),
-                                            padding: EdgeInsets.zero,
-                                            onPressed: () async {
-                                              List yeniLikes = List.from(likes);
-                                              if (isLikedByMe) {
-                                                yeniLikes.remove(currentUserId);
-                                              } else {
-                                                yeniLikes.add(currentUserId);
-                                              }
-                                              await FirebaseFirestore.instance
-                                                  .collection('announcements')
-                                                  .doc(docId)
-                                                  .update({'likes': yeniLikes});
-                                            },
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            "${likes.length}",
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      // SAĞ TARAF: Taşmayı önlemek için Expanded ve Flexible eklendi
                                       Expanded(
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: [
-                                            const Icon(
-                                              Icons.visibility,
-                                              size: 14,
-                                              color: Colors.grey,
+                                        child: ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                myResponse == 'katilacak'
+                                                ? Colors.green
+                                                : Colors.white,
+                                            foregroundColor:
+                                                myResponse == 'katilacak'
+                                                ? Colors.white
+                                                : Colors.green.shade700,
+                                            elevation: myResponse == 'katilacak'
+                                                ? 2
+                                                : 0,
+                                            side: BorderSide(
+                                              color: Colors.green.shade600,
                                             ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              "Gör: ${views.length}", // Metni biraz kısaltabiliriz veya aynı bırakabilirsiniz
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey,
-                                              ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
                                             ),
-                                            const SizedBox(width: 8),
-                                            Flexible(
-                                              child: Text(
-                                                "Yayınlayan: $author",
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontStyle: FontStyle.italic,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
+                                          ),
+                                          icon: const Icon(
+                                            Icons.check_circle,
+                                            size: 16,
+                                          ),
+                                          label: const Text(
+                                            "Katılacağım",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                          ],
+                                          ),
+                                          onPressed: () async {
+                                            Map<String, dynamic> yeniResponses =
+                                                Map.from(responses);
+                                            if (myResponse == 'katilacak') {
+                                              yeniResponses.remove(
+                                                currentUserId,
+                                              ); // Tıklayınca seçimi kaldır
+                                            } else {
+                                              yeniResponses[currentUserId] =
+                                                  'katilacak';
+                                            }
+                                            await FirebaseFirestore.instance
+                                                .collection('announcements')
+                                                .doc(docId)
+                                                .update({
+                                                  'responses': yeniResponses,
+                                                });
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                myResponse == 'katilmayacak'
+                                                ? Colors.red
+                                                : Colors.white,
+                                            foregroundColor:
+                                                myResponse == 'katilmayacak'
+                                                ? Colors.white
+                                                : Colors.red.shade700,
+                                            elevation:
+                                                myResponse == 'katilmayacak'
+                                                ? 2
+                                                : 0,
+                                            side: BorderSide(
+                                              color: Colors.red.shade600,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                            ),
+                                          ),
+                                          icon: const Icon(
+                                            Icons.cancel,
+                                            size: 16,
+                                          ),
+                                          label: const Text(
+                                            "Katılmayacağım",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          onPressed: () async {
+                                            Map<String, dynamic> yeniResponses =
+                                                Map.from(responses);
+                                            if (myResponse == 'katilmayacak') {
+                                              yeniResponses.remove(
+                                                currentUserId,
+                                              ); // Tıklayınca seçimi kaldır
+                                            } else {
+                                              yeniResponses[currentUserId] =
+                                                  'katilmayacak';
+                                            }
+                                            await FirebaseFirestore.instance
+                                                .collection('announcements')
+                                                .doc(docId)
+                                                .update({
+                                                  'responses': yeniResponses,
+                                                });
+                                          },
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 8),
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
