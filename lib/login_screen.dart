@@ -1,12 +1,18 @@
-// ignore_for_file: dead_code, use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
-import 'package:durugol_cicekleri/sinif_sec_ekle_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student_home_screen.dart';
 import 'package:lottie/lottie.dart';
-import 'ogrenci_yukleme_screen.dart'; // Toplu öğrenci yükleme sayfanızın importu (dosya adınıza göre kontrol edin)
+import 'ogrenci_yukleme_screen.dart';
+import 'sinif_sec_ekle_screen.dart';
+
+// Versiyon kontrolü için gerekli kütüphaneler:
+import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,13 +26,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isRoleSelected = false;
   bool _sifreGizli = true;
 
-  String? _selectedGradeLevel; // Seçilen sınıf seviyesi (1, 2, 3, 4)
-  String? _selectedBranch; // Seçilen şube harfi (A, B, C, D, E, F, G, H, I, J)
-  String? _selectedClassId; // Oluşan veya eşleşen Firestore sınıf ID'si
+  String? _selectedGradeLevel;
+  String? _selectedBranch;
+  String? _selectedClassId;
   String? _savedClassId;
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _classList = [];
 
-  // İstenen şube listesi (Ç ve Ğ hariç)
   final List<String> _branchList = [
     'A',
     'B',
@@ -46,6 +51,20 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _checkSavedClass();
     _loadClasses();
+    _versiyonKontrolEt();
+    _anonimGirisYapKontrol();
+  }
+
+  Future<void> _anonimGirisYapKontrol() async {
+    try {
+      // Eğer daha önce bu cihazda anonim oturum açılmadıysa giriş yap
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+        debugPrint("Firebase Anonim Oturum Başarıyla Açıldı.");
+      }
+    } catch (e) {
+      debugPrint("Anonim giriş hatası: $e");
+    }
   }
 
   @override
@@ -53,6 +72,85 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+
+  Future<void> _checkSavedClass() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _savedClassId = prefs.getString('savedClassId');
+    });
+  }
+
+  // =========================================================================
+  // ZORUNLU GÜNCELLEME KONTROLÜ
+  // =========================================================================
+  Future<void> _versiyonKontrolEt() async {
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      int mevcutBuildNumber = int.tryParse(packageInfo.buildNumber) ?? 1;
+
+      var doc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('version_control')
+          .get();
+
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+
+        var rawMinVersion = data['min_version_code'] ?? 1;
+        int minVersionCode = rawMinVersion is int
+            ? rawMinVersion
+            : int.tryParse(rawMinVersion.toString()) ?? 1;
+
+        String updateUrl = '';
+        if (kIsWeb) {
+          updateUrl = data['play_store_url'] ?? '';
+        } else if (defaultTargetPlatform == TargetPlatform.android) {
+          updateUrl = data['play_store_url'] ?? '';
+        } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+          updateUrl = data['app_store_url'] ?? '';
+        }
+
+        if (mevcutBuildNumber < minVersionCode) {
+          if (!mounted) return;
+          _zorunluGuncellemeDialoguGoster(updateUrl);
+        }
+      }
+    } catch (e) {
+      debugPrint("Versiyon kontrol hatası: $e");
+    }
+  }
+
+  void _zorunluGuncellemeDialoguGoster(String urlStr) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text("Güncelleme Gerekli 🚀"),
+          content: const Text(
+            "Uygulamaya yeni özellikler eklendi. Hadi güncelleyelim :)",
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final Uri url = Uri.parse(urlStr);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: const Text("Hemen Güncelle"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // =========================================================================
 
   void _masterSifreSor() {
     TextEditingController masterController = TextEditingController();
@@ -78,6 +176,18 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: () async {
               if (masterController.text.trim() == "19781980") {
                 Navigator.pop(context);
+
+                // Yöneticiyi online listesine kaydediyoruz
+                await FirebaseFirestore.instance
+                    .collection('online_users')
+                    .doc('master_yonetici')
+                    .set({
+                      'name': 'Okul Yöneticisi (Master)',
+                      'role': 'staff',
+                      'sinifSube': '',
+                      'lastActive': FieldValue.serverTimestamp(),
+                    });
+
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('userRole', 'teacher');
                 await prefs.setBool('isMaster', true);
@@ -107,7 +217,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Toplu öğrenci yükleme ekranına şifre korumalı geçiş fonksiyonu
   void _yoneticiSifresiIleOgrentiYuklemeyeGit() {
     TextEditingController masterController = TextEditingController();
     showDialog(
@@ -157,6 +266,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _normalOgretmenGiris() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Her oturum için benzersiz bir öğretmen ID'si oluşturup kaydediyoruz
+
     await prefs.setString('userRole', 'teacher');
     await prefs.setBool('isMaster', false);
     if (!mounted) return;
@@ -166,13 +278,6 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (_) => const sinifseceklescreen(isTeacherMaster: false),
       ),
     );
-  }
-
-  Future<void> _checkSavedClass() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _savedClassId = prefs.getString('savedClassId');
-    });
   }
 
   Future<void> _loadClasses() async {
@@ -248,7 +353,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Stack(
             children: [
-              // Ana İçerik
               SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -315,7 +419,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Expanded(
                             child: _buildRoleButton(
                               "",
-                              "assets/images/ogrenci.png",
+                              "assets/images/veli.png",
                               () => setState(() => _isRoleSelected = true),
                             ),
                           ),
@@ -496,8 +600,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-
-              // Sağ Üst Köşeye Şifre Korumalı Gizli / Kolay Erişim Butonu
               Positioned(
                 top: 10,
                 right: 10,
@@ -568,39 +670,23 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!gorseliGoster) {
       return const SizedBox.shrink();
     }
-    return StreamBuilder<DocumentSnapshot>(
+    /*return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('config')
           .doc('genel_ayarlar')
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
-        }
-        if (snapshot.hasError) {
-          return const Text("Bir hata oluştu");
-        }
         if (!snapshot.hasData || snapshot.data?.data() == null) {
-          return const Text("Veri bulunamadı");
+          return const SizedBox.shrink();
         }
-
         final data = snapshot.data!.data() as Map<String, dynamic>;
         final imageUrl = data['sinif_gorsel_url'] as String?;
-
         if (imageUrl == null || imageUrl.isEmpty) {
-          return const Text("Görsel adresi boş");
+          return const SizedBox.shrink();
         }
-
-        return Image.network(
-          imageUrl,
-          height: 100,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return Text("HATA: ${error.toString()}");
-          },
-        );
+        return Image.network(imageUrl, height: 100, fit: BoxFit.contain);
       },
-    );
+    );*/ //DEAD CODE
   }
 
   Future<void> _login(BuildContext context) async {
@@ -638,15 +724,33 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (matchedDoc != null) {
         var studentData = matchedDoc.data();
+        String fullName =
+            "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}"
+                .trim();
+
+        var classDoc = await FirebaseFirestore.instance
+            .collection('classes')
+            .doc(targetClassId)
+            .get();
+        String sinifSubeAdi = classDoc.exists
+            ? (classDoc.data()?['className'] ?? '')
+            : '';
+
+        // Öğrenciyi online olarak gerçek ID'si ile kaydediyoruz
+        await FirebaseFirestore.instance
+            .collection('online_users')
+            .doc(matchedDoc.id)
+            .set({
+              'name': fullName,
+              'role': 'student',
+              'sinifSube': sinifSubeAdi,
+              'lastActive': FieldValue.serverTimestamp(),
+            });
 
         await prefs.setString('userRole', 'student');
         await prefs.setString('studentId', matchedDoc.id);
         await prefs.setString('savedClassId', targetClassId);
-        await prefs.setString(
-          'studentName',
-          "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}"
-              .trim(),
-        );
+        await prefs.setString('studentName', fullName);
 
         if (!mounted) return;
 

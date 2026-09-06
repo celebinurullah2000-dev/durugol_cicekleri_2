@@ -1,12 +1,11 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: avoid_print, use_build_context_synchronously
 
 import 'package:durugol_cicekleri/Ogrenci_Davranis_Screen.dart';
 import 'package:durugol_cicekleri/screens/chat_list_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
-//import 'package:durugol_cicekleri/veli_randevu_screen.dart';
-import 'package:flutter/material.dart'; // Scaffold, AppBar, Text vb. temel widgetlar için
-import 'package:shared_preferences/shared_preferences.dart'; // Çıkış yaparken oturumu silmek için
-import 'login_screen.dart'; // Çıkış yapınca tekrar giriş ekranına dönmek için
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'OkudugumKitaplarScreen.dart';
 import 'odevlerim_screen.dart';
@@ -17,6 +16,7 @@ import 'Ogrenci_Denemeler_Screen.dart';
 import 'package:lottie/lottie.dart';
 import 'istatistik_servisi.dart';
 import 'dart:io';
+import 'dart:async'; // Timer için eklendi
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -31,10 +31,11 @@ class StudentHomeScreen extends StatefulWidget {
 }
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
-  String studentName = "Öğrenci"; // Başlangıç değeri
-  String classId = ""; // Sınıf ID'sini tutmak için değişken
-  String className = "Sınıf"; // Sınıf adını tutmak için değişken
+  String studentName = "Öğrenci";
+  String classId = "";
+  String className = "Sınıf";
   String? ogrenciProfilResmiBase64;
+  Timer? _heartbeatTimer; // Kalp atışı için timer
 
   Future<void> _profilResmiDegistir() async {
     final ImagePicker picker = ImagePicker();
@@ -50,26 +51,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         'profile_images/${widget.studentId}.jpg',
       );
 
-      // Web و Mobil uyumlu yükleme yöntemi:
       if (kIsWeb) {
-        // Web için byte olarak oku ve yükle
         var bytes = await image.readAsBytes();
         await ref.putData(bytes);
       } else {
-        // Mobil (Android / iOS) için dosya olarak yükle
         await ref.putFile(File(image.path));
       }
 
-      // İndirme URL'sini alma
       final String downloadUrl = await ref.getDownloadURL();
 
-      // Firestore'da ilgili öğrenci dokümanını güncelleme
       await FirebaseFirestore.instance
           .collection('students')
           .doc(widget.studentId)
           .update({'profileImageUrl': downloadUrl});
 
-      // SharedPreferences ve State'i güncelleme
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('profileImageUrl_${widget.studentId}', downloadUrl);
 
@@ -92,7 +87,54 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadStudentData(); // Hem ismi hem de sınıf ID'sini yüklüyoruz
+    print("--- EKRAN AÇILDI, ONLİNE KAYIT BAŞLIYOR ---");
+    _loadStudentData();
+    _ogrenciyiOnlineKaydet();
+    _heartbeatBaslat(); // Her 30 saniyede bir sinyal gönder
+  }
+
+  Future<void> _ogrenciyiOnlineKaydet() async {
+    try {
+      Future.delayed(const Duration(seconds: 1), () async {
+        if (widget.studentId.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('online_users')
+              .doc(widget.studentId)
+              .set({
+                'name': studentName,
+                'role': 'student',
+                'sinifSube': className,
+                'lastActive': FieldValue.serverTimestamp(),
+              });
+        }
+      });
+    } catch (e) {
+      debugPrint("Öğrenci online kayıt hatası: $e");
+    }
+  }
+
+  // Öğrenci uygulamada açık kaldığı sürece her 30 saniyede bir zamanı günceller
+  void _heartbeatBaslat() {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (
+      timer,
+    ) async {
+      try {
+        if (widget.studentId.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('online_users')
+              .doc(widget.studentId)
+              .update({'lastActive': FieldValue.serverTimestamp()});
+        }
+      } catch (e) {
+        _ogrenciyiOnlineKaydet();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _heartbeatTimer?.cancel(); // Sayfa kapandığında timer'ı durdur
+    super.dispose();
   }
 
   void _resmiTamBoyutGoster() {
@@ -113,7 +155,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
-                    ogrenciProfilResmiBase64!, // URL kullanılıyor
+                    ogrenciProfilResmiBase64!,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -146,21 +188,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         String dogumTarihi = data['dogumTarihi'] ?? '';
         int kalanGun = dogumGununeKalanGunHesapla(dogumTarihi);
 
-        // Doğum gününe 3 gün veya daha az kaldıysa (0 gün dahil)
         if (kalanGun >= 0 && kalanGun <= 3) {
           String adSoyad =
               data['adSoyad'] ??
               "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}";
 
-          // Bildirimin ard arda patlamaması için veya her açılışta göstermek istiyorsanız:
           if (!context.mounted) return;
 
           _dogumGunuDialogGoster(context, adSoyad, kalanGun);
-          break; // Birden fazla varsa önce yaklaşanı gösterip dönebiliriz
+          break;
         }
       }
     } catch (e) {
-      // Hata yönetimi sessiz geçilebilir
+      // Hata yönetimi
     }
   }
 
@@ -223,20 +263,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  // Öğrenci bilgilerini SharedPreferences ve Firestore'dan yükleme
   Future<void> _loadStudentData() async {
     final prefs = await SharedPreferences.getInstance();
 
     String isim = prefs.getString('studentName') ?? "Öğrenci";
     String cId = prefs.getString('classId') ?? "";
 
-    // Önce telefonda kayıtlı resim URL'si var mı bakalım
     String? yerelResimUrl = prefs.getString(
       'profileImageUrl_${widget.studentId}',
     );
 
     if (cId.isEmpty || yerelResimUrl == null) {
-      // Telefonda yoksa Firestore'dan çekelim
       var studentDoc = await FirebaseFirestore.instance
           .collection('students')
           .doc(widget.studentId)
@@ -288,7 +325,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  // Öğrencinin Kendi Şifresini Değiştirme Fonksiyonu
   void _ogrenciSifreDegistir(BuildContext context) {
     final TextEditingController yeniSifreController = TextEditingController();
     final TextEditingController yeniSifreTekrarController =
@@ -309,7 +345,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 1. Yeni Şifre Kutusu
                 TextField(
                   controller: yeniSifreController,
                   obscureText: yeniSifreGizli,
@@ -332,7 +367,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // 2. Yeni Şifre (Tekrar) Kutusu
                 TextField(
                   controller: yeniSifreTekrarController,
                   obscureText: yeniSifreTekrarGizli,
@@ -412,18 +446,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Buton verileri (resim isimleri ve başlıklar)
     final List<Map<String, String>> menuItems = [
       {'title': 'Okuduğum Kitaplar', 'image': 'assets/images/kitaplarim.png'},
       {'title': 'Ödevlerim', 'image': 'assets/images/odevlerim.png'},
-      /*{'title': 'Projelerim', 'image': 'assets/images/projelerim.png'},*/
       {'title': 'Davranışlarım', 'image': 'assets/images/davranislarim.png'},
       {'title': 'Denemelerim', 'image': 'assets/images/testlerim.png'},
-      /*{'title': 'Kurslarım', 'image': 'assets/images/kurslarim.png'},*/
       {'title': 'Çeşitli İşler', 'image': 'assets/images/cesitli_isler.png'},
       {'title': 'Oyunlar', 'image': 'assets/images/oyunlar.png'},
       {'title': 'Duyurular', 'image': 'assets/images/duyurular.png'},
-      //{'title': 'Randevular', 'image': 'assets/images/randevular.png'},
       {'title': 'Sohbet Odaları', 'image': 'assets/images/sohbet.png'},
     ];
 
@@ -431,7 +461,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            // --- PROFİL FOTOĞRAFI VE KAMERA İKONU ---
             GestureDetector(
               onTap: () {
                 if (ogrenciProfilResmiBase64 != null &&
@@ -550,7 +579,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 12.0),
         child: Column(
           children: [
-            // Üst kısım: Menü Kartları (Grid)
             GridView.builder(
               itemCount: menuItems.length,
               shrinkWrap: true,
@@ -559,15 +587,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 20,
                 mainAxisSpacing: 20,
-                childAspectRatio:
-                    1.15, // Yazının alta sığması için oran güncellendi
+                childAspectRatio: 1.15,
               ),
               itemBuilder: (context, index) {
                 String baslik = menuItems[index]['title']!;
                 String imagePath = menuItems[index]['image']!;
                 bool isOdevlerim = baslik == 'Ödevlerim';
 
-                // Tıklama işlevini yöneten ana widget yapısı
                 void tiklamaAksiyonu() async {
                   if (baslik == 'Okuduğum Kitaplar') {
                     await IstatistikServisi.islemKaydet(
@@ -674,8 +700,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         builder: (context) => DuyurularScreen(
                           userRole: 'student',
                           currentUserName: studentName,
-                          currentUserId: widget
-                              .studentId, // <--- EKSİK OLAN PARAMETRE EKLENDİ
+                          currentUserId: widget.studentId,
                         ),
                       ),
                     );
@@ -774,7 +799,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   }
                 }
 
-                // Kartın içindeki resmin kartı tam kaplaması için yapı
                 Widget kartIcerigi = InkWell(
                   borderRadius: BorderRadius.circular(18),
                   onTap: tiklamaAksiyonu,
@@ -782,14 +806,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     borderRadius: BorderRadius.circular(18),
                     child: Image.asset(
                       imagePath,
-                      fit: BoxFit.contain, // Resim kartı tamamen doldurur
+                      fit: BoxFit.contain,
                       width: double.infinity,
                       height: double.infinity,
                     ),
                   ),
                 );
 
-                // Kartın kendisi ve hemen altında başlık yazısı
                 return Column(
                   children: [
                     Expanded(
@@ -898,7 +921,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    // Yazı artık kartın altında yer alıyor
                     Text(
                       baslik,
                       style: const TextStyle(
@@ -914,10 +936,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 );
               },
             ),
-
             const SizedBox(height: 20),
-
-            // Kartların hemen altında ortalanmış Lottie Animasyonu
             Center(
               child: SizedBox(
                 width: 300,
@@ -932,7 +951,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
           ],
         ),

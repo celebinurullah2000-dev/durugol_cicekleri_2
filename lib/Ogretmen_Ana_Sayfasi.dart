@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: avoid_print, use_build_context_synchronously
 
 import 'package:durugol_cicekleri/Etkinlikler_Screen.dart';
 import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk.dart';
@@ -8,6 +8,7 @@ import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
 import 'package:durugol_cicekleri/screens/teacher_chat_audit_screen.dart';
 import 'package:durugol_cicekleri/sinif_sifreleri_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'Kisisel_Sozluk_Screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -121,6 +122,7 @@ class OgretmenAnaSayfasi extends StatefulWidget {
 
 class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   StreamSubscription<QuerySnapshot>? _randevuSubscription;
+  Timer? _heartbeatTimer; // Kalp atışı (aktiflik sinyali) için timer
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
@@ -143,14 +145,68 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   @override
   void initState() {
     super.initState();
+    print("--- EKRAN AÇILDI, ONLİNE KAYIT BAŞLIYOR ---");
     _ogretmenBilgileriniYukle();
     _kullaniciYetkileriniGetir();
+
+    _ogretmeniOnlineKaydet();
+    _heartbeatBaslat(); // Her 30 saniyede bir aktiflik süresini güncelle
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       dogumGunuKontrolEtVeBildir(context, widget.classId);
       ogretmenBildirimTokeniniKaydet(widget.classId);
     });
     bildirimleriBaslat();
     _randevuDinle();
+  }
+
+  Future<void> _ogretmeniOnlineKaydet() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String sessionKey = prefs.getString('teacherSessionKey') ?? '';
+      if (sessionKey.isEmpty) {
+        sessionKey = FirebaseFirestore.instance
+            .collection('online_users')
+            .doc()
+            .id;
+        await prefs.setString('teacherSessionKey', sessionKey);
+      }
+
+      String unvanliIsim = await _getUnvanliOgretmenAdi();
+
+      await FirebaseFirestore.instance
+          .collection('online_users')
+          .doc(sessionKey)
+          .set({
+            'name': unvanliIsim,
+            'role': 'staff',
+            'sinifSube': '',
+            'lastActive': FieldValue.serverTimestamp(),
+          });
+      print("BAŞARILI: Öğretmen online olarak kaydedildi!");
+    } catch (e) {
+      print("HATA OLUŞTU (KAYDETMEDİ): $e");
+    }
+  }
+
+  // Her 30 saniyede bir Firebase'deki zamanı tazeler
+  void _heartbeatBaslat() {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (
+      timer,
+    ) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        String sessionKey = prefs.getString('teacherSessionKey') ?? '';
+        if (sessionKey.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('online_users')
+              .doc(sessionKey)
+              .update({'lastActive': FieldValue.serverTimestamp()});
+        }
+      } catch (e) {
+        _ogretmeniOnlineKaydet();
+      }
+    });
   }
 
   Future<void> _ogretmenBilgileriniYukle() async {
@@ -489,6 +545,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel(); // Sayfa kapandığında timer'ı durdur
     _randevuSubscription?.cancel();
     super.dispose();
   }

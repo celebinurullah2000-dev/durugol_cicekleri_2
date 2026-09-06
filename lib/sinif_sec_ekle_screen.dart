@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
+import 'online_kullanicilar_screen.dart'; // Online kullanıcılar ekranının importu
 
 class sinifseceklescreen extends StatefulWidget {
   final bool isTeacherMaster;
@@ -313,6 +314,20 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
       appBar: AppBar(
         title: const Text("Kullanıcı Girişi"),
         actions: [
+          // Sadece Master kullanıcı giriş yaptıysa "Online Kullanıcılar" butonu görünür
+          if (widget.isTeacherMaster)
+            IconButton(
+              icon: const Icon(Icons.supervised_user_circle, size: 28),
+              tooltip: "Online Kullanıcıları Gör",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const OnlineKullanicilarScreen(),
+                  ),
+                );
+              },
+            ),
           if (widget.isTeacherMaster)
             IconButton(
               icon: const Icon(Icons.security, color: Colors.amberAccent),
@@ -472,7 +487,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               }
 
-              // 2. Rehber Öğretmenler Kartı (İdarecilerin altına taşındı)
+              // 2. Rehber Öğretmenler Kartı
               int guidanceIndex = adminCount;
               if (guidanceTeachers.isNotEmpty && index == guidanceIndex) {
                 return _buildKartWidget(
@@ -500,7 +515,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               }
 
-              // 4. Özel Eğitim Kartı (Yeni)
+              // 4. Özel Eğitim Kartı
               int specialEduIndex = adminCount + guidanceCount + branchCount;
               if (specialEducationTeachers.isNotEmpty &&
                   index == specialEduIndex) {
@@ -515,7 +530,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                 );
               }
 
-              // 5. Ana Sınıf Kartı (Yeni)
+              // 5. Ana Sınıf Kartı
               int kindergartenIndex =
                   adminCount + guidanceCount + branchCount + specialEduCount;
               if (kindergartenTeachers.isNotEmpty &&
