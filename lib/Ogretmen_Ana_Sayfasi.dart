@@ -122,7 +122,7 @@ class OgretmenAnaSayfasi extends StatefulWidget {
 
 class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
   StreamSubscription<QuerySnapshot>? _randevuSubscription;
-  Timer? _heartbeatTimer; // Kalp atışı (aktiflik sinyali) için timer
+  Timer? _heartbeatTimer;
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
@@ -150,7 +150,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     _kullaniciYetkileriniGetir();
 
     _ogretmeniOnlineKaydet();
-    _heartbeatBaslat(); // Her 30 saniyede bir aktiflik süresini güncelle
+    _heartbeatBaslat();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       dogumGunuKontrolEtVeBildir(context, widget.classId);
@@ -181,7 +181,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
             'name': unvanliIsim,
             'role': 'staff',
             'sinifSube': '',
-            'lastActive': FieldValue.serverTimestamp(),
+            'lastActive': Timestamp.now(), // Güncellendi
           });
       print("BAŞARILI: Öğretmen online olarak kaydedildi!");
     } catch (e) {
@@ -189,7 +189,6 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
     }
   }
 
-  // Her 30 saniyede bir Firebase'deki zamanı tazeler
   void _heartbeatBaslat() {
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (
       timer,
@@ -201,7 +200,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
           await FirebaseFirestore.instance
               .collection('online_users')
               .doc(sessionKey)
-              .update({'lastActive': FieldValue.serverTimestamp()});
+              .update({'lastActive': Timestamp.now()}); // Güncellendi
         }
       } catch (e) {
         _ogretmeniOnlineKaydet();
@@ -545,7 +544,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
 
   @override
   void dispose() {
-    _heartbeatTimer?.cancel(); // Sayfa kapandığında timer'ı durdur
+    _heartbeatTimer?.cancel();
     _randevuSubscription?.cancel();
     super.dispose();
   }
@@ -887,106 +886,118 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const Divider(),
-              ListTile(
-                leading: const Icon(
-                  Icons.library_books,
-                  color: Colors.deepOrange,
-                ),
-                title: const Text("1: Sözlük"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => KisiselSozlukScreen(
-                        classId: hedefClassId,
-                        isTeacher:
-                            widget.userRole.trim().toLowerCase() ==
-                                'classroom_teacher' ||
-                            widget.userRole.trim().toLowerCase() ==
-                                'special_education_teacher' ||
-                            widget.userRole.trim().toLowerCase() ==
-                                'kindergarten_teacher',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.history_edu, color: Colors.teal),
-                title: const Text("2: Atasözleri"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => KisiselAtasozleriScreen(
-                        classId: hedefClassId,
-                        isTeacher:
-                            widget.userRole.trim().toLowerCase() ==
-                                'classroom_teacher' ||
-                            widget.userRole.trim().toLowerCase() ==
-                                'special_education_teacher' ||
-                            widget.userRole.trim().toLowerCase() ==
-                                'kindergarten_teacher',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.auto_stories,
-                  color: Colors.deepOrange,
-                ),
-                title: const Text("3: Deyimler"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => KisiselDeyimlerScreen(
-                        classId: hedefClassId,
-                        isTeacher:
-                            widget.userRole.trim().toLowerCase() ==
-                                'classroom_teacher' ||
-                            widget.userRole.trim().toLowerCase() ==
-                                'special_education_teacher' ||
-                            widget.userRole.trim().toLowerCase() ==
-                                'kindergarten_teacher',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.menu_book, color: Colors.indigo),
-                title: const Text("4: İngilizce Sözlük"),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (widget.userRole.trim().toLowerCase() ==
-                      'english_teacher') {
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.library_books,
+                    color: Colors.deepOrange,
+                  ),
+                  title: const Text("1: Sözlük"),
+                  onTap: () {
+                    Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => KisiselIngilizceSozluk(
+                        builder: (context) => KisiselSozlukScreen(
                           classId: hedefClassId,
-                          userRole: widget.userRole,
-                          isTeacher: true,
+                          isTeacher:
+                              widget.userRole.trim().toLowerCase() ==
+                                  'classroom_teacher' ||
+                              widget.userRole.trim().toLowerCase() ==
+                                  'special_education_teacher' ||
+                              widget.userRole.trim().toLowerCase() ==
+                                  'kindergarten_teacher',
                         ),
                       ),
                     );
-                  } else {
+                  },
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.history_edu, color: Colors.teal),
+                  title: const Text("2: Atasözleri"),
+                  onTap: () {
+                    Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => KisiselIngilizceSozlukOgrenci(
+                        builder: (context) => KisiselAtasozleriScreen(
                           classId: hedefClassId,
+                          isTeacher:
+                              widget.userRole.trim().toLowerCase() ==
+                                  'classroom_teacher' ||
+                              widget.userRole.trim().toLowerCase() ==
+                                  'special_education_teacher' ||
+                              widget.userRole.trim().toLowerCase() ==
+                                  'kindergarten_teacher',
                         ),
                       ),
                     );
-                  }
-                },
+                  },
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.auto_stories,
+                    color: Colors.deepOrange,
+                  ),
+                  title: const Text("3: Deyimler"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => KisiselDeyimlerScreen(
+                          classId: hedefClassId,
+                          isTeacher:
+                              widget.userRole.trim().toLowerCase() ==
+                                  'classroom_teacher' ||
+                              widget.userRole.trim().toLowerCase() ==
+                                  'special_education_teacher' ||
+                              widget.userRole.trim().toLowerCase() ==
+                                  'kindergarten_teacher',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.menu_book, color: Colors.indigo),
+                  title: const Text("4: İngilizce Sözlük"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (widget.userRole.trim().toLowerCase() ==
+                        'english_teacher') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => KisiselIngilizceSozluk(
+                            classId: hedefClassId,
+                            userRole: widget.userRole,
+                            isTeacher: true,
+                          ),
+                        ),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => KisiselIngilizceSozlukOgrenci(
+                            classId: hedefClassId,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
               ),
             ],
           ),
@@ -1016,42 +1027,48 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const Divider(),
-              ListTile(
-                leading: Icon(
-                  Icons.assignment_ind,
-                  color: Colors.green.shade700,
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: Icon(
+                    Icons.assignment_ind,
+                    color: Colors.green.shade700,
+                  ),
+                  title: const Text("Nöbetçi Öğrenci"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => NobetciScreen(
+                          studentId: "",
+                          classId: hedefClassId,
+                          isTeacher: true,
+                          userRole: widget.userRole,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                title: const Text("Nöbetçi Öğrenci"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => NobetciScreen(
-                        studentId: "",
-                        classId: hedefClassId,
-                        isTeacher: true,
-                        userRole: widget.userRole,
-                      ),
-                    ),
-                  );
-                },
               ),
-              ListTile(
-                leading: const Icon(Icons.how_to_vote, color: Colors.indigo),
-                title: const Text("Sınıf Görevlileri (Seçim & Takip)"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SinifGorevleriScreen(
-                        classId: hedefClassId,
-                        userRole: widget.userRole,
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.how_to_vote, color: Colors.indigo),
+                  title: const Text("Sınıf Görevlileri (Seçim & Takip)"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SinifGorevleriScreen(
+                          classId: hedefClassId,
+                          userRole: widget.userRole,
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -1880,68 +1897,76 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                             ),
                                           ),
                                           const Divider(),
-                                          ListTile(
-                                            leading: const Icon(
-                                              Icons.class_,
-                                              color: Colors.indigo,
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.class_,
+                                                color: Colors.indigo,
+                                              ),
+                                              title: const Text(
+                                                "Seçili Sınıfın Ders Programını Gör",
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        HaftalikDersProgramiScreen(
+                                                          classId: hedefClassId,
+                                                          isTeacher: true,
+                                                          userRole:
+                                                              widget.userRole,
+                                                          scheduleDocId:
+                                                              'haftalik',
+                                                          sayfaBasligi:
+                                                              "Seçili Sınıf Programı",
+                                                          canEdit: false,
+                                                          isBranchSchedule:
+                                                              false,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
                                             ),
-                                            title: const Text(
-                                              "Seçili Sınıfın Ders Programını Gör",
-                                            ),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      HaftalikDersProgramiScreen(
-                                                        classId: hedefClassId,
-                                                        isTeacher: true,
-                                                        userRole:
-                                                            widget.userRole,
-                                                        scheduleDocId:
-                                                            'haftalik',
-                                                        sayfaBasligi:
-                                                            "Seçili Sınıf Programı",
-                                                        canEdit: false,
-                                                        isBranchSchedule: false,
-                                                      ),
-                                                ),
-                                              );
-                                            },
                                           ),
-                                          ListTile(
-                                            leading: const Icon(
-                                              Icons.person,
-                                              color: Colors.teal,
-                                            ),
-                                            title: const Text(
-                                              "Kendi Programını Gör / Düzenle",
-                                            ),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              String ogretmenProgramKey =
-                                                  widget.classId;
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.person,
+                                                color: Colors.teal,
+                                              ),
+                                              title: const Text(
+                                                "Kendi Programını Gör / Düzenle",
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                String ogretmenProgramKey =
+                                                    widget.classId;
 
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      HaftalikDersProgramiScreen(
-                                                        classId: hedefClassId,
-                                                        isTeacher: true,
-                                                        userRole:
-                                                            widget.userRole,
-                                                        scheduleDocId:
-                                                            ogretmenProgramKey,
-                                                        sayfaBasligi:
-                                                            "Kişisel Branş Programım",
-                                                        canEdit: true,
-                                                        isBranchSchedule: true,
-                                                      ),
-                                                ),
-                                              );
-                                            },
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        HaftalikDersProgramiScreen(
+                                                          classId: hedefClassId,
+                                                          isTeacher: true,
+                                                          userRole:
+                                                              widget.userRole,
+                                                          scheduleDocId:
+                                                              ogretmenProgramKey,
+                                                          sayfaBasligi:
+                                                              "Kişisel Branş Programım",
+                                                          canEdit: true,
+                                                          isBranchSchedule:
+                                                              true,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -1971,35 +1996,39 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                             ),
                                           ),
                                           const Divider(),
-                                          ListTile(
-                                            leading: const Icon(
-                                              Icons.class_,
-                                              color: Colors.indigo,
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: ListTile(
+                                              leading: const Icon(
+                                                Icons.class_,
+                                                color: Colors.indigo,
+                                              ),
+                                              title: const Text(
+                                                "Seçili Sınıfın Programı",
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        HaftalikDersProgramiScreen(
+                                                          classId: hedefClassId,
+                                                          isTeacher: true,
+                                                          userRole:
+                                                              widget.userRole,
+                                                          scheduleDocId:
+                                                              'haftalik',
+                                                          sayfaBasligi:
+                                                              "Seçili Sınıf Programı",
+                                                          canEdit: false,
+                                                          isBranchSchedule:
+                                                              false,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
                                             ),
-                                            title: const Text(
-                                              "Seçili Sınıfın Programı",
-                                            ),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      HaftalikDersProgramiScreen(
-                                                        classId: hedefClassId,
-                                                        isTeacher: true,
-                                                        userRole:
-                                                            widget.userRole,
-                                                        scheduleDocId:
-                                                            'haftalik',
-                                                        sayfaBasligi:
-                                                            "Seçili Sınıf Programı",
-                                                        canEdit: false,
-                                                        isBranchSchedule: false,
-                                                      ),
-                                                ),
-                                              );
-                                            },
                                           ),
                                           const SizedBox(height: 10),
                                           const Align(
@@ -2072,40 +2101,44 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                                         'Branş Öğretmeni';
                                                     String docId = doc.id;
 
-                                                    return ListTile(
-                                                      leading: const Icon(
-                                                        Icons.person,
-                                                        color: Colors.teal,
+                                                    return Material(
+                                                      color: Colors.transparent,
+                                                      child: ListTile(
+                                                        leading: const Icon(
+                                                          Icons.person,
+                                                          color: Colors.teal,
+                                                        ),
+                                                        title: Text(
+                                                          ogretmenAdi,
+                                                        ),
+                                                        subtitle: const Text(
+                                                          "Programı Görüntüle",
+                                                        ),
+                                                        onTap: () {
+                                                          Navigator.pop(
+                                                            context,
+                                                          );
+                                                          Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (context) => HaftalikDersProgramiScreen(
+                                                                classId:
+                                                                    hedefClassId,
+                                                                isTeacher: true,
+                                                                userRole: widget
+                                                                    .userRole,
+                                                                scheduleDocId:
+                                                                    docId,
+                                                                sayfaBasligi:
+                                                                    "$ogretmenAdi Programı",
+                                                                canEdit: false,
+                                                                isBranchSchedule:
+                                                                    true,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
                                                       ),
-                                                      title: Text(ogretmenAdi),
-                                                      subtitle: const Text(
-                                                        "Programı Görüntüle",
-                                                      ),
-                                                      onTap: () {
-                                                        Navigator.pop(context);
-                                                        Navigator.push(
-                                                          context,
-                                                          MaterialPageRoute(
-                                                            builder: (context) =>
-                                                                HaftalikDersProgramiScreen(
-                                                                  classId:
-                                                                      hedefClassId,
-                                                                  isTeacher:
-                                                                      true,
-                                                                  userRole: widget
-                                                                      .userRole,
-                                                                  scheduleDocId:
-                                                                      docId,
-                                                                  sayfaBasligi:
-                                                                      "$ogretmenAdi Programı",
-                                                                  canEdit:
-                                                                      false,
-                                                                  isBranchSchedule:
-                                                                      true,
-                                                                ),
-                                                          ),
-                                                        );
-                                                      },
                                                     );
                                                   },
                                                 );
@@ -2154,74 +2187,82 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                           ),
                                         ),
                                         const Divider(),
-                                        ListTile(
-                                          leading: const Icon(
-                                            Icons.campaign,
-                                            color: Colors.pinkAccent,
-                                            size: 30,
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: ListTile(
+                                            leading: const Icon(
+                                              Icons.campaign,
+                                              color: Colors.pinkAccent,
+                                              size: 30,
+                                            ),
+                                            title: const Text("Sınıf Duvarı"),
+                                            subtitle: const Text(
+                                              "Öğrencilerle ortak akış ve paylaşımlar",
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(bottomSheetContext);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ClassFeedScreen(
+                                                        currentUserId:
+                                                            FirebaseAuth
+                                                                .instance
+                                                                .currentUser
+                                                                ?.uid ??
+                                                            "ogretmen_id",
+                                                        currentUserName:
+                                                            unvanliIsim,
+                                                        isTeacher: true,
+                                                        classId: hedefClassId,
+                                                        className:
+                                                            widget.className,
+                                                        userRole:
+                                                            widget.userRole,
+                                                      ),
+                                                ),
+                                              );
+                                            },
                                           ),
-                                          title: const Text("Sınıf Duvarı"),
-                                          subtitle: const Text(
-                                            "Öğrencilerle ortak akış ve paylaşımlar",
-                                          ),
-                                          onTap: () {
-                                            Navigator.pop(bottomSheetContext);
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ClassFeedScreen(
-                                                      currentUserId:
-                                                          FirebaseAuth
-                                                              .instance
-                                                              .currentUser
-                                                              ?.uid ??
-                                                          "ogretmen_id",
-                                                      currentUserName:
-                                                          unvanliIsim,
-                                                      isTeacher: true,
-                                                      classId: hedefClassId,
-                                                      className:
-                                                          widget.className,
-                                                      userRole: widget.userRole,
-                                                    ),
-                                              ),
-                                            );
-                                          },
                                         ),
-                                        ListTile(
-                                          leading: const Icon(
-                                            Icons.security,
-                                            color: Colors.indigo,
-                                            size: 30,
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: ListTile(
+                                            leading: const Icon(
+                                              Icons.security,
+                                              color: Colors.indigo,
+                                              size: 30,
+                                            ),
+                                            title: const Text(
+                                              "Tüm Sınıf Sohbetleri (Denetim)",
+                                            ),
+                                            subtitle: const Text(
+                                              "Öğrenci aralarındaki bireysel ve grup sohbetleri",
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(bottomSheetContext);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      TeacherChatAuditScreen(
+                                                        classId: hedefClassId,
+                                                        currentUserId:
+                                                            FirebaseAuth
+                                                                .instance
+                                                                .currentUser
+                                                                ?.uid ??
+                                                            "ogretmen_id",
+                                                        currentUserName:
+                                                            unvanliIsim,
+                                                        userRole:
+                                                            widget.userRole,
+                                                      ),
+                                                ),
+                                              );
+                                            },
                                           ),
-                                          title: const Text(
-                                            "Tüm Sınıf Sohbetleri (Denetim)",
-                                          ),
-                                          subtitle: const Text(
-                                            "Öğrenci aralarındaki bireysel ve grup sohbetleri",
-                                          ),
-                                          onTap: () {
-                                            Navigator.pop(bottomSheetContext);
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    TeacherChatAuditScreen(
-                                                      classId: hedefClassId,
-                                                      currentUserId:
-                                                          FirebaseAuth
-                                                              .instance
-                                                              .currentUser
-                                                              ?.uid ??
-                                                          "ogretmen_id",
-                                                      currentUserName:
-                                                          unvanliIsim,
-                                                      userRole: widget.userRole,
-                                                    ),
-                                              ),
-                                            );
-                                          },
                                         ),
                                       ],
                                     ),

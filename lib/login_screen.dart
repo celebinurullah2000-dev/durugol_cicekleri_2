@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isRoleSelected = false;
   bool _sifreGizli = true;
+  //bool _eulaOnaylandiMi = false;
 
   String? _selectedGradeLevel;
   String? _selectedBranch;
@@ -49,10 +50,79 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _uygulamaBaslat();
+  }
+
+  Future<void> _uygulamaBaslat() async {
+    await _anonimGirisYapKontrol(); // 1. Önce kimlik doğrulama tamamlansın
+
     _checkSavedClass();
     _loadClasses();
     _versiyonKontrolEt();
-    _anonimGirisYapKontrol();
+    _eulaKontrolEt();
+  }
+
+  void _eulaDialogGoster() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            "Kullanım Koşulları ve EULA",
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
+          ),
+          content: const SizedBox(
+            width: double.maxFinite,
+            height: 250,
+            child: SingleChildScrollView(
+              child: Text(
+                "Uygulamamızı kullandığınız için teşekkür ederiz.\n\n"
+                "1. Bu uygulama içerisindeki Sohbet Odaları ve Sınıf Duvarı gibi alanlarda küfür, hakaret, zorbalık, rahatsız edici veya yasadışı içerik paylaşmak kesinlikle yasaktır.\n"
+                "2. Kurallara uymayan kullanıcıların hesapları hiçbir uyarı yapılmaksızın engellenecektir.\n"
+                "3. Paylaşılan tüm içeriklerin sorumluluğu kullanıcıya aittir.\n\n"
+                "Uygulamayı kullanmaya devam etmek için lütfen Son Kullanıcı Lisans Sözleşmesi'ni (EULA) kabul ediniz.",
+                style: TextStyle(fontSize: 14, color: Colors.black87),
+              ),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('eula_accepted', true);
+
+                if (!context.mounted) return;
+                Navigator.pop(context);
+              },
+              child: const Text("Kabul Ediyorum"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _eulaKontrolEt() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool onay = prefs.getBool('eula_accepted') ?? false;
+
+    if (!onay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _eulaDialogGoster();
+      });
+    }
   }
 
   Future<void> _anonimGirisYapKontrol() async {
@@ -692,7 +762,36 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login(BuildContext context) async {
     final password = _passwordController.text.trim();
     final prefs = await SharedPreferences.getInstance();
-    final targetClassId = _savedClassId ?? _selectedClassId;
+
+    // Önce hafızadaki veya seçilen ID'ye bakalım
+    String? targetClassId = _savedClassId ?? _selectedClassId;
+
+    // EMNİYET KİRİŞİ: Eğer _selectedClassId henüz dolmadıysa ama kullanıcı sınıf ve şube seçtiyse,
+    // anlık olarak Firestore'dan o sınıfın ID'sini doğrudan buluyoruz:
+    if (targetClassId == null &&
+        _selectedGradeLevel != null &&
+        _selectedBranch != null) {
+      try {
+        var snapshot = await FirebaseFirestore.instance
+            .collection('classes')
+            .get();
+        for (var doc in snapshot.docs) {
+          String cName = (doc.data()['className'] ?? '').toString();
+          String grade = (doc.data()['grade'] ?? '').toString();
+          String branch = (doc.data()['branch'] ?? '').toString();
+
+          // Sınıf ve şube eşleşmesini yakala
+          if ((grade == _selectedGradeLevel && branch == _selectedBranch) ||
+              (cName.contains(_selectedGradeLevel!) &&
+                  cName.contains(_selectedBranch!))) {
+            targetClassId = doc.id;
+            break;
+          }
+        }
+      } catch (e) {
+        debugPrint("Sınıf arama hatası: $e");
+      }
+    }
 
     if (targetClassId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -736,7 +835,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ? (classDoc.data()?['className'] ?? '')
             : '';
 
-        // Öğrenciyi online olarak gerçek ID'si ile kaydediyoruz
         await FirebaseFirestore.instance
             .collection('online_users')
             .doc(matchedDoc.id)
@@ -744,7 +842,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'name': fullName,
               'role': 'student',
               'sinifSube': sinifSubeAdi,
-              'lastActive': FieldValue.serverTimestamp(),
+              'lastActive': Timestamp.now(),
             });
 
         await prefs.setString('userRole', 'student');

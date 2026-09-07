@@ -562,7 +562,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
+
+              // 1. EULA onay durumunu silinmeden önce hafızaya alıyoruz
+              bool eulaDurumu = prefs.getBool('eula_accepted') ?? false;
+
+              // 2. Hafızadaki tüm oturum verilerini temizliyoruz
               await prefs.clear();
+
+              // 3. EULA onay durumunu tekrar geri yüklüyoruz
+              if (eulaDurumu) {
+                await prefs.setBool('eula_accepted', true);
+              }
 
               if (!context.mounted) return;
 
