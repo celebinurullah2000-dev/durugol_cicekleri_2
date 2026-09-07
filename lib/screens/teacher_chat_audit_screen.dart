@@ -1,4 +1,4 @@
-// ignore_for_file: use_super_parameters
+// ignore_for_file: use_super_parameters, use_build_context_synchronously
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +8,7 @@ class TeacherChatAuditScreen extends StatelessWidget {
   final String classId;
   final String currentUserId;
   final String currentUserName;
-  final String userRole; // <--- Rol parametresi
+  final String userRole; // Rol parametresi
 
   const TeacherChatAuditScreen({
     Key? key,
@@ -17,6 +17,48 @@ class TeacherChatAuditScreen extends StatelessWidget {
     required this.currentUserName,
     this.userRole = 'admin',
   }) : super(key: key);
+
+  // Sohbeti Herkes İçin Silme Fonksiyonu
+  void _deleteChat(BuildContext context, String chatId, String chatTitle) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Sohbeti Sil 🗑️"),
+        content: Text(
+          "'$chatTitle' sohbetini ve tüm mesajları herkes için silmek istediğinize emin misiniz?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("İptal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+
+              // Firestore'dan sohbet dokümanını tamamen sil (Herkesin ekranından kalkar)
+              await FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(chatId)
+                  .delete();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Sohbet herkes için silindi."),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            },
+            child: const Text("Sil"),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +78,7 @@ class TeacherChatAuditScreen extends StatelessWidget {
             return Center(child: Text("Hata: ${snapshot.error}"));
           }
 
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -82,7 +124,18 @@ class TeacherChatAuditScreen extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  // --- ÖĞRETMEN DENETİM EKRANI İÇİN SİLME İKONU VE OK ---
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        tooltip: "Sohbeti Herkes İçin Sil",
+                        onPressed: () => _deleteChat(context, chatId, title),
+                      ),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
+                    ],
+                  ),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -93,8 +146,7 @@ class TeacherChatAuditScreen extends StatelessWidget {
                           currentUserId: currentUserId,
                           currentUserName: currentUserName,
                           isTeacher: true,
-                          userRole:
-                              userRole, // <--- Burada 'widget.' yerine doğrudan 'userRole' kullanılıyor
+                          userRole: userRole,
                         ),
                       ),
                     );

@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, avoid_types_as_parameter_names
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,10 +30,15 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   bool get _isSinifOgretmeni =>
       widget.userRole.trim().toLowerCase() == 'classroom_teacher';
 
+  bool get _isAnasinifiOgretmeni =>
+      widget.userRole.trim().toLowerCase() == 'kindergarten_teacher';
+
+  bool get _isOzelEgitimOgretmeni =>
+      widget.userRole.trim().toLowerCase() == 'special_education_teacher';
+
   @override
   void initState() {
     super.initState();
-    // Eğer sınıf öğretmeniyse, sınıf ID'sini doğrudan sabitleyelim
     if (_isSinifOgretmeni && widget.currentClassId.isNotEmpty) {
       _selectedClassId = widget.currentClassId;
     }
@@ -57,7 +62,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // SINIF SEÇİMİ (Sınıf öğretmenine kilitli, idareciye seçilebilir)
+            // SINIF SEÇİMİ (Role göre kilitli veya filtrelenmiş)
             _isSinifOgretmeni
                 ? FutureBuilder<DocumentSnapshot>(
                     future: widget.currentClassId.isNotEmpty
@@ -67,7 +72,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                               .get()
                         : null,
                     builder: (context, snapshot) {
-                      // Veri yüklenirken veya id boşsa geçici olarak yükleniyor veya boş gösterelim
                       String className = "Yükleniyor...";
                       if (snapshot.connectionState == ConnectionState.done) {
                         if (snapshot.hasData && snapshot.data!.exists) {
@@ -85,8 +89,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                           labelText: "Sınıf",
                           border: OutlineInputBorder(),
                           filled: true,
-                          fillColor: Colors
-                              .grey, // Kilitli olduğunu belirten gri arka plan
+                          fillColor: Colors.grey,
                         ),
                         child: Text(
                           className,
@@ -104,19 +107,55 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
-                        return const CircularProgressIndicator();
+                        return const Center(child: CircularProgressIndicator());
                       }
 
-                      var classList = snapshot.data!.docs;
+                      var allDocs = snapshot.data!.docs;
+                      var classList = allDocs.where((doc) {
+                        var data = doc.data() as Map<String, dynamic>;
+                        String className = (data['className'] ?? '')
+                            .toLowerCase();
+                        String grade = (data['grade'] ?? '').toLowerCase();
+                        String role = (data['userRole'] ?? '').toLowerCase();
+
+                        if (_isAnasinifiOgretmeni) {
+                          // Ana sınıfı rolüne sahip veya adı ana sınıfı içeren kayıtlar
+                          return role == 'kindergarten_teacher' ||
+                              className.contains('ana sınıfı') ||
+                              className.contains('anasınıfı') ||
+                              grade.contains('ana sınıfı');
+                        } else if (_isOzelEgitimOgretmeni) {
+                          // Özel eğitim rolüne sahip veya adı özel eğitim içeren kayıtlar
+                          return role == 'special_education_teacher' ||
+                              className.contains('özel eğitim') ||
+                              grade.contains('özel eğitim');
+                        } else {
+                          // Admin veya diğer yetkililer tüm sınıfları görebilir
+                          return true;
+                        }
+                      }).toList();
+
+                      if (classList.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            "Kayıtlı uygun sınıf bulunamadı.",
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        );
+                      }
+
                       return DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
                           labelText: "Sınıf Seçin",
+                          border: OutlineInputBorder(),
                         ),
                         initialValue: _selectedClassId,
                         items: classList.map((doc) {
+                          var data = doc.data() as Map<String, dynamic>;
                           return DropdownMenuItem(
                             value: doc.id,
-                            child: Text(doc['className']),
+                            child: Text(data['className'] ?? 'Sınıf'),
                           );
                         }).toList(),
                         onChanged: (val) =>
@@ -138,7 +177,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               validator: (val) => val!.isEmpty ? "Lütfen soyad girin" : null,
             ),
 
-            // CİNSİYET SEÇİMİ (Nöbetçi algoritması için şart)
+            // CİNSİYET SEÇİMİ
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: "Cinsiyet"),
               initialValue: _selectedGender,

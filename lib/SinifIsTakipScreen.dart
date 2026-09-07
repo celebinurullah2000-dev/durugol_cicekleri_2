@@ -285,6 +285,16 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
               String veriTuru = isData['veriTuru'] ?? 'artı_eksi';
               String isId = isDoc.id;
 
+              // Veriliş tarihini okunabilir formata çevirme
+              var tarihField = isData['tarih'];
+              String verilisTarihiStr = "Belirtilmemiş";
+              if (tarihField is Timestamp) {
+                DateTime dt = tarihField.toDate();
+                verilisTarihiStr = "${dt.day}.${dt.month}.${dt.year}";
+              } else if (tarihField is String && tarihField.isNotEmpty) {
+                verilisTarihiStr = tarihField;
+              }
+
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ExpansionTile(
@@ -321,9 +331,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                         ),
                     ],
                   ),
-                  subtitle: Text(
-                    "Tür: ${veriTuru.toUpperCase()} • Detay için tıkla",
-                  ),
+                  subtitle: Text("Tarih: $verilisTarihiStr • Detay için tıkla"),
                   children: [
                     if (isSinifOgretmeni)
                       Container(

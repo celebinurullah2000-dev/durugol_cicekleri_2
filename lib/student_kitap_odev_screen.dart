@@ -30,9 +30,11 @@ class _StudentOdevTakipScreenState extends State<StudentOdevTakipScreen> {
     int index,
   ) async {
     Map<String, dynamic> secilenKitap = Map.from(mevcutKitaplar[index]);
-    String mevcutDurum = secilenKitap['durum'] ?? 'bekliyor';
+    String eskiDurum = secilenKitap['durum'] ?? 'bekliyor';
 
-    secilenKitap['durum'] = (mevcutDurum == 'ogretmen_reddi')
+    bool yapildiIseReddedildi = (eskiDurum == 'yapildi');
+
+    secilenKitap['durum'] = (eskiDurum == 'ogretmen_reddi')
         ? 'bekliyor'
         : 'ogretmen_reddi';
     mevcutKitaplar[index] = secilenKitap;
@@ -43,6 +45,76 @@ class _StudentOdevTakipScreenState extends State<StudentOdevTakipScreen> {
         .collection('odevler')
         .doc(odevId)
         .update({'kitaplar': mevcutKitaplar});
+
+    // Eğer öğrenci 'yapildi' yapmışken öğretmen 'ogretmen_reddi' (yapılmadı) yaptıysa sarı kart gönder
+    if (yapildiIseReddedildi && secilenKitap['durum'] == 'ogretmen_reddi') {
+      String? classId = widget.studentData['classId'];
+      if (classId != null && classId.isNotEmpty) {
+        var davranisRef = FirebaseFirestore.instance
+            .collection('classes')
+            .doc(classId)
+            .collection('davranislar')
+            .doc(widget.studentId);
+
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          var snapshot = await transaction.get(davranisRef);
+          int mevcutSari = 0;
+          if (snapshot.exists && snapshot.data() != null) {
+            mevcutSari = (snapshot.data()!['sariKart'] ?? 0) as int;
+          }
+          transaction.set(davranisRef, {
+            'sariKart': mevcutSari + 1,
+            'guncellemeTarihi': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        });
+      }
+    }
+  }
+
+  // Kesin sonuç veren Regex ve kelime tabanlı Türkçe tarih ayrıştırıcı
+  DateTime? _parseTurkishDate(String str) {
+    try {
+      str = str.toLowerCase();
+
+      final dayMatch = RegExp(r'\b(\d{1,2})\b').firstMatch(str);
+      final yearMatch = RegExp(r'\b(20\d{2})\b').firstMatch(str);
+
+      if (dayMatch == null || yearMatch == null) return null;
+
+      int day = int.parse(dayMatch.group(1)!);
+      int year = int.parse(yearMatch.group(1)!);
+
+      int month = 1;
+      if (str.contains('ocak')) {
+        month = 1;
+      } else if (str.contains('şubat') || str.contains('subat')) {
+        month = 2;
+      } else if (str.contains('mart')) {
+        month = 3;
+      } else if (str.contains('nisan')) {
+        month = 4;
+      } else if (str.contains('mayıs') || str.contains('mayis')) {
+        month = 5;
+      } else if (str.contains('haziran')) {
+        month = 6;
+      } else if (str.contains('temmuz')) {
+        month = 7;
+      } else if (str.contains('ağustos') || str.contains('agustos')) {
+        month = 8;
+      } else if (str.contains('eylül') || str.contains('eylul')) {
+        month = 9;
+      } else if (str.contains('ekim')) {
+        month = 10;
+      } else if (str.contains('kasım') || str.contains('kasim')) {
+        month = 11;
+      } else if (str.contains('aralık') || str.contains('aralik')) {
+        month = 12;
+      }
+
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -86,7 +158,6 @@ class _StudentOdevTakipScreenState extends State<StudentOdevTakipScreen> {
                         fontSize: 16,
                       ),
                     ),
-                    // Şifre alanı buradan kaldırıldı 🔒
                     const Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -169,7 +240,22 @@ class _StudentOdevTakipScreenState extends State<StudentOdevTakipScreen> {
           );
         }
 
-        var odevler = snapshot.data!.docs;
+        var odevler = List.from(snapshot.data!.docs);
+        odevler.sort((a, b) {
+          var dataA = a.data() as Map<String, dynamic>;
+          var dataB = b.data() as Map<String, dynamic>;
+          String tarihA = dataA['tarihStr'] ?? '';
+          String tarihB = dataB['tarihStr'] ?? '';
+
+          DateTime? dtA = _parseTurkishDate(tarihA);
+          DateTime? dtB = _parseTurkishDate(tarihB);
+
+          if (dtA == null && dtB == null) return 0;
+          if (dtA == null) return 1;
+          if (dtB == null) return -1;
+
+          return dtB.compareTo(dtA);
+        });
 
         int toplamOdevKitabi = 0;
         int yapilanOdevKitabi = 0;

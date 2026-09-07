@@ -2,19 +2,18 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'chat_detail_screen.dart'; // Bir sonraki adımda yazacağımız detay ekranı
+import 'chat_detail_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
   final String currentUserId;
-  final String
-  currentUserName; // <--- Bu alanın burada tanımlı olduğundan emin ol!
+  final String currentUserName;
   final bool isTeacher;
   final String classId;
 
   const ChatListScreen({
     Key? key,
     required this.currentUserId,
-    required this.currentUserName, // <--- Burada da olmalı
+    required this.currentUserName,
     required this.isTeacher,
     required this.classId,
   }) : super(key: key);
@@ -82,7 +81,7 @@ class ChatListScreen extends StatelessWidget {
                               "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}";
 
                           if (studentId == currentUserId)
-                            return const SizedBox.shrink(); // Kendini listede geç
+                            return const SizedBox.shrink();
 
                           bool isSelected = selectedMemberIds.contains(
                             studentId,
@@ -134,15 +133,10 @@ class ChatListScreen extends StatelessWidget {
 
                 Navigator.pop(context);
 
-                // Grubu oluşturan kişiyi de katılımcılara ekleyelim
                 List<String> allParticipants = [
                   ...selectedMemberIds,
                   currentUserId,
                 ];
-
-                // Eğer oluşturan öğretmen değilse, öğretmenin de her şeyi görebilmesi için
-                // öğretmeni katılımcılara otomatik dahil edebiliriz veya güvenlik kuralı kullanabiliriz.
-                // En garanti yol: Tüm grup katılımcılarına eklemek.
 
                 await FirebaseFirestore.instance.collection('chats').add({
                   'classId': classId,
@@ -187,7 +181,6 @@ class ChatListScreen extends StatelessWidget {
 
               var students = snapshot.data!.docs;
 
-              // --- TÜRKÇE ALFABETİK SIRALAMA ---
               students.sort((a, b) {
                 var dataA = a.data() as Map<String, dynamic>;
                 var dataB = b.data() as Map<String, dynamic>;
@@ -210,7 +203,7 @@ class ChatListScreen extends StatelessWidget {
                       "${data['firstName'] ?? ''} ${data['lastName'] ?? ''}";
 
                   if (studentId == currentUserId)
-                    return const SizedBox.shrink(); // Kendini listeleme
+                    return const SizedBox.shrink();
 
                   return ListTile(
                     title: Text(studentName),
@@ -232,9 +225,9 @@ class ChatListScreen extends StatelessWidget {
                             .collection('chats')
                             .doc(chatId)
                             .set({
+                              'classId': classId,
                               'isGroup': false,
                               'participants': [currentUserId, studentId],
-                              // Kimin hangi adı olduğunu kaydediyoruz:
                               'participantNames': {
                                 currentUserId: currentUserName,
                                 studentId: studentName,
@@ -250,8 +243,7 @@ class ChatListScreen extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (context) => ChatDetailScreen(
                             chatId: chatId,
-                            chatTitle:
-                                studentName, // Detay sayfasına da bu ad gönderiliyor
+                            chatTitle: studentName,
                             currentUserId: currentUserId,
                             currentUserName: currentUserName,
                             isTeacher: isTeacher,
@@ -287,13 +279,11 @@ class ChatListScreen extends StatelessWidget {
         stream: isTeacher
             ? FirebaseFirestore.instance
                   .collection('chats')
-                  .snapshots() // Öğretmen tüm sohbetleri görür
+                  .where('classId', isEqualTo: classId)
+                  .snapshots() // Öğretmen sınıfındaki tüm sohbetleri görür
             : FirebaseFirestore.instance
                   .collection('chats')
-                  .where(
-                    'participants',
-                    arrayContains: currentUserId,
-                  ) // Öğrenci sadece katıldıklarını görür
+                  .where('participants', arrayContains: currentUserId)
                   .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -316,7 +306,6 @@ class ChatListScreen extends StatelessWidget {
               String chatId = chat.id;
               bool isGroup = data['isGroup'] ?? false;
 
-              // --- DİNAMİK BAŞLIK BELİRLEME MANTIĞI ---
               String title = 'Sohbet';
 
               if (isGroup) {
@@ -364,6 +353,7 @@ class ChatListScreen extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -383,17 +373,14 @@ class ChatListScreen extends StatelessWidget {
                   },
                 );
               } else {
-                // Bireysel sohbetse, 'participantNames' haritasından diğer kişinin adını buluyoruz
                 Map<String, dynamic> names = data['participantNames'] ?? {};
                 List<dynamic> parts = data['participants'] ?? [];
 
-                // Kendi ID'miz dışındaki diğer katılımcının ID'sini bul
                 String otherUserId = parts.firstWhere(
                   (id) => id != currentUserId,
                   orElse: () => '',
                 );
 
-                // Haritadan o kişinin adını al, yoksa varsayılan yaz
                 title = names[otherUserId] ?? 'Bireysel Sohbet';
               }
 
@@ -402,12 +389,9 @@ class ChatListScreen extends StatelessWidget {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isGroup ? Colors.orange : Colors.blue,
-                    child: Icon(
-                      isGroup ? Icons.group : Icons.person,
-                      color: Colors.white,
-                    ),
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.blue,
+                    child: Icon(Icons.person, color: Colors.white),
                   ),
                   title: Text(
                     title,
@@ -469,7 +453,7 @@ class ChatListScreen extends StatelessWidget {
               title: const Text("Bireysel Sohbet Başlat"),
               onTap: () {
                 Navigator.pop(context);
-                _yeniSohbetAcDialog(context); // Önceki bireysel açma dialogu
+                _yeniSohbetAcDialog(context);
               },
             ),
             ListTile(
@@ -477,7 +461,7 @@ class ChatListScreen extends StatelessWidget {
               title: const Text("Grup Sohbeti Kur"),
               onTap: () {
                 Navigator.pop(context);
-                _grupOlusturDialog(context); // Az önce yazdığımız grup dialogu
+                _grupOlusturDialog(context);
               },
             ),
           ],

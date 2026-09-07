@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -18,7 +20,7 @@ class OgretmenDavranisScreen extends StatefulWidget {
 }
 
 class _OgretmenDavranisScreenState extends State<OgretmenDavranisScreen> {
-  // Filtreleme türü: 0 = Varsayılan, 1 = Olumludan Olumsuza, 2 = Olumsuzdan Olumluya
+  // Filtreleme türü: 0 = Varsayılan (Alfabetik), 1 = Olumludan Olumsuza, 2 = Olumsuzdan Olumluya
   int _secilenFiltre = 0;
 
   @override
@@ -39,15 +41,15 @@ class _OgretmenDavranisScreenState extends State<OgretmenDavranisScreen> {
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 0,
-                child: Text("Siralama Yok (Varsayilan)"),
+                child: Text("Alfabetik Sıralama (Varsayılan)"),
               ),
               const PopupMenuItem(
                 value: 1,
-                child: Text("1. Olumludan Olumsuza (Yuksekten Dusuge)"),
+                child: Text("1. Olumludan Olumsuza (Puana Göre)"),
               ),
               const PopupMenuItem(
                 value: 2,
-                child: Text("2. Olumsuzdan Olumluya (Dusukten Yuksege)"),
+                child: Text("2. Olumsuzdan Olumluya (Puana Göre)"),
               ),
             ],
           ),
@@ -88,39 +90,41 @@ class _OgretmenDavranisScreenState extends State<OgretmenDavranisScreen> {
                 }
               }
 
-              // Net puana göre sıralama mantığı
+              // Sıralama Mantığı (Alfabetik veya Puana Göre)
               students.sort((a, b) {
-                var dataA = davranisMap[a.id] ?? {};
-                var dataB = davranisMap[b.id] ?? {};
+                var dataA = a.data() as Map<String, dynamic>;
+                var dataB = b.data() as Map<String, dynamic>;
+                String adA =
+                    "${dataA['firstName'] ?? ''} ${dataA['lastName'] ?? ''}";
+                String adB =
+                    "${dataB['firstName'] ?? ''} ${dataB['lastName'] ?? ''}";
 
-                int sariA = dataA['sariKart'] ?? 0;
-                int yesilA = dataA['yesilKart'] ?? 0;
-                int kirmiziA = sariA ~/ 3;
-                int kalanSariA = sariA % 3;
-                int altinA = yesilA ~/ 3;
-                int kalanYesilA = yesilA % 3;
-                int netPuanA =
-                    ((altinA * 3) + kalanYesilA) -
-                    ((kirmiziA * 3) + kalanSariA);
+                // Eğer puana göre sıralama seçildiyse
+                if (_secilenFiltre == 1 || _secilenFiltre == 2) {
+                  var davranisA = davranisMap[a.id] ?? {};
+                  var davranisB = davranisMap[b.id] ?? {};
 
-                int sariB = dataB['sariKart'] ?? 0;
-                int yesilB = dataB['yesilKart'] ?? 0;
-                int kirmiziB = sariB ~/ 3;
-                int kalanSariB = sariB % 3;
-                int altinB = yesilB ~/ 3;
-                int kalanYesilB = yesilB % 3;
-                int netPuanB =
-                    ((altinB * 3) + kalanYesilB) -
-                    ((kirmiziB * 3) + kalanSariB);
+                  int sariA = davranisA['sariKart'] ?? 0;
+                  int yesilA = davranisA['yesilKart'] ?? 0;
+                  int netPuanA =
+                      ((yesilA ~/ 3 * 3) + (yesilA % 3)) -
+                      ((sariA ~/ 3 * 3) + (sariA % 3));
 
-                if (_secilenFiltre == 1) {
-                  // Olumludan Olumsuza (En yüksek puandan en düşük puana doğru)
-                  return netPuanB.compareTo(netPuanA);
-                } else if (_secilenFiltre == 2) {
-                  // Olumsuzdan Olumluya (En düşük puandan en yüksek puana doğru)
-                  return netPuanA.compareTo(netPuanB);
+                  int sariB = davranisB['sariKart'] ?? 0;
+                  int yesilB = davranisB['yesilKart'] ?? 0;
+                  int netPuanB =
+                      ((yesilB ~/ 3 * 3) + (yesilB % 3)) -
+                      ((sariB ~/ 3 * 3) + (sariB % 3));
+
+                  if (_secilenFiltre == 1) {
+                    return netPuanB.compareTo(netPuanA); // Yüksekten düşüğe
+                  } else {
+                    return netPuanA.compareTo(netPuanB); // Düşükten yükseğe
+                  }
                 }
-                return 0;
+
+                // Varsayılan: Türkçe Alfabetik Sıralama
+                return _turkceKarsilastir(adA, adB);
               });
 
               return ListView.builder(
@@ -163,183 +167,218 @@ class _OgretmenDavranisScreenState extends State<OgretmenDavranisScreen> {
                   }
 
                   return Card(
-                    elevation: 3,
-                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    elevation: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 6),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            adSoyad,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _buildDengeBari(
-                            gosterilecekSari,
-                            gosterilecekKirmizi,
-                            gosterilecekYesil,
-                            gosterilecekAltin,
-                            netPuan,
-                          ),
-                          const SizedBox(height: 12),
-
-                          // ORTA KISIM: Olumsuz Davranislar (Sari & Kirmizi)
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.shade100),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.warning_amber_rounded,
-                                      color: Colors.orange,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      "Sari: $kalanSari | Kirmizi: $hamKirmizi",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                // SADECE SINIF OGRETMENINE GORUNEN BUTONLAR
-                                if (widget.isTeacher)
-                                  Row(
-                                    children: [
-                                      ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.orange,
-                                          foregroundColor: Colors.white,
-                                          minimumSize: const Size(70, 32),
-                                          padding: EdgeInsets.zero,
-                                        ),
-                                        onPressed: () => _kartGuncelle(
-                                          widget.classId,
-                                          studentId,
-                                          hamSari + 1,
-                                          hamYesil,
-                                        ),
-                                        icon: const Icon(Icons.add, size: 16),
-                                        label: const Text(
-                                          "Sari Ekle",
-                                          style: TextStyle(fontSize: 11),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.remove_circle_outline,
-                                          color: Colors.red,
-                                          size: 20,
-                                        ),
-                                        tooltip: "Olumsuz Karti Azalt",
-                                        onPressed: hamSari > 0
-                                            ? () => _kartGuncelle(
-                                                widget.classId,
-                                                studentId,
-                                                hamSari - 1,
-                                                hamYesil,
-                                              )
-                                            : null,
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-
-                          // ALT KISIM: Olumlu Davranislar (Yesil & Altin)
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.green.shade100),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.star,
-                                      color: Colors.amber,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      "Yesil: $kalanYesil | Altin: $hamAltin",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                // SADECE SINIF OGRETMENINE GORUNEN BUTONLAR
-                                if (widget.isTeacher)
-                                  Row(
-                                    children: [
-                                      ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.green,
-                                          foregroundColor: Colors.white,
-                                          minimumSize: const Size(70, 32),
-                                          padding: EdgeInsets.zero,
-                                        ),
-                                        onPressed: () => _kartGuncelle(
-                                          widget.classId,
-                                          studentId,
-                                          hamSari,
-                                          hamYesil + 1,
-                                        ),
-                                        icon: const Icon(Icons.add, size: 16),
-                                        label: const Text(
-                                          "Yesil Ekle",
-                                          style: TextStyle(fontSize: 11),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.remove_circle_outline,
-                                          color: Colors.green,
-                                          size: 20,
-                                        ),
-                                        tooltip: "Olumlu Karti Azalt",
-                                        onPressed: hamYesil > 0
-                                            ? () => _kartGuncelle(
-                                                widget.classId,
-                                                studentId,
-                                                hamSari,
-                                                hamYesil - 1,
-                                              )
-                                            : null,
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
+                    child: ExpansionTile(
+                      // --- İSİM LİSTESİ (Tıklayınca açılır) ---
+                      title: Text(
+                        adSoyad,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                      leading: CircleAvatar(
+                        backgroundColor: netPuan > 0
+                            ? Colors.green.shade100
+                            : (netPuan < 0
+                                  ? Colors.red.shade100
+                                  : Colors.grey.shade200),
+                        child: Text(
+                          netPuan == 0
+                              ? "0"
+                              : (netPuan > 0 ? "+$netPuan" : "$netPuan"),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: netPuan > 0
+                                ? Colors.green.shade800
+                                : (netPuan < 0
+                                      ? Colors.red.shade800
+                                      : Colors.grey.shade800),
+                          ),
+                        ),
+                      ),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildDengeBari(
+                                gosterilecekSari,
+                                gosterilecekKirmizi,
+                                gosterilecekYesil,
+                                gosterilecekAltin,
+                                netPuan,
+                              ),
+                              const SizedBox(height: 12),
+
+                              // ORTA KISIM: Olumsuz Davranislar (Sari & Kirmizi)
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.red.shade100,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: Colors.orange,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Sari: $kalanSari | Kirmizi: $hamKirmizi",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (widget.isTeacher)
+                                      Row(
+                                        children: [
+                                          ElevatedButton.icon(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.orange,
+                                              foregroundColor: Colors.white,
+                                              minimumSize: const Size(70, 32),
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                            onPressed: () => _kartGuncelle(
+                                              widget.classId,
+                                              studentId,
+                                              hamSari + 1,
+                                              hamYesil,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.add,
+                                              size: 16,
+                                            ),
+                                            label: const Text(
+                                              "Sari Ekle",
+                                              style: TextStyle(fontSize: 11),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
+                                            tooltip: "Olumsuz Karti Azalt",
+                                            onPressed: hamSari > 0
+                                                ? () => _kartGuncelle(
+                                                    widget.classId,
+                                                    studentId,
+                                                    hamSari - 1,
+                                                    hamYesil,
+                                                  )
+                                                : null,
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+
+                              // ALT KISIM: Olumlu Davranislar (Yesil & Altin)
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.green.shade100,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Yesil: $kalanYesil | Altin: $hamAltin",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (widget.isTeacher)
+                                      Row(
+                                        children: [
+                                          ElevatedButton.icon(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.green,
+                                              foregroundColor: Colors.white,
+                                              minimumSize: const Size(70, 32),
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                            onPressed: () => _kartGuncelle(
+                                              widget.classId,
+                                              studentId,
+                                              hamSari,
+                                              hamYesil + 1,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.add,
+                                              size: 16,
+                                            ),
+                                            label: const Text(
+                                              "Yesil Ekle",
+                                              style: TextStyle(fontSize: 11),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                              color: Colors.green,
+                                              size: 20,
+                                            ),
+                                            tooltip: "Olumlu Karti Azalt",
+                                            onPressed: hamYesil > 0
+                                                ? () => _kartGuncelle(
+                                                    widget.classId,
+                                                    studentId,
+                                                    hamSari,
+                                                    hamYesil - 1,
+                                                  )
+                                                : null,
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -349,6 +388,49 @@ class _OgretmenDavranisScreenState extends State<OgretmenDavranisScreen> {
         },
       ),
     );
+  }
+
+  // Türkçe Alfabetik Sıralama Fonksiyonu
+  int _turkceKarsilastir(String a, String b) {
+    const String turkceAlfabe = 'aabcçdefgğhıijklmnoöprsştuüvyz';
+
+    String aKucuk = a
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    String bKucuk = b
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    int minLength = aKucuk.length < bKucuk.length
+        ? aKucuk.length
+        : bKucuk.length;
+
+    for (int i = 0; i < minLength; i++) {
+      int indexA = turkceAlfabe.indexOf(aKucuk[i]);
+      int indexB = turkceAlfabe.indexOf(bKucuk[i]);
+
+      if (indexA == -1 || indexB == -1) {
+        int comp = aKucuk.codeUnitAt(i).compareTo(bKucuk.codeUnitAt(i));
+        if (comp != 0) return comp;
+      } else if (indexA != indexB) {
+        return indexA.compareTo(indexB);
+      }
+    }
+
+    return aKucuk.length.compareTo(bKucuk.length);
   }
 
   void _kartGuncelle(

@@ -1,4 +1,4 @@
-// ignore_for_file: library_private_types_in_public_api
+// ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +29,75 @@ class ClassFeedScreen extends StatefulWidget {
 class _ClassFeedScreenState extends State<ClassFeedScreen> {
   final TextEditingController _postController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  @override
+  void initState() {
+    super.initState();
+    // Eğer giren kişi öğrenci ise sınıf duvarı ban kontrolünü yap
+    if (!widget.isTeacher) {
+      _checkStudentBanStatus();
+    }
+  }
+
+  // Öğrencinin sınıf duvarı ban kontrolü
+  void _checkStudentBanStatus() async {
+    var studentDoc = await _firestore
+        .collection('students')
+        .doc(widget.currentUserId)
+        .get();
+    if (!studentDoc.exists) return;
+
+    var data = studentDoc.data() as Map<String, dynamic>;
+
+    if (data.containsKey('chatBanUntil') && data['chatBanUntil'] != null) {
+      Timestamp banTimestamp = data['chatBanUntil'];
+      DateTime banDate = banTimestamp.toDate();
+
+      if (DateTime.now().isBefore(banDate)) {
+        List<String> months = [
+          '',
+          'Ocak',
+          'Şubat',
+          'Mart',
+          'Nisan',
+          'Mayıs',
+          'Haziran',
+          'Temmuz',
+          'Ağustos',
+          'Eylül',
+          'Ekim',
+          'Kasım',
+          'Aralık',
+        ];
+        String formattedDate =
+            "${banDate.day}-${months[banDate.month]}-${banDate.year}";
+        String formattedTime =
+            "${banDate.hour.toString().padLeft(2, '0')}:${banDate.minute.toString().padLeft(2, '0')}";
+
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text("Sınıf Duvarı Erişimi Kısıtlandı 🚫"),
+              content: Text(
+                "3 gün süreyle sohbet ve sınıf duvarı erişiminiz kapatıldı. Tekrar açılacağı tarih: $formattedDate, saat: $formattedTime",
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Dialogu kapat
+                    Navigator.pop(context); // Sınıf duvarı ekranından çık
+                  },
+                  child: const Text("Tamam"),
+                ),
+              ],
+            ),
+          );
+        });
+      }
+    }
+  }
 
   // Tarih ve Saat Oluşturucu Yardımcı Fonksiyonlar
   String _getFormattedDate() {
@@ -62,6 +131,31 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
   void _createPost() async {
     if (_postController.text.trim().isEmpty) return;
 
+    // Ekstra Güvenlik: Paylaş butonuna bastığı an ceza süresi bitmiş mi kontrol et
+    if (!widget.isTeacher) {
+      var studentDoc = await _firestore
+          .collection('students')
+          .doc(widget.currentUserId)
+          .get();
+      if (studentDoc.exists) {
+        var data = studentDoc.data() as Map<String, dynamic>;
+        if (data.containsKey('chatBanUntil') && data['chatBanUntil'] != null) {
+          Timestamp banTimestamp = data['chatBanUntil'];
+          if (DateTime.now().isBefore(banTimestamp.toDate())) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  "3 günlük ceza süreniz devam ettiği için paylaşım yapamazsınız!",
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        }
+      }
+    }
+
     String text = _postController.text.trim();
     _postController.clear();
 
@@ -76,9 +170,87 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
     });
   }
 
-  // Gönderi Silme
-  void _deletePost(String postId) async {
+  // Gönderi Silme ve Sarı Kart / Ban Mekanizması
+  void _deletePost(String postId, String authorId, String authorName) async {
+    var studentDoc = await _firestore
+        .collection('students')
+        .doc(authorId)
+        .get();
+
+    if (!studentDoc.exists) {
+      await _firestore.collection('class_feed').doc(postId).delete();
+      return;
+    }
+
+    var studentData = studentDoc.data() as Map<String, dynamic>;
+    int currentCards = studentData['chatYellowCards'] ?? 0;
+
+    String uyariMesaji = (currentCards == 2)
+        ? "DİKKAT! Eğer bu gönderiyi silerseniz, öğrenci 3 gün süreyle sohbet modülüne giriş yapamayacak."
+        : "Eğer bu gönderiyi silerseniz, öğrenciye 1 sarı kart verilecek.";
+
+    bool? onay = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Gönderiyi Sil ve Sarı Kart Ver ⚠️"),
+        content: Text(uyariMesaji),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("İptal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Sil ve Uygula"),
+          ),
+        ],
+      ),
+    );
+
+    if (onay != true) return;
+
+    int newCards = currentCards + 1;
+    Map<String, dynamic> updateData = {
+      'chatYellowCards': newCards,
+      'hasUnseenPenalty': true,
+    };
+
+    if (newCards >= 3) {
+      updateData['chatBanUntil'] = Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 3)),
+      );
+    }
+
+    // 1. Öğrencinin sohbet/ban cezası verilerini güncelle
+    await _firestore.collection('students').doc(authorId).update(updateData);
+
+    // 2. DAVRANIŞ MODÜLÜNE Sarı Kartı İşle
+    String classId = studentData['classId'] ?? '';
+    if (classId.isNotEmpty) {
+      await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('davranislar')
+          .doc(authorId)
+          .set({'sariKart': FieldValue.increment(1)}, SetOptions(merge: true));
+    }
+
+    // 3. Gönderiyi sil
     await _firestore.collection('class_feed').doc(postId).delete();
+
+    if (!context.mounted) {
+      if (!context.mounted) return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("$authorName adlı öğrenciye 1 sarı kart eklendi."),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   @override
@@ -151,15 +323,25 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
                     var doc = docs[index];
                     var data = doc.data() as Map<String, dynamic>;
                     String postId = doc.id;
+                    String authorId = data['authorId'] ?? '';
                     String authorName = data['authorName'] ?? 'İsimsiz';
                     String text = data['text'] ?? '';
                     String date = data['formattedDate'] ?? '';
                     String time = data['formattedTime'] ?? '';
 
-                    // SİLME YETKİSİ GÜNCELLENDİ:
-                    // Sadece Sınıf Öğretmeni (classroom_teacher) ise veya gönderiyi yazan kendi kişisiyse silebilir.
-                    // İdareci, Branş veya Rehber öğretmen artık silme yetkisine sahip değil.[cite: 5]
-                    bool canDelete = (widget.userRole == 'classroom_teacher');
+                    List<String> authorizedRoles = [
+                      'classroom_teacher',
+                      'branch_teacher',
+                      'english_teacher',
+                      'religious_teacher',
+                      'admin',
+                      'guidance_teacher',
+                      'special_education_teacher',
+                      'kindergarten_teacher',
+                    ];
+                    bool canDelete = authorizedRoles.contains(
+                      widget.userRole.trim().toLowerCase(),
+                    );
 
                     return Card(
                       margin: const EdgeInsets.symmetric(
@@ -188,7 +370,11 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
                                       color: Colors.red,
                                       size: 20,
                                     ),
-                                    onPressed: () => _deletePost(postId),
+                                    onPressed: () => _deletePost(
+                                      postId,
+                                      authorId,
+                                      authorName,
+                                    ),
                                   ),
                               ],
                             ),

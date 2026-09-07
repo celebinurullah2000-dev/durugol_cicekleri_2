@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -19,7 +21,7 @@ class OgrenciIsTakipScreen extends StatelessWidget {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
       ),
-      // Sınıfa ait işleri tarih sırasına göre dinliyoruz
+      // Sınıfa ait işleri tarih sırasına göre dinliyoruz (En yeni en üstte)
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('classes')
@@ -50,6 +52,16 @@ class OgrenciIsTakipScreen extends StatelessWidget {
               String isAdi = isData['isAdi'] ?? '';
               String veriTuru = isData['veriTuru'] ?? 'artı_eksi';
               String isId = isDoc.id;
+
+              // Veriliş tarihini okunabilir formata çevirme
+              var tarihField = isData['tarih'];
+              String verilisTarihiStr = "Belirtilmemiş";
+              if (tarihField is Timestamp) {
+                DateTime dt = tarihField.toDate();
+                verilisTarihiStr = "${dt.day}.${dt.month}.${dt.year}";
+              } else if (tarihField is String && tarihField.isNotEmpty) {
+                verilisTarihiStr = tarihField;
+              }
 
               // Her iş için öğrencinin o işe ait verisini (deger) alt sorgu ile çekiyoruz
               return FutureBuilder<DocumentSnapshot>(
@@ -96,7 +108,17 @@ class OgrenciIsTakipScreen extends StatelessWidget {
                         isAdi,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text("Tür: ${veriTuru.toUpperCase()}"),
+                      // Görev kartının altında hem türü hem de veriliş tarihini gösteriyoruz
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          "Tür: ${veriTuru.toUpperCase()} • Tarih: $verilisTarihiStr",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,

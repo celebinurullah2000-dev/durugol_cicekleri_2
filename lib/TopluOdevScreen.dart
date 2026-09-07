@@ -18,6 +18,9 @@ class TopluOdevScreen extends StatefulWidget {
 }
 
 class _TopluOdevScreenState extends State<TopluOdevScreen> {
+  // Filtreleme türü: 'tumu', 'yapanlar', 'yapmayanlar'
+  String _secilenFiltre = 'tumu';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,6 +28,28 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
         title: const Text("Sınıf Toplu Ödev Takibi"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list),
+            tooltip: "Öğrencileri Filtrele",
+            onSelected: (deger) {
+              setState(() {
+                _secilenFiltre = deger;
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'tumu', child: Text("Tüm Öğrenciler")),
+              const PopupMenuItem(
+                value: 'yapanlar',
+                child: Text("Ödevini Yapanlar"),
+              ),
+              const PopupMenuItem(
+                value: 'yapmayanlar',
+                child: Text("Ödevini Yapmayanlar"),
+              ),
+            ],
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -42,7 +67,18 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
             );
           }
 
-          var ogrenciler = studentSnapshot.data!.docs;
+          var ogrenciler = List.from(studentSnapshot.data!.docs);
+
+          // Türkçe alfabetik sıralama
+          ogrenciler.sort((a, b) {
+            var dataA = a.data() as Map<String, dynamic>;
+            var dataB = b.data() as Map<String, dynamic>;
+            String adA =
+                "${dataA['firstName'] ?? ''} ${dataA['lastName'] ?? ''}";
+            String adB =
+                "${dataB['firstName'] ?? ''} ${dataB['lastName'] ?? ''}";
+            return _turkceKarsilastir(adA, adB);
+          });
 
           return ListView.builder(
             itemCount: ogrenciler.length,
@@ -63,9 +99,11 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
                   int yapilanSayisi = 0;
                   int toplamKitap = 0;
                   bool kilitliVar = false;
+                  bool odevVar = false;
 
                   if (odevSnapshot.hasData &&
                       odevSnapshot.data!.docs.isNotEmpty) {
+                    odevVar = true;
                     for (var odevDoc in odevSnapshot.data!.docs) {
                       var odevData = odevDoc.data() as Map<String, dynamic>;
                       List kitaplar = odevData['kitaplar'] ?? [];
@@ -101,6 +139,18 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
                     durumRengi = Colors.grey;
                   }
 
+                  // Filtreleme Mantığı
+                  bool tamamladiMi =
+                      odevVar &&
+                      toplamKitap > 0 &&
+                      yapilanSayisi == toplamKitap;
+                  if (_secilenFiltre == 'yapanlar' && !tamamladiMi) {
+                    return const SizedBox.shrink();
+                  }
+                  if (_secilenFiltre == 'yapmayanlar' && tamamladiMi) {
+                    return const SizedBox.shrink();
+                  }
+
                   return Card(
                     margin: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -132,7 +182,7 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
                               studentData: ogrenciData,
                               studentId: ogrenciId,
                               userRole: widget.userRole,
-                              initialTabIndex: 1, // Sadece Ödev Takibi
+                              initialTabIndex: 1,
                             ),
                           ),
                         );
@@ -146,5 +196,42 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
         },
       ),
     );
+  }
+
+  // Türkçe Alfabetik Sıralama Fonksiyonu
+  int _turkceKarsilastir(String a, String b) {
+    const String turkceAlfabe = 'aabcçdefgğhıijklmnoöprsştuüvyz';
+    String aKucuk = a
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+    String bKucuk = b
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+    int minLength = aKucuk.length < bKucuk.length
+        ? aKucuk.length
+        : bKucuk.length;
+    for (int i = 0; i < minLength; i++) {
+      int indexA = turkceAlfabe.indexOf(aKucuk[i]);
+      int indexB = turkceAlfabe.indexOf(bKucuk[i]);
+      if (indexA == -1 || indexB == -1) {
+        int comp = aKucuk.codeUnitAt(i).compareTo(bKucuk.codeUnitAt(i));
+        if (comp != 0) return comp;
+      } else if (indexA != indexB) {
+        return indexA.compareTo(indexB);
+      }
+    }
+    return aKucuk.length.compareTo(bKucuk.length);
   }
 }

@@ -13,7 +13,8 @@ class TarihBazliOdevYoneticisiScreen extends StatefulWidget {
 
 class _TarihBazliOdevYoneticisiScreenState
     extends State<TarihBazliOdevYoneticisiScreen> {
-  // Sınıftaki tüm öğrencilerin o tarihteki belirli bir ödev kitabının durumunu toplu güncelleme
+  final Map<String, String> _filtreler = {};
+
   Future<void> _topluDurumGuncelle(
     String tarihStr,
     int kitapIndex,
@@ -37,10 +38,35 @@ class _TarihBazliOdevYoneticisiScreenState
 
         if (kitaplar.length > kitapIndex) {
           Map<String, dynamic> kitap = Map.from(kitaplar[kitapIndex]);
+          String eskiDurum = kitap['durum'] ?? 'bekliyor';
+
           kitap['durum'] = yeniDurum;
           kitaplar[kitapIndex] = kitap;
 
           await odevlerRef.doc(docId).update({'kitaplar': kitaplar});
+
+          // Eğer toplu işlemde 'yapildi' olan bir ödev 'ogretmen_reddi' yapılırsa sarı kart ekle
+          if (eskiDurum == 'yapildi' && yeniDurum == 'ogretmen_reddi') {
+            var davranisRef = FirebaseFirestore.instance
+                .collection('classes')
+                .doc(widget.classId)
+                .collection('davranislar')
+                .doc(studentDoc.id);
+
+            await FirebaseFirestore.instance.runTransaction((
+              transaction,
+            ) async {
+              var snapshot = await transaction.get(davranisRef);
+              int mevcutSari = 0;
+              if (snapshot.exists && snapshot.data() != null) {
+                mevcutSari = (snapshot.data()!['sariKart'] ?? 0) as int;
+              }
+              transaction.set(davranisRef, {
+                'sariKart': mevcutSari + 1,
+                'guncellemeTarihi': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+            });
+          }
         }
       }
     }
@@ -56,7 +82,6 @@ class _TarihBazliOdevYoneticisiScreenState
     );
   }
 
-  // Tek bir öğrencinin ödev durumunu güncelleme
   Future<void> _tekilDurumGuncelle(
     String studentId,
     String tarihStr,
@@ -78,15 +103,71 @@ class _TarihBazliOdevYoneticisiScreenState
 
       if (kitaplar.length > kitapIndex) {
         Map<String, dynamic> kitap = Map.from(kitaplar[kitapIndex]);
+        String eskiDurum = kitap['durum'] ?? 'bekliyor';
+
         kitap['durum'] = yeniDurum;
         kitaplar[kitapIndex] = kitap;
 
         await odevlerRef.doc(docId).update({'kitaplar': kitaplar});
+
+        // Eğer öğrenci 'yapildi' yapmışken öğretmen 'ogretmen_reddi' (yapılmadı) yaptıysa sarı kart gönder
+        if (eskiDurum == 'yapildi' && yeniDurum == 'ogretmen_reddi') {
+          var davranisRef = FirebaseFirestore.instance
+              .collection('classes')
+              .doc(widget.classId)
+              .collection('davranislar')
+              .doc(studentId);
+
+          await FirebaseFirestore.instance.runTransaction((transaction) async {
+            var snapshot = await transaction.get(davranisRef);
+            int mevcutSari = 0;
+            if (snapshot.exists && snapshot.data() != null) {
+              mevcutSari = (snapshot.data()!['sariKart'] ?? 0) as int;
+            }
+            transaction.set(davranisRef, {
+              'sariKart': mevcutSari + 1,
+              'guncellemeTarihi': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          });
+        }
       }
     }
 
     if (!mounted) return;
     setState(() {});
+  }
+
+  // Türkçe tarih stringini DateTime nesnesine çeviren yardımcı fonksiyon
+  DateTime? _parseTurkishDate(String str) {
+    try {
+      str = str.replaceAll(',', '').trim();
+      var parts = str.split(RegExp(r'\s+'));
+      if (parts.length < 3) return null;
+
+      int day = int.parse(parts[0]);
+      String monthName = parts[1].toLowerCase();
+      int year = int.parse(parts[2]);
+
+      Map<String, int> monthsMap = {
+        'ocak': 1,
+        'şubat': 2,
+        'mart': 3,
+        'nisan': 4,
+        'mayıs': 5,
+        'haziran': 6,
+        'temmuz': 7,
+        'ağustos': 8,
+        'eylül': 9,
+        'ekim': 10,
+        'kasım': 11,
+        'aralık': 12,
+      };
+
+      int month = monthsMap[monthName] ?? 1;
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -127,7 +208,22 @@ class _TarihBazliOdevYoneticisiScreenState
                 );
               }
 
-              var odevler = odevSnapshot.data!.docs;
+              var odevler = List.from(odevSnapshot.data!.docs);
+              odevler.sort((a, b) {
+                var dataA = a.data() as Map<String, dynamic>;
+                var dataB = b.data() as Map<String, dynamic>;
+                String tarihA = dataA['tarihStr'] ?? '';
+                String tarihB = dataB['tarihStr'] ?? '';
+
+                DateTime? dtA = _parseTurkishDate(tarihA);
+                DateTime? dtB = _parseTurkishDate(tarihB);
+
+                if (dtA == null && dtB == null) return 0;
+                if (dtA == null) return 1;
+                if (dtB == null) return -1;
+
+                return dtB.compareTo(dtA);
+              });
 
               return ListView.builder(
                 itemCount: odevler.length,
@@ -159,6 +255,9 @@ class _TarihBazliOdevYoneticisiScreenState
                           var k = kitapEntry.value;
                           String kitapAdi = k['kitapAdi'] ?? 'Kitap';
                           String sayfa = k['sayfaAraligi'] ?? '';
+                          String anahtarKullanim = "${tarihStr}_$kIndex";
+                          String mevcutFiltre =
+                              _filtreler[anahtarKullanim] ?? 'tumu';
 
                           return ExpansionTile(
                             leading: const Icon(
@@ -177,73 +276,124 @@ class _TarihBazliOdevYoneticisiScreenState
                               style: TextStyle(fontSize: 11),
                             ),
                             children: [
-                              // TOPLU İŞLEM BUTONLARI
                               Container(
                                 color: Colors.grey.shade100,
                                 padding: const EdgeInsets.all(8.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
+                                child: Column(
                                   children: [
-                                    const Text(
-                                      "Toplu:",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        const Text(
+                                          "Toplu:",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => _topluDurumGuncelle(
+                                            tarihStr,
+                                            kIndex,
+                                            'yapildi',
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.green,
+                                            foregroundColor: Colors.white,
+                                            minimumSize: const Size(70, 30),
+                                          ),
+                                          child: const Text(
+                                            "Yapıldı",
+                                            style: TextStyle(fontSize: 10),
+                                          ),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => _topluDurumGuncelle(
+                                            tarihStr,
+                                            kIndex,
+                                            'bekliyor',
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.orange,
+                                            foregroundColor: Colors.white,
+                                            minimumSize: const Size(70, 30),
+                                          ),
+                                          child: const Text(
+                                            "Bekliyor",
+                                            style: TextStyle(fontSize: 10),
+                                          ),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => _topluDurumGuncelle(
+                                            tarihStr,
+                                            kIndex,
+                                            'ogretmen_reddi',
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red,
+                                            foregroundColor: Colors.white,
+                                            minimumSize: const Size(70, 30),
+                                          ),
+                                          child: const Text(
+                                            "Yapılmadı",
+                                            style: TextStyle(fontSize: 10),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    ElevatedButton(
-                                      onPressed: () => _topluDurumGuncelle(
-                                        tarihStr,
-                                        kIndex,
-                                        'yapildi',
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(80, 30),
-                                      ),
-                                      child: const Text(
-                                        "Tümü Yapıldı",
-                                        style: TextStyle(fontSize: 11),
-                                      ),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => _topluDurumGuncelle(
-                                        tarihStr,
-                                        kIndex,
-                                        'bekliyor',
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orange,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(80, 30),
-                                      ),
-                                      child: const Text(
-                                        "Tümü Bekliyor",
-                                        style: TextStyle(fontSize: 11),
-                                      ),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => _topluDurumGuncelle(
-                                        tarihStr,
-                                        kIndex,
-                                        'ogretmen_reddi',
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(80, 30),
-                                      ),
-                                      child: const Text(
-                                        "Tümü Yapılmadı",
-                                        style: TextStyle(fontSize: 11),
-                                      ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        ChoiceChip(
+                                          label: const Text(
+                                            "Tümü",
+                                            style: TextStyle(fontSize: 11),
+                                          ),
+                                          selected: mevcutFiltre == 'tumu',
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              _filtreler[anahtarKullanim] =
+                                                  'tumu';
+                                            });
+                                          },
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ChoiceChip(
+                                          label: const Text(
+                                            "Yapanlar",
+                                            style: TextStyle(fontSize: 11),
+                                          ),
+                                          selected: mevcutFiltre == 'yapanlar',
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              _filtreler[anahtarKullanim] =
+                                                  'yapanlar';
+                                            });
+                                          },
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ChoiceChip(
+                                          label: const Text(
+                                            "Yapmayanlar",
+                                            style: TextStyle(fontSize: 11),
+                                          ),
+                                          selected:
+                                              mevcutFiltre == 'yapmayanlar',
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              _filtreler[anahtarKullanim] =
+                                                  'yapmayanlar';
+                                            });
+                                          },
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               ),
-                              // SINIFTAKİ ÖĞRENCİLERİN LİSTESİ VE TEKİL DURUMLARI
                               StreamBuilder<QuerySnapshot>(
                                 stream: FirebaseFirestore.instance
                                     .collection('students')
@@ -257,7 +407,21 @@ class _TarihBazliOdevYoneticisiScreenState
                                     );
                                   }
 
-                                  var ogrenciler = sinifSnapshot.data!.docs;
+                                  var ogrenciler = List.from(
+                                    sinifSnapshot.data!.docs,
+                                  );
+
+                                  ogrenciler.sort((a, b) {
+                                    var dataA =
+                                        a.data() as Map<String, dynamic>;
+                                    var dataB =
+                                        b.data() as Map<String, dynamic>;
+                                    String adA =
+                                        "${dataA['firstName'] ?? ''} ${dataA['lastName'] ?? ''}";
+                                    String adB =
+                                        "${dataB['firstName'] ?? ''} ${dataB['lastName'] ?? ''}";
+                                    return _turkceKarsilastir(adA, adB);
+                                  });
 
                                   return ListView.builder(
                                     shrinkWrap: true,
@@ -272,22 +436,25 @@ class _TarihBazliOdevYoneticisiScreenState
                                           "${ogrData['firstName'] ?? ''} ${ogrData['lastName'] ?? ''}";
                                       String ogrId = ogrDoc.id;
 
-                                      return FutureBuilder<DocumentSnapshot>(
-                                        future: ogrDoc.reference
+                                      return StreamBuilder<QuerySnapshot>(
+                                        stream: ogrDoc.reference
                                             .collection('odevler')
                                             .where(
                                               'tarihStr',
                                               isEqualTo: tarihStr,
                                             )
-                                            .get()
-                                            .then((value) => value.docs.first),
+                                            .snapshots(),
                                         builder: (context, ogrOdevSnap) {
                                           String mevcutDurum = 'bekliyor';
                                           if (ogrOdevSnap.hasData &&
-                                              ogrOdevSnap.data!.exists) {
+                                              ogrOdevSnap
+                                                  .data!
+                                                  .docs
+                                                  .isNotEmpty) {
                                             try {
                                               var data =
-                                                  ogrOdevSnap.data!.data()
+                                                  ogrOdevSnap.data!.docs.first
+                                                          .data()
                                                       as Map<String, dynamic>;
                                               List kList =
                                                   data['kitaplar'] ?? [];
@@ -297,6 +464,15 @@ class _TarihBazliOdevYoneticisiScreenState
                                                     'bekliyor';
                                               }
                                             } catch (_) {}
+                                          }
+
+                                          if (mevcutFiltre == 'yapanlar' &&
+                                              mevcutDurum != 'yapildi') {
+                                            return const SizedBox.shrink();
+                                          }
+                                          if (mevcutFiltre == 'yapmayanlar' &&
+                                              mevcutDurum == 'yapildi') {
+                                            return const SizedBox.shrink();
                                           }
 
                                           Color durumRengi = Colors.orange;
@@ -389,5 +565,42 @@ class _TarihBazliOdevYoneticisiScreenState
         },
       ),
     );
+  }
+
+  // Türkçe Alfabetik Sıralama Fonksiyonu
+  int _turkceKarsilastir(String a, String b) {
+    const String turkceAlfabe = 'aabcçdefgğhıijklmnoöprsştuüvyz';
+    String aKucuk = a
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+    String bKucuk = b
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+    int minLength = aKucuk.length < bKucuk.length
+        ? aKucuk.length
+        : bKucuk.length;
+    for (int i = 0; i < minLength; i++) {
+      int indexA = turkceAlfabe.indexOf(aKucuk[i]);
+      int indexB = turkceAlfabe.indexOf(bKucuk[i]);
+      if (indexA == -1 || indexB == -1) {
+        int comp = aKucuk.codeUnitAt(i).compareTo(bKucuk.codeUnitAt(i));
+        if (comp != 0) return comp;
+      } else if (indexA != indexB) {
+        return indexA.compareTo(indexB);
+      }
+    }
+    return aKucuk.length.compareTo(bKucuk.length);
   }
 }

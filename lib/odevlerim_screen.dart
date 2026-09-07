@@ -142,6 +142,50 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
     setState(() {});
   }
 
+  DateTime? _parseTurkishDate(String str) {
+    try {
+      str = str.toLowerCase().replaceAll(',', '').trim();
+      final dayMatch = RegExp(r'\b(\d{1,2})\b').firstMatch(str);
+      final yearMatch = RegExp(r'\b(20\d{2})\b').firstMatch(str);
+
+      if (dayMatch == null || yearMatch == null) return null;
+
+      int day = int.parse(dayMatch.group(1)!);
+      int year = int.parse(yearMatch.group(1)!);
+
+      int month = 1;
+      if (str.contains('ocak')) {
+        month = 1;
+      } else if (str.contains('şubat') || str.contains('subat')) {
+        month = 2;
+      } else if (str.contains('mart')) {
+        month = 3;
+      } else if (str.contains('nisan')) {
+        month = 4;
+      } else if (str.contains('mayıs') || str.contains('mayis')) {
+        month = 5;
+      } else if (str.contains('haziran')) {
+        month = 6;
+      } else if (str.contains('temmuz')) {
+        month = 7;
+      } else if (str.contains('ağustos') || str.contains('agustos')) {
+        month = 8;
+      } else if (str.contains('eylül') || str.contains('eylul')) {
+        month = 9;
+      } else if (str.contains('ekim')) {
+        month = 10;
+      } else if (str.contains('kasım') || str.contains('kasim')) {
+        month = 11;
+      } else if (str.contains('aralık') || str.contains('aralik')) {
+        month = 12;
+      }
+
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -299,7 +343,22 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
           );
         }
 
-        final odevler = snapshot.data!.docs;
+        final odevler = List.from(snapshot.data!.docs);
+        odevler.sort((a, b) {
+          var dataA = a.data() as Map<String, dynamic>;
+          var dataB = b.data() as Map<String, dynamic>;
+          String tarihA = dataA['tarihStr'] ?? '';
+          String tarihB = dataB['tarihStr'] ?? '';
+
+          DateTime? dtA = _parseTurkishDate(tarihA);
+          DateTime? dtB = _parseTurkishDate(tarihB);
+
+          if (dtA == null && dtB == null) return 0;
+          if (dtA == null) return 1;
+          if (dtB == null) return -1;
+
+          return dtB.compareTo(dtA);
+        });
 
         return ListView.builder(
           itemCount: odevler.length,
@@ -508,6 +567,17 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
             String veriTuru = isData['veriTuru'] ?? 'artı_eksi';
             String isId = isDoc.id;
 
+            // Veriliş tarihini güvenli bir şekilde okunabilir formata çevirme
+            var tarihField = isData['tarih'];
+            String verilisTarihiStr = "Veriliş Tarihi: Belirtilmemiş";
+            if (tarihField is Timestamp) {
+              DateTime dt = tarihField.toDate();
+              verilisTarihiStr =
+                  "Veriliş Tarihi: ${dt.day}.${dt.month}.${dt.year}";
+            } else if (tarihField is String && tarihField.isNotEmpty) {
+              verilisTarihiStr = "Veriliş Tarihi: $tarihField";
+            }
+
             return FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
                   .collection('students')
@@ -553,6 +623,17 @@ class _OdevlerimScreenState extends State<OdevlerimScreen>
                     title: Text(
                       isAdi,
                       style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    // Görev kartının altında veriliş tarihini gösteren subtitle
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        verilisTarihiStr,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(

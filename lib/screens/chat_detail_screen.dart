@@ -29,6 +29,107 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  @override
+  void initState() {
+    super.initState();
+    // Eğer giren kişi öğrenci ise ban ve ceza kontrollerini yap
+    if (!widget.isTeacher) {
+      _checkStudentPenalties();
+    }
+  }
+
+  // Öğrencinin ban ve sarı kart ceza kontrolleri
+  void _checkStudentPenalties() async {
+    var studentDoc = await _firestore
+        .collection('students')
+        .doc(widget.currentUserId)
+        .get();
+    if (!studentDoc.exists) return;
+
+    var data = studentDoc.data() as Map<String, dynamic>;
+
+    // 1. 3 Günlük Sohbet Banı Kontrolü
+    if (data.containsKey('chatBanUntil') && data['chatBanUntil'] != null) {
+      Timestamp banTimestamp = data['chatBanUntil'];
+      DateTime banDate = banTimestamp.toDate();
+
+      if (DateTime.now().isBefore(banDate)) {
+        List<String> months = [
+          '',
+          'Ocak',
+          'Şubat',
+          'Mart',
+          'Nisan',
+          'Mayıs',
+          'Haziran',
+          'Temmuz',
+          'Ağustos',
+          'Eylül',
+          'Ekim',
+          'Kasım',
+          'Aralık',
+        ];
+        String formattedDate =
+            "${banDate.day}-${months[banDate.month]}-${banDate.year}";
+        String formattedTime =
+            "${banDate.hour.toString().padLeft(2, '0')}:${banDate.minute.toString().padLeft(2, '0')}";
+
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text("Sohbet Erişimi Kısıtlandı 🚫"),
+              content: Text(
+                "3 gün süreyle sohbet erişiminiz kapatıldı. tekrar açılacağı tarih: $formattedDate, saat: $formattedTime",
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Dialogu kapat
+                    Navigator.pop(context); // Sohbet detay ekranından çık
+                  },
+                  child: const Text("Tamam"),
+                ),
+              ],
+            ),
+          );
+        });
+        return;
+      }
+    }
+
+    // 2. Yeni Sarı Kart Bildirim Kontrolü
+    if (data['hasUnseenPenalty'] == true) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Sarı Kart Bildirimi ⚠️"),
+            content: const Text(
+              "Öğretmen bir mesajını sildiği için, 1 sarı kart cezası aldın.",
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  // Uyarının tekrar gösterilmemesi için bayrağı false yap
+                  await _firestore
+                      .collection('students')
+                      .doc(widget.currentUserId)
+                      .update({'hasUnseenPenalty': false});
+                },
+                child: const Text("Tamam"),
+              ),
+            ],
+          ),
+        );
+      });
+    }
+  }
+
   String _getFormattedDate() {
     DateTime now = DateTime.now();
     List<String> months = [
@@ -68,8 +169,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         .collection('messages')
         .add({
           'senderId': widget.currentUserId,
-          'senderName':
-              widget.currentUserName, // <--- Burası unvanlı ismi alıyor
+          'senderName': widget.currentUserName,
           'text': text,
           'createdAtField': FieldValue.serverTimestamp(),
           'formattedDate': _getFormattedDate(),
@@ -82,13 +182,99 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  void _deleteMessage(String messageId) async {
+  // Mesaj Silme ve Sarı Kart / Ban Mekanizması
+  void _deleteMessage(
+    String messageId,
+    String senderId,
+    String senderName,
+  ) async {
+    var studentDoc = await _firestore
+        .collection('students')
+        .doc(senderId)
+        .get();
+
+    if (!studentDoc.exists) {
+      await _firestore
+          .collection('chats')
+          .doc(widget.chatId)
+          .collection('messages')
+          .doc(messageId)
+          .delete();
+      return;
+    }
+
+    var studentData = studentDoc.data() as Map<String, dynamic>;
+    int currentCards = studentData['chatYellowCards'] ?? 0;
+
+    String uyariMesaji = (currentCards == 2)
+        ? "DİKKAT! Eğer bu mesajı silerseniz, öğrenci 3 gün süreyle sohbet modülüne giriş yapamayacak."
+        : "Eğer bu mesajı silerseniz, öğrenciye 1 sarı kart verilecek.";
+
+    bool? onay = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Mesajı Sil ve Sarı Kart Ver ⚠️"),
+        content: Text(uyariMesaji),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("İptal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Sil ve Uygula"),
+          ),
+        ],
+      ),
+    );
+
+    if (onay != true) return;
+
+    int newCards = currentCards + 1;
+    Map<String, dynamic> updateData = {
+      'chatYellowCards': newCards,
+      'hasUnseenPenalty': true,
+    };
+
+    if (newCards >= 3) {
+      updateData['chatBanUntil'] = Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 3)),
+      );
+    }
+
+    // 1. Öğrencinin sohbet/ban cezası verilerini güncelle
+    await _firestore.collection('students').doc(senderId).update(updateData);
+
+    // 2. DAVRANIŞ MODÜLÜNE (OgrenciDavranisScreen'e) Sarı Kartı İşle
+    String classId = studentData['classId'] ?? '';
+    if (classId.isNotEmpty) {
+      await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('davranislar')
+          .doc(senderId)
+          .set({'sariKart': FieldValue.increment(1)}, SetOptions(merge: true));
+    }
+
+    // 3. Mesajı sohbetten sil
     await _firestore
         .collection('chats')
         .doc(widget.chatId)
         .collection('messages')
         .doc(messageId)
         .delete();
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("$senderName adlı öğrenciye 1 sarı kart eklendi."),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   // GRUPTAN AYRILMA FONKSİYONU
@@ -111,9 +297,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              Navigator.pop(context); // Dialogu kapat
+              Navigator.pop(context);
 
-              // Firestore'da participants dizisinden mevcut kullanıcıyı çıkar
               await _firestore.collection('chats').doc(widget.chatId).update({
                 'participants': FieldValue.arrayRemove([widget.currentUserId]),
               });
@@ -126,7 +311,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
               );
 
-              // Sohbet detay ekranından çıkıp ana sohbet listesine dön
               Navigator.pop(context);
             },
             child: const Text("Ayrıl"),
@@ -153,7 +337,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             backgroundColor: Colors.indigo,
             foregroundColor: Colors.white,
             actions: [
-              // Eğer bu bir grup sohbetiyse ve kullanıcı öğrenci ise gruptan ayrıl butonu göster
               if (isGroup && !widget.isTeacher)
                 IconButton(
                   icon: const Icon(Icons.exit_to_app, color: Colors.white),
@@ -296,7 +479,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                     if (canDelete) ...[
                                       const SizedBox(width: 8),
                                       InkWell(
-                                        onTap: () => _deleteMessage(messageId),
+                                        onTap: () => _deleteMessage(
+                                          messageId,
+                                          senderId,
+                                          senderName,
+                                        ),
                                         child: const Icon(
                                           Icons.delete_outline,
                                           size: 16,

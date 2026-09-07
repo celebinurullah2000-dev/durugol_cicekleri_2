@@ -217,7 +217,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                         : (userRole == 'guidance_teacher'
                               ? "Rehber Öğretmen: $yeniTeacherName"
                               : userRole == 'special_education_teacher'
-                              ? "Özel Eğitim: $yeniTeacherName"
+                              ? "Özel Eğitim Sınıfı"
                               : userRole == 'kindergarten_teacher'
                               ? "Ana Sınıfı: $yeniTeacherName"
                               : "$selectedGrade/$selectedBranch");
@@ -519,14 +519,79 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
               int specialEduIndex = adminCount + guidanceCount + branchCount;
               if (specialEducationTeachers.isNotEmpty &&
                   index == specialEduIndex) {
-                return _buildKartWidget(
-                  context,
-                  baslik: "Özel Eğitim",
-                  ikon: Icons.accessibility_new,
-                  renk: Colors.brown,
-                  belgeListesi: specialEducationTeachers,
-                  altAciklama:
-                      "${specialEducationTeachers.length} özel eğitim kaydı var",
+                var doc = specialEducationTeachers.first;
+                var data = doc.data() as Map<String, dynamic>;
+                String classId = doc.id; // Ortak Master Class ID
+                List<dynamic> teachersList = data['teachers'] ?? [];
+
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 4,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ExpansionTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.brown.withValues(alpha: 0.1),
+                      child: const Icon(
+                        Icons.accessibility_new,
+                        color: Colors.brown,
+                      ),
+                    ),
+                    title: const Text(
+                      "Özel Eğitim Sınıfı",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.brown,
+                      ),
+                    ),
+                    subtitle: Text("${teachersList.length} öğretmen kayıtlı"),
+                    children: teachersList.map((teacherMap) {
+                      String teacherName = teacherMap['name'] ?? 'Öğretmen';
+                      String teacherPassword = teacherMap['password'] ?? '';
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.brown.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: ListTile(
+                          title: Text(
+                            teacherName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: const Text(
+                            "Özel Eğitim Öğretmeni",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.brown,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onTap: () {
+                            _sifreDogrulaVeIslemYardimcisi(
+                              context,
+                              teacherPassword,
+                              teacherName,
+                              classId, // Doğrudan ortak sınıf ID'si gidiyor
+                              'special_education_teacher',
+                            );
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 );
               }
 
@@ -975,9 +1040,19 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
         .get();
 
     List<String> assignedClasses = [];
+    String finalClassId = classId; // Varsayılan olarak tıklanan dokümanın ID'si
+
     if (docSnapshot.exists && docSnapshot.data() != null) {
       var data = docSnapshot.data() as Map<String, dynamic>;
       assignedClasses = List<String>.from(data['assignedClassIds'] ?? []);
+
+      // KİLİT NOKTA: Eğer bu öğretmenin dokümanında bir ortak targetClassId tanımlandıysa,
+      // sistem doğrudan ana ortak sınıfın ID'sini baz alır!
+      if (data.containsKey('targetClassId') &&
+          data['targetClassId'] != null &&
+          data['targetClassId'].toString().trim().isNotEmpty) {
+        finalClassId = data['targetClassId'].toString().trim();
+      }
     }
 
     if (!context.mounted) return;
@@ -1010,7 +1085,7 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => OgretmenAnaSayfasi(
-                      classId: classId,
+                      classId: finalClassId, // <-- Artık ortak ID aktarılıyor!
                       className: className,
                       userRole: userRole,
                       assignedClassIds: assignedClasses,

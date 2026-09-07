@@ -57,37 +57,63 @@ class _AddClassScreenState extends State<AddClassScreen> {
       String teacherName = _teacherController.text.trim();
       String password = _passwordController.text.trim();
 
-      String className = "";
-      if (_selectedRole == 'admin') {
-        className = "İdareci: $teacherName";
-      } else if (_selectedRole == 'guidance_teacher') {
-        className = "Rehber Öğretmen: $teacherName";
-      } else if (_selectedRole == 'special_education_teacher') {
-        className = "Özel Eğitim: $teacherName";
-      } else if (_selectedRole == 'kindergarten_teacher') {
-        className = "Ana Sınıfı: $teacherName";
-      } else if (_selectedGrade == 'Özel Eğitim Sınıfı') {
-        className = "Özel Eğitim: $teacherName";
-      } else if (_selectedGrade == 'Anasınıfı') {
-        className = "Ana Sınıfı: $_selectedBranch";
-      } else {
-        className = "$_selectedGrade/$_selectedBranch";
-      }
-
       try {
-        await FirebaseFirestore.instance.collection('classes').add({
-          'className': className,
-          'grade': _selectedGrade,
-          'branch':
-              (_selectedGrade == 'Özel Eğitim Sınıfı' ||
-                  _selectedRole == 'special_education_teacher')
-              ? ''
-              : _selectedBranch,
-          'teacherName': teacherName,
-          'password': password,
-          'userRole': _selectedRole,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        if (_selectedRole == 'special_education_teacher' ||
+            _selectedGrade == 'Özel Eğitim Sınıfı') {
+          // Veritabanında daha önce açılmış "Özel Eğitim Sınıfı" var mı diye bakıyoruz
+          var existingQuery = await FirebaseFirestore.instance
+              .collection('classes')
+              .where('userRole', isEqualTo: 'special_education_teacher')
+              .get();
+
+          if (existingQuery.docs.isNotEmpty) {
+            // Zaten var olan tek ortak sınıf dokümanını güncelliyoruz
+            var docRef = existingQuery.docs.first.reference;
+            var data = existingQuery.docs.first.data();
+            List<dynamic> teachers = List.from(data['teachers'] ?? []);
+
+            // Yeni öğretmeni bu sınıftaki öğretmenler listesine ekliyoruz
+            teachers.add({'name': teacherName, 'password': password});
+
+            await docRef.update({'teachers': teachers});
+          } else {
+            // Hiç yoksa, ilk özel eğitim sınıfı dokümanını oluşturuyoruz
+            await FirebaseFirestore.instance.collection('classes').add({
+              'className': 'Özel Eğitim Sınıfı',
+              'grade': 'Özel Eğitim Sınıfı',
+              'branch': '',
+              'userRole': 'special_education_teacher',
+              'teachers': [
+                {'name': teacherName, 'password': password},
+              ],
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } else {
+          // Diğer sınıflar ve roller için normal kayıt süreci
+          String className = "";
+          if (_selectedRole == 'admin') {
+            className = "İdareci: $teacherName";
+          } else if (_selectedRole == 'guidance_teacher') {
+            className = "Rehber Öğretmen: $teacherName";
+          } else if (_selectedRole == 'kindergarten_teacher') {
+            className = "Ana Sınıfı: $teacherName";
+          } else if (_selectedGrade == 'Anasınıfı') {
+            className = "Ana Sınıfı: $_selectedBranch";
+          } else {
+            className = "$_selectedGrade/$_selectedBranch";
+          }
+
+          await FirebaseFirestore.instance.collection('classes').add({
+            'className': className,
+            'grade': _selectedGrade,
+            'branch': _selectedBranch,
+            'teacherName': teacherName,
+            'password': password,
+            'userRole': _selectedRole,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -242,6 +268,8 @@ class _AddClassScreenState extends State<AddClassScreen> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: true,
+                enableSuggestions: false, // Tarayıcı önerilerini kapatır
+                autocorrect: false, // Otomatik düzeltmeyi kapatır
                 decoration: const InputDecoration(
                   labelText: "Giriş Şifresi",
                   border: OutlineInputBorder(),
