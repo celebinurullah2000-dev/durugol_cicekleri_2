@@ -2,7 +2,10 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; // Grafik paketi (pubspec.yaml'da ekli olmalıdır)
+import 'package:fl_chart/fl_chart.dart';
+
+import 'models/CevapAnahtariScreen.dart';
+import 'models/OptikOkumaScreen.dart'; // Grafik paketi (pubspec.yaml'da ekli olmalıdır)
 
 class DenemelerScreen extends StatelessWidget {
   final String classId;
@@ -27,6 +30,47 @@ class DenemelerScreen extends StatelessWidget {
     final TextEditingController adiController = TextEditingController();
     DateTime? sinavTarihi;
 
+    // Sınıf düzeyine göre varsayılan dersler (Mevcut mantığınızla uyumlu)
+    List<String> getDersler() {
+      String g = grade.trim();
+      if (g == '1') return ["Türkçe", "Matematik", "Hayat Bilgisi"];
+      if (g == '2') {
+        return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
+      }
+      if (g == '3') {
+        return [
+          "Türkçe",
+          "Matematik",
+          "Hayat Bilgisi",
+          "Fen Bilimleri",
+          "İngilizce",
+        ];
+      }
+      if (g == '4') {
+        return [
+          "Türkçe",
+          "Matematik",
+          "Fen Bilimleri",
+          "İngilizce",
+          "Sosyal Bilgiler",
+        ];
+      }
+      return ["Türkçe", "Matematik", "Hayat Bilgisi", "İngilizce"];
+    }
+
+    final derslerListesi = getDersler();
+
+    // Her ders için soru sayısı controller'ları ve aktiflik durumları
+    final Map<String, TextEditingController> soruSayisiControllers = {};
+    final Map<String, bool> dersAktifMi = {};
+
+    for (var ders in derslerListesi) {
+      soruSayisiControllers[ders] = TextEditingController(
+        text: "15",
+      ); // Varsayılan soru sayısı
+      dersAktifMi[ders] = true; // Varsayılan olarak aktif
+    }
+
     showDialog(
       context: context,
       builder: (context) {
@@ -34,42 +78,113 @@ class DenemelerScreen extends StatelessWidget {
           builder: (context, setStateDialog) {
             return AlertDialog(
               title: const Text("Yeni Deneme Sınavı Ekle"),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: adiController,
-                      decoration: const InputDecoration(
-                        labelText: "Sınav Adı (Örn: 1. Kurşun Kalem Deneme)",
+              content: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.8,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sınav Adı Girişi
+                      TextField(
+                        controller: adiController,
+                        decoration: const InputDecoration(
+                          labelText: "Sınav Adı (Örn: 1. Kurşun Kalem Deneme)",
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 15),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          sinavTarihi == null
-                              ? "Tarih Seçilmedi"
-                              : "Tarih: ${sinavTarihi!.day}.${sinavTarihi!.month}.${sinavTarihi!.year}",
+                      const SizedBox(height: 15),
+
+                      // Tarih Seçim Alanı
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            sinavTarihi == null
+                                ? "Tarih Seçilmedi"
+                                : "Tarih: ${sinavTarihi!.day}.${sinavTarihi!.month}.${sinavTarihi!.year}",
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              DateTime? secilen = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime(2026),
+                                lastDate: DateTime(2030),
+                              );
+                              if (secilen != null) {
+                                setStateDialog(() => sinavTarihi = secilen);
+                              }
+                            },
+                            icon: const Icon(Icons.calendar_today, size: 16),
+                            label: const Text("Tarih Seç"),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 30, thickness: 1),
+
+                      // Dersler, Soru Sayıları ve İptal Seçenekleri
+                      const Text(
+                        "Ders Soru Sayıları ve Katılım Durumu",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
                         ),
-                        TextButton(
-                          onPressed: () async {
-                            DateTime? secilen = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2026),
-                              lastDate: DateTime(2030),
-                            );
-                            if (secilen != null) {
-                              setStateDialog(() => sinavTarihi = secilen);
-                            }
-                          },
-                          child: const Text("Tarih Seç"),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      ...derslerListesi.map((ders) {
+                        bool aktif = dersAktifMi[ders] ?? true;
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              children: [
+                                // Ders Aktif/İptal Checkbox
+                                Checkbox(
+                                  value: aktif,
+                                  onChanged: (val) {
+                                    setStateDialog(() {
+                                      dersAktifMi[ders] = val ?? true;
+                                    });
+                                  },
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    ders,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: aktif
+                                          ? Colors.black87
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                // Soru Sayısı TextField
+                                SizedBox(
+                                  width: 80,
+                                  child: TextField(
+                                    controller: soruSayisiControllers[ders],
+                                    enabled: aktif,
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: "Soru",
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -78,17 +193,56 @@ class DenemelerScreen extends StatelessWidget {
                   child: const Text("İptal"),
                 ),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () async {
                     if (adiController.text.isNotEmpty && sinavTarihi != null) {
+                      // Ders bazlı soru sayılarını ve devre dışı bırakılanları hazırla
+                      Map<String, int> questionCounts = {};
+                      List<String> disabledLessons = [];
+
+                      for (var ders in derslerListesi) {
+                        if (dersAktifMi[ders] == true) {
+                          int qCount =
+                              int.tryParse(
+                                soruSayisiControllers[ders]?.text ?? '0',
+                              ) ??
+                              0;
+                          questionCounts[ders] = qCount;
+                        } else {
+                          disabledLessons.add(ders);
+                        }
+                      }
+
+                      // Firestore'a kaydetme (Genişletilmiş veri yapısı)
                       await FirebaseFirestore.instance
                           .collection('classes')
                           .doc(classId)
                           .collection('denemeler')
                           .add({
-                            'sinavAdi': adiController.text,
+                            'sinavAdi': adiController.text.trim(),
                             'tarih': Timestamp.fromDate(sinavTarihi!),
+                            'lessonQuestionCounts': questionCounts,
+                            'disabledLessons': disabledLessons,
                           });
+
+                      if (!context.mounted) return;
                       Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Sınav başarıyla oluşturuldu! ✅"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Lütfen sınav adı ve tarihi seçin!"),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
                     }
                   },
                   child: const Text("Kaydet"),
@@ -228,6 +382,41 @@ class DenemelerScreen extends StatelessWidget {
                     children: [
                       IconButton(
                         icon: const Icon(
+                          Icons.key, // Anahtar simgesi
+                          color: Colors.teal,
+                        ),
+                        tooltip: "Cevap Anahtarı Yönetimi",
+                        onPressed: () {
+                          // Sınav dokümanından ders soru sayılarını alalım
+                          Map<String, int> lessonCounts = {};
+                          if (data.containsKey('lessonQuestionCounts')) {
+                            lessonCounts = Map<String, int>.from(
+                              data['lessonQuestionCounts'] ?? {},
+                            );
+                          } else {
+                            // Eğer eski bir sınavsa ve soru sayısı yoksa varsayılan atayalım
+                            lessonCounts = {
+                              "Türkçe": 15,
+                              "Matematik": 15,
+                              "Hayat Bilgisi": 15,
+                            };
+                          }
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CevapAnahtariScreen(
+                                classId: classId,
+                                sinavId: doc.id,
+                                sinavAdi: sinavAdi,
+                                lessonQuestionCounts: lessonCounts,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(
                           Icons.leaderboard,
                           color: Colors.indigo,
                         ),
@@ -353,7 +542,71 @@ class DenemeOgrenciListesiScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(sinavAdi), centerTitle: true),
+      appBar: AppBar(
+        title: Text(sinavAdi),
+        centerTitle: true,
+        actions: [
+          // Sadece sınıf öğretmeni optik okuma yapabilsin
+          if (_isSinifOgretmeni)
+            IconButton(
+              icon: const Icon(
+                Icons.document_scanner,
+                size: 28,
+                color: Colors.teal,
+              ),
+              tooltip: "Optik Form Oku (Yapay Zeka)",
+              onPressed: () async {
+                // Tıklandığında sınavın ders soru sayılarını Firestore'dan çekelim
+                var examDoc = await FirebaseFirestore.instance
+                    .collection('classes')
+                    .doc(classId)
+                    .collection('denemeler')
+                    .doc(sinavId)
+                    .get();
+
+                Map<String, int> lessonCounts = {};
+                if (examDoc.exists &&
+                    examDoc.data()!.containsKey('lessonQuestionCounts')) {
+                  lessonCounts = Map<String, int>.from(
+                    examDoc.data()!['lessonQuestionCounts'] ?? {},
+                  );
+                } else {
+                  // Güvenlik önlemi olarak varsayılan
+                  String g = grade.trim();
+                  if (g == '1') {
+                    lessonCounts = {
+                      "Türkçe": 15,
+                      "Matematik": 15,
+                      "Hayat Bilgisi": 15,
+                    };
+                  } else {
+                    lessonCounts = {
+                      "Türkçe": 15,
+                      "Matematik": 15,
+                      "Hayat Bilgisi": 15,
+                      "İngilizce": 10,
+                    };
+                  }
+                }
+
+                if (!context.mounted) return;
+
+                // Optik Okuma Ekranına Git
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OptikOkumaScreen(
+                      classId: classId,
+                      sinavId: sinavId,
+                      sinavAdi: sinavAdi,
+                      lessonQuestionCounts: lessonCounts,
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('students')
