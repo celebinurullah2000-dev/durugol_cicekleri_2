@@ -6,6 +6,7 @@ import 'package:durugol_cicekleri/Sinif_Istatistik_Siralama_Screen.dart';
 import 'package:durugol_cicekleri/duyurular_screen.dart';
 import 'package:durugol_cicekleri/screens/class_feed_screen.dart';
 import 'package:durugol_cicekleri/screens/teacher_chat_audit_screen.dart';
+//import 'package:durugol_cicekleri/services/ogrenci_profil_service.dart';
 import 'package:durugol_cicekleri/sinif_sifreleri_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1667,6 +1668,27 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
               onPressed: () => _subeSecimDialogGoster(context),
             ),
           IconButton(
+            icon: const Icon(Icons.analytics_outlined),
+            tooltip: "Sınıf Genel Raporu / Paneli",
+            onPressed: () async {
+              // 1. O an seçili olan sınıfın ID'sini güvenli bir şekilde alalım
+              String? hedefClassId = await _getAktifHedefClassId();
+              hedefClassId ??= widget.classId;
+
+              // Asenkron işlem bittikten sonra context kontrolü
+              if (!context.mounted) return;
+
+              // 2. İlgili sınıfa ait istatistik veya rapor ekranına yönlendirelim
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      SinifIstatistikSiralamaScreen(classId: hedefClassId!),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.lock_reset),
             tooltip: "Şifre Değiştir",
             onPressed: () {
@@ -2759,6 +2781,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                                       studentData: student,
                                       studentId: student['id'],
                                       userRole: widget.userRole,
+                                      classId: widget.classId,
                                     ),
                                   ),
                                 ).then((_) => setState(() {}));

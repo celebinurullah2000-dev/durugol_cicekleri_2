@@ -12,12 +12,14 @@ class StudentDetailScreen extends StatefulWidget {
   final Map<String, dynamic> studentData;
   final String studentId;
   final String userRole;
+  final String classId;
 
   const StudentDetailScreen({
     super.key,
     required this.studentData,
     required this.studentId,
     this.userRole = 'classroom_teacher',
+    required this.classId,
   });
 
   @override
@@ -37,6 +39,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   String? ogrenciProfilResmiUrl;
   bool _isSaving = false;
+
+  // 360 Derece İstatistik Verileri
+  bool _isLoadingStats = true;
+  Map<String, dynamic> _istatistikVerileri = {};
 
   bool get _isSinifOgretmeni =>
       widget.userRole.trim().toLowerCase() == 'classroom_teacher';
@@ -73,6 +79,132 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     ogrenciProfilResmiUrl =
         widget.studentData['profileImageUrl'] ??
         widget.studentData['resimBase64'];
+
+    // Verileri doğrudan bu sınıf içinde paralel olarak çekelim
+    _ogrenciTumVerileriniGetir();
+  }
+
+  // --- 360 DERECE VERİ TOPLAMA FONKSİYONU ---
+  Future<void> _ogrenciTumVerileriniGetir() async {
+    try {
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      String studentId = widget.studentId;
+      String classId = widget.classId;
+
+      var odevlerFuture = firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('odevler')
+          .get();
+      var kitaplarFuture = firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('okunan_kitaplar')
+          .get();
+      var istatistiklerFuture = firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('istatistikler')
+          .get();
+      var isVerileriFuture = firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('is_verileri')
+          .get();
+
+      var davranislarFuture = firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('davranislar')
+          .where('studentId', isEqualTo: studentId)
+          .get();
+
+      var etkinliklerFuture = firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('etkinlikler')
+          .where('katilanlar', arrayContains: studentId)
+          .get();
+
+      var dutyRecordsFuture = firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('duty_records')
+          .where('studentId', isEqualTo: studentId)
+          .get();
+
+      List<QuerySnapshot> results = await Future.wait([
+        odevlerFuture,
+        kitaplarFuture,
+        istatistiklerFuture,
+        isVerileriFuture,
+        davranislarFuture,
+        etkinliklerFuture,
+        dutyRecordsFuture,
+      ]);
+
+      QuerySnapshot odevlerSnap = results[0];
+      QuerySnapshot kitaplarSnap = results[1];
+      QuerySnapshot istatistiklerSnap = results[2];
+      QuerySnapshot isVerileriSnap = results[3];
+      QuerySnapshot davranislarSnap = results[4];
+      QuerySnapshot etkinliklerSnap = results[5];
+      QuerySnapshot dutySnap = results[6];
+
+      int toplamKitapSayisi = kitaplarSnap.docs.length;
+      int toplamSayfaSayisi = 0;
+      for (var doc in kitaplarSnap.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        toplamSayfaSayisi +=
+            int.tryParse(data['sayfaSayisi']?.toString() ?? '0') ?? 0;
+      }
+
+      int yapilanOdev = 0;
+      int yapilmayanOdev = 0;
+      int kilitliOdev = 0;
+      for (var doc in odevlerSnap.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        String durum = data['durum'] ?? '';
+        if (durum == 'yapildi') {
+          yapilanOdev++;
+        } else if (durum == 'yapilmadi') {
+          yapilmayanOdev++;
+        } else if (durum == 'kilitli') {
+          kilitliOdev++;
+        }
+      }
+
+      int nobetSayisi = dutySnap.docs.length;
+      int gorevlilikSayisi = 0;
+      int renkliKartSayisi = davranislarSnap.docs.length;
+      int etkinlikSayisi = etkinliklerSnap.docs.length;
+
+      if (mounted) {
+        setState(() {
+          _istatistikVerileri = {
+            'toplamKitapSayisi': toplamKitapSayisi,
+            'toplamSayfaSayisi': toplamSayfaSayisi,
+            'yapilanOdev': yapilanOdev,
+            'yapilmayanOdev': yapilmayanOdev,
+            'kilitliOdev': kilitliOdev,
+            'nobetSayisi': nobetSayisi,
+            'gorevlilikSayisi': gorevlilikSayisi,
+            'renkliKartSayisi': renkliKartSayisi,
+            'etkinlikSayisi': etkinlikSayisi,
+            'istatistiklerDocs': istatistiklerSnap.docs
+                .map((e) => e.data())
+                .toList(),
+            'isVerileriDocs': isVerileriSnap.docs.map((e) => e.data()).toList(),
+          };
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      print("Öğrenci profili veri çekme hatası: $e");
+      if (mounted) {
+        setState(() => _isLoadingStats = false);
+      }
+    }
   }
 
   @override
@@ -89,7 +221,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     super.dispose();
   }
 
-  // --- ÖĞRENCİ PROFİL RESMİNİ DEĞİŞTİRME FONKSİYONU ---
   Future<void> _profilResmiDegistir() async {
     if (!_isSinifOgretmeni) return;
 
@@ -115,7 +246,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
       final String downloadUrl = await ref.getDownloadURL();
 
-      // Firestore'u güncelleme
       await FirebaseFirestore.instance
           .collection('students')
           .doc(widget.studentId)
@@ -232,18 +362,19 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("$fullName - Öğrenci Bilgileri"),
+        title: Text("$fullName - 360° Öğrenci Profili"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- PROFİL FOTOĞRAFI ---
             Center(
               child: GestureDetector(
                 onTap: () {
-                  // Resim varsa ve sınıf öğretmeniyse tıklandığında tam boyut göster
                   if (ogrenciProfilResmiUrl != null &&
                       ogrenciProfilResmiUrl!.isNotEmpty) {
                     _resmiTamBoyutGoster();
@@ -276,7 +407,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                             )
                           : null,
                     ),
-                    // Sadece sınıf öğretmeniyse sağ altta kamera ikonu görünür
                     if (_isSinifOgretmeni)
                       Positioned(
                         bottom: 0,
@@ -302,6 +432,117 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // --- 360 DERECE ÖZET İSTATİSTİK KARTLARI ---
+            const Text(
+              "📊 Öğrenci Performans & Takip Özeti",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.indigo,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            _isLoadingStats
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Row(
+                        children: [
+                          _buildStatCard(
+                            "Okunan Kitap",
+                            "${_istatistikVerileri['toplamKitapSayisi'] ?? 0}",
+                            Icons.book,
+                            Colors.blue,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildStatCard(
+                            "Toplam Sayfa",
+                            "${_istatistikVerileri['toplamSayfaSayisi'] ?? 0}",
+                            Icons.menu_book,
+                            Colors.cyan,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildStatCard(
+                            "Nöbet Sayısı",
+                            "${_istatistikVerileri['nobetSayisi'] ?? 0}",
+                            Icons.event_available,
+                            Colors.purple,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _buildStatCard(
+                            "Yapılan Ödev",
+                            "${_istatistikVerileri['yapilanOdev'] ?? 0}",
+                            Icons.check_circle,
+                            Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildStatCard(
+                            "Yapılmayan",
+                            "${_istatistikVerileri['yapilmayanOdev'] ?? 0}",
+                            Icons.cancel,
+                            Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildStatCard(
+                            "Kilitli Ödev",
+                            "${_istatistikVerileri['kilitliOdev'] ?? 0}",
+                            Icons.lock,
+                            Colors.orange,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _buildStatCard(
+                            "Etkinlikler",
+                            "${_istatistikVerileri['etkinlikSayisi'] ?? 0}",
+                            Icons.star,
+                            Colors.amber.shade800,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildStatCard(
+                            "Renkli Kartlar",
+                            "${_istatistikVerileri['renkliKartSayisi'] ?? 0}",
+                            Icons.palette,
+                            Colors.pink,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildStatCard(
+                            "Görevlilik",
+                            "${_istatistikVerileri['gorevlilikSayisi'] ?? 0}",
+                            Icons.assignment_ind,
+                            Colors.teal,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+            const Divider(height: 40, thickness: 2),
+
+            // --- KİŞİSEL BİLGİLER FORMU ---
+            const Text(
+              "📝 Kimlik ve Aile Bilgileri",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.indigo,
+              ),
+            ),
+            const SizedBox(height: 16),
+
             TextField(
               controller: _tcController,
               readOnly: !_isSinifOgretmeni,
@@ -386,6 +627,48 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
             const SizedBox(height: 20),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Expanded(
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 4.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

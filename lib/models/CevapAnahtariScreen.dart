@@ -38,7 +38,9 @@ class _CevapAnahtariScreenState extends State<CevapAnahtariScreen> {
 
   final ImageService _imageService = ImageService();
   final GeminiVisionService _visionService = GeminiVisionService(
-    apiKey: "AQ.Ab8RN6Jp3_E-d-lApaMTog7eYgRTbBUHLzc_YehbBZejPSRhMw",
+    apiKey: const String.fromEnvironment(
+      'AQ.Ab8RN6Jp3_E-d-lApaMTog7eYgRTbBUHLzc_YehbBZejPSRhMw',
+    ),
   );
 
   final List<String> _idealDersSirasi = [
