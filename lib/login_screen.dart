@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student_home_screen.dart';
+import 'Ogretmen_Ana_Sayfasi.dart';
 import 'package:lottie/lottie.dart';
 import 'ogrenci_yukleme_screen.dart';
 import 'sinif_sec_ekle_screen.dart';
@@ -25,7 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isRoleSelected = false;
   bool _sifreGizli = true;
-  //bool _eulaOnaylandiMi = false;
 
   String? _selectedGradeLevel;
   String? _selectedBranch;
@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _uygulamaBaslat() async {
-    await _anonimGirisYapKontrol(); // 1. Önce kimlik doğrulama tamamlansın
+    await _anonimGirisYapKontrol();
 
     _checkSavedClass();
     _loadClasses();
@@ -103,7 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setBool('eula_accepted', true);
 
-                if (!context.mounted) return;
+                if (!context.mounted) {
+                  return;
+                }
                 Navigator.pop(context);
               },
               child: const Text("Kabul Ediyorum"),
@@ -127,7 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _anonimGirisYapKontrol() async {
     try {
-      // Eğer daha önce bu cihazda anonim oturum açılmadıysa giriş yap
       if (FirebaseAuth.instance.currentUser == null) {
         await FirebaseAuth.instance.signInAnonymously();
         debugPrint("Firebase Anonim Oturum Başarıyla Açıldı.");
@@ -150,9 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  // =========================================================================
-  // ZORUNLU GÜNCELLEME KONTROLÜ
-  // =========================================================================
   Future<void> _versiyonKontrolEt() async {
     try {
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
@@ -181,7 +179,9 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (mevcutBuildNumber < minVersionCode) {
-          if (!mounted) return;
+          if (!mounted) {
+            return;
+          }
           _zorunluGuncellemeDialoguGoster(updateUrl);
         }
       }
@@ -220,7 +220,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-  // =========================================================================
 
   void _masterSifreSor() {
     TextEditingController masterController = TextEditingController();
@@ -247,7 +246,6 @@ class _LoginScreenState extends State<LoginScreen> {
               if (masterController.text.trim() == "19781980") {
                 Navigator.pop(context);
 
-                // Yöneticiyi online listesine kaydediyoruz
                 await FirebaseFirestore.instance
                     .collection('online_users')
                     .doc('master_yonetici')
@@ -261,7 +259,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('userRole', 'teacher');
                 await prefs.setBool('isMaster', true);
-                if (!mounted) return;
+                if (!mounted) {
+                  return;
+                }
 
                 Navigator.pushReplacement(
                   context,
@@ -284,6 +284,307 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- 1. ADIM: FİREBASE KONTROLLÜ İNCELEME GİRİŞİ ---
+  void _yoneticiGirisDialogGoster(BuildContext context) {
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController sifreController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Yönetici Girişi",
+            style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Bu alan yalnızca App Store inceleme ekibi ve yöneticiler içindir.",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: "E-posta Adresi",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: sifreController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "Şifre",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("İptal", style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                String email = emailController.text.trim();
+                String sifre = sifreController.text.trim();
+
+                if (email.isEmpty || sifre.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Lütfen tüm alanları doldurun!"),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  final querySnapshot = await FirebaseFirestore.instance
+                      .collection('reviewers')
+                      .where('email', isEqualTo: email)
+                      .where('password', isEqualTo: sifre)
+                      .get();
+
+                  if (querySnapshot.docs.isNotEmpty) {
+                    Navigator.pop(context);
+
+                    // 2. ADIM: PROFİL SEÇİM EKRANINI AÇ
+                    _profilSecimDialogGoster(context);
+                  } else {
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Hatalı e-posta veya şifre!"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("Giriş hatası: $e")));
+                }
+              },
+              child: const Text("Devam Et"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- 2. ADIM: "LOGIN AS" PROFİL SEÇİM PENCERESİ ---
+  void _profilSecimDialogGoster(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Login as",
+            style: TextStyle(
+              color: Colors.indigo,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Lütfen test etmek istediğiniz profili seçiniz:",
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // --- 1. TEACHER PROFILE SEÇENEĞİ ---
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.school),
+                  label: const Text(
+                    "Teacher Profile",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () async {
+                    try {
+                      // Veritabanındaki ilk sınıfı test sınıfı olarak alıyoruz
+                      var classSnapshot = await FirebaseFirestore.instance
+                          .collection('classes')
+                          .limit(1)
+                          .get();
+
+                      if (classSnapshot.docs.isEmpty) {
+                        if (!context.mounted) {
+                          return;
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Sistemde kayıtlı sınıf bulunamadı!"),
+                          ),
+                        );
+                        return;
+                      }
+
+                      var classDoc = classSnapshot.docs.first;
+                      String classId = classDoc.id;
+                      String className =
+                          classDoc.data()['className'] ?? 'İnceleme Sınıfı';
+
+                      await FirebaseFirestore.instance
+                          .collection('online_users')
+                          .doc('appstore_teacher')
+                          .set({
+                            'name': 'App Store Reviewer (Teacher)',
+                            'role': 'staff',
+                            'sinifSube': className,
+                            'lastActive': FieldValue.serverTimestamp(),
+                          });
+
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('userRole', 'teacher');
+                      await prefs.setBool('isMaster', true);
+
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.pop(context);
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OgretmenAnaSayfasi(
+                            classId: classId,
+                            className: className,
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) {
+                        return;
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Öğretmen profili hatası: $e")),
+                      );
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              // --- 2. STUDENT PROFILE SEÇENEĞİ ---
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.person),
+                  label: const Text(
+                    "Student Profile",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () async {
+                    try {
+                      var studentSnapshot = await FirebaseFirestore.instance
+                          .collection('students')
+                          .limit(1)
+                          .get();
+
+                      if (studentSnapshot.docs.isEmpty) {
+                        if (!context.mounted) {
+                          return;
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Sistemde kayıtlı öğrenci bulunamadı!",
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      var studentDoc = studentSnapshot.docs.first;
+                      String studentId = studentDoc.id;
+                      var studentData = studentDoc.data();
+                      String fullName =
+                          "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}"
+                              .trim();
+
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('userRole', 'student');
+                      await prefs.setString('studentId', studentId);
+                      await prefs.setString('studentName', fullName);
+
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.pop(context);
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              StudentHomeScreen(studentId: studentId),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) {
+                        return;
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Öğrenci profili hatası: $e")),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -337,11 +638,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _normalOgretmenGiris() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Her oturum için benzersiz bir öğretmen ID'si oluşturup kaydediyoruz
-
     await prefs.setString('userRole', 'teacher');
     await prefs.setBool('isMaster', false);
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -495,6 +796,42 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(width: 20),
                         ],
+                      ),
+                      const SizedBox(height: 20),
+                      Center(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: Colors.indigo,
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.8,
+                            ),
+                          ),
+                          onPressed: () {
+                            _yoneticiGirisDialogGoster(context);
+                          },
+                          icon: const Icon(
+                            Icons.admin_panel_settings,
+                            color: Colors.indigo,
+                          ),
+                          label: const Text(
+                            "Yönetici / İnceleme Girişi",
+                            style: TextStyle(
+                              color: Colors.indigo,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
                       ),
                     ] else ...[
                       const Text(
@@ -736,38 +1073,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildSinifGorseli() {
-    bool gorseliGoster = false;
-    if (!gorseliGoster) {
-      return const SizedBox.shrink();
-    }
-    /*return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('config')
-          .doc('genel_ayarlar')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data?.data() == null) {
-          return const SizedBox.shrink();
-        }
-        final data = snapshot.data!.data() as Map<String, dynamic>;
-        final imageUrl = data['sinif_gorsel_url'] as String?;
-        if (imageUrl == null || imageUrl.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        return Image.network(imageUrl, height: 100, fit: BoxFit.contain);
-      },
-    );*/ //DEAD CODE
+    return const SizedBox.shrink();
   }
 
   Future<void> _login(BuildContext context) async {
     final password = _passwordController.text.trim();
     final prefs = await SharedPreferences.getInstance();
 
-    // Önce hafızadaki veya seçilen ID'ye bakalım
     String? targetClassId = _savedClassId ?? _selectedClassId;
 
-    // EMNİYET KİRİŞİ: Eğer _selectedClassId henüz dolmadıysa ama kullanıcı sınıf ve şube seçtiyse,
-    // anlık olarak Firestore'dan o sınıfın ID'sini doğrudan buluyoruz:
     if (targetClassId == null &&
         _selectedGradeLevel != null &&
         _selectedBranch != null) {
@@ -780,7 +1094,6 @@ class _LoginScreenState extends State<LoginScreen> {
           String grade = (doc.data()['grade'] ?? '').toString();
           String branch = (doc.data()['branch'] ?? '').toString();
 
-          // Sınıf ve şube eşleşmesini yakala
           if ((grade == _selectedGradeLevel && branch == _selectedBranch) ||
               (cName.contains(_selectedGradeLevel!) &&
                   cName.contains(_selectedBranch!))) {
@@ -802,7 +1115,9 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     try {
       final querySnapshot = await FirebaseFirestore.instance
@@ -850,7 +1165,9 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('savedClassId', targetClassId);
         await prefs.setString('studentName', fullName);
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         Navigator.pushReplacement(
           context,
@@ -859,7 +1176,9 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -869,7 +1188,9 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Giriş hatası: $e")));
