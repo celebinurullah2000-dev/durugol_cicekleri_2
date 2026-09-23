@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student_home_screen.dart';
-import 'Ogretmen_Ana_Sayfasi.dart';
 import 'package:lottie/lottie.dart';
 import 'ogrenci_yukleme_screen.dart';
 import 'sinif_sec_ekle_screen.dart';
@@ -31,6 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _selectedBranch;
   String? _selectedClassId;
   String? _savedClassId;
+
+  // Firebase görsel kontrol değişkenleri
+  String _okulResmiDegeri = "2";
+  String _okulLogosuDegeri = "2";
+
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _classList = [];
 
   final List<String> _branchList = [
@@ -51,15 +55,31 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _uygulamaBaslat();
+    _gorselAyarlariniDinle();
   }
 
   Future<void> _uygulamaBaslat() async {
     await _anonimGirisYapKontrol();
-
     _checkSavedClass();
     _loadClasses();
     _versiyonKontrolEt();
     _eulaKontrolEt();
+  }
+
+  void _gorselAyarlariniDinle() {
+    FirebaseFirestore.instance
+        .collection('settings')
+        .doc('visual_settings')
+        .snapshots()
+        .listen((doc) {
+          if (doc.exists) {
+            var data = doc.data() as Map<String, dynamic>;
+            setState(() {
+              _okulResmiDegeri = (data['okul_resmi'] ?? '2').toString();
+              _okulLogosuDegeri = (data['okul_logosu'] ?? '2').toString();
+            });
+          }
+        });
   }
 
   void _eulaDialogGoster() {
@@ -131,7 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       if (FirebaseAuth.instance.currentUser == null) {
         await FirebaseAuth.instance.signInAnonymously();
-        debugPrint("Firebase Anonim Oturum Başarıyla Açıldı.");
       }
     } catch (e) {
       debugPrint("Anonim giriş hatası: $e");
@@ -287,307 +306,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- 1. ADIM: FİREBASE KONTROLLÜ İNCELEME GİRİŞİ ---
-  void _yoneticiGirisDialogGoster(BuildContext context) {
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController sifreController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            "Yönetici Girişi",
-            style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Bu alan yalnızca App Store inceleme ekibi ve yöneticiler içindir.",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: "E-posta Adresi",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sifreController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "Şifre",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("İptal", style: TextStyle(color: Colors.red)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                String email = emailController.text.trim();
-                String sifre = sifreController.text.trim();
-
-                if (email.isEmpty || sifre.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Lütfen tüm alanları doldurun!"),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  final querySnapshot = await FirebaseFirestore.instance
-                      .collection('reviewers')
-                      .where('email', isEqualTo: email)
-                      .where('password', isEqualTo: sifre)
-                      .get();
-
-                  if (querySnapshot.docs.isNotEmpty) {
-                    Navigator.pop(context);
-
-                    // 2. ADIM: PROFİL SEÇİM EKRANINI AÇ
-                    _profilSecimDialogGoster(context);
-                  } else {
-                    if (!context.mounted) {
-                      return;
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Hatalı e-posta veya şifre!"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (!context.mounted) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text("Giriş hatası: $e")));
-                }
-              },
-              child: const Text("Devam Et"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // --- 2. ADIM: "LOGIN AS" PROFİL SEÇİM PENCERESİ ---
-  void _profilSecimDialogGoster(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            "Login as",
-            style: TextStyle(
-              color: Colors.indigo,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Lütfen test etmek istediğiniz profili seçiniz:",
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              // --- 1. TEACHER PROFILE SEÇENEĞİ ---
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.school),
-                  label: const Text(
-                    "Teacher Profile",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () async {
-                    try {
-                      // Veritabanındaki ilk sınıfı test sınıfı olarak alıyoruz
-                      var classSnapshot = await FirebaseFirestore.instance
-                          .collection('classes')
-                          .limit(1)
-                          .get();
-
-                      if (classSnapshot.docs.isEmpty) {
-                        if (!context.mounted) {
-                          return;
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Sistemde kayıtlı sınıf bulunamadı!"),
-                          ),
-                        );
-                        return;
-                      }
-
-                      var classDoc = classSnapshot.docs.first;
-                      String classId = classDoc.id;
-                      String className =
-                          classDoc.data()['className'] ?? 'İnceleme Sınıfı';
-
-                      await FirebaseFirestore.instance
-                          .collection('online_users')
-                          .doc('appstore_teacher')
-                          .set({
-                            'name': 'App Store Reviewer (Teacher)',
-                            'role': 'staff',
-                            'sinifSube': className,
-                            'lastActive': FieldValue.serverTimestamp(),
-                          });
-
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString('userRole', 'teacher');
-                      await prefs.setBool('isMaster', true);
-
-                      if (!context.mounted) {
-                        return;
-                      }
-                      Navigator.pop(context);
-
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OgretmenAnaSayfasi(
-                            classId: classId,
-                            className: className,
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!context.mounted) {
-                        return;
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Öğretmen profili hatası: $e")),
-                      );
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-              // --- 2. STUDENT PROFILE SEÇENEĞİ ---
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.person),
-                  label: const Text(
-                    "Student Profile",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () async {
-                    try {
-                      var studentSnapshot = await FirebaseFirestore.instance
-                          .collection('students')
-                          .limit(1)
-                          .get();
-
-                      if (studentSnapshot.docs.isEmpty) {
-                        if (!context.mounted) {
-                          return;
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Sistemde kayıtlı öğrenci bulunamadı!",
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-
-                      var studentDoc = studentSnapshot.docs.first;
-                      String studentId = studentDoc.id;
-                      var studentData = studentDoc.data();
-                      String fullName =
-                          "${studentData['firstName'] ?? ''} ${studentData['lastName'] ?? ''}"
-                              .trim();
-
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString('userRole', 'student');
-                      await prefs.setString('studentId', studentId);
-                      await prefs.setString('studentName', fullName);
-
-                      if (!context.mounted) {
-                        return;
-                      }
-                      Navigator.pop(context);
-
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              StudentHomeScreen(studentId: studentId),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!context.mounted) {
-                        return;
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Öğrenci profili hatası: $e")),
-                      );
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   void _yoneticiSifresiIleOgrentiYuklemeyeGit() {
     TextEditingController masterController = TextEditingController();
     showDialog(
@@ -708,6 +426,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ekranYuksekligi = MediaQuery.of(context).size.height;
     final ekranGenisligi = MediaQuery.of(context).size.width;
 
     return Scaffold(
@@ -725,286 +444,276 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Stack(
             children: [
               SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 50),
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: Image.asset(
-                        'assets/images/durugol_ilkokulu.png',
-                        height: 140,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: 120,
-                          maxWidth: 200,
-                          minHeight: 120,
-                          maxHeight: 200,
-                        ),
-                        child: SizedBox(
-                          width: ekranGenisligi * 0.35,
-                          height: ekranGenisligi * 0.35,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: Lottie.asset(
-                                'assets/animations/logo_motion.json',
-                                fit: BoxFit.cover,
-                                repeat: true,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSinifGorseli(),
-                    const SizedBox(height: 20),
-                    if (!_isRoleSelected) ...[
-                      Row(
-                        children: [
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: _buildRoleButton(
-                              "",
-                              "assets/images/ogretmen2.png",
-                              () => _normalOgretmenGiris(),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: _buildRoleButton(
-                              "",
-                              "assets/images/veli.png",
-                              () => setState(() => _isRoleSelected = true),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                        ],
-                      ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: ekranYuksekligi - 50),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
                       const SizedBox(height: 20),
-                      Center(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: Colors.indigo,
-                              width: 1.5,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.8,
-                            ),
-                          ),
-                          onPressed: () {
-                            _yoneticiGirisDialogGoster(context);
-                          },
-                          icon: const Icon(
-                            Icons.admin_panel_settings,
-                            color: Colors.indigo,
-                          ),
-                          label: const Text(
-                            "Yönetici / İnceleme Girişi",
-                            style: TextStyle(
-                              color: Colors.indigo,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
+
+                      // --- 1. OKUL RESMİ KONTROLÜ ---
+                      if (_okulResmiDegeri == "1") ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: Image.asset(
+                            'assets/images/durugol_cicekleri_giris_ekrani.png',
+                            height: 140,
+                            fit: BoxFit.contain,
                           ),
                         ),
-                      ),
-                    ] else ...[
-                      const Text(
-                        "Öğrenci Girişi",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.indigo,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      if (_savedClassId == null) ...[
+                      ],
+
+                      // --- 2. LOTTIE LOGO KONTROLÜ ---
+                      if (_okulLogosuDegeri == "1") ...[
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 5,
-                                        spreadRadius: 1,
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minWidth: 120,
+                              maxWidth: 200,
+                              minHeight: 120,
+                              maxHeight: 200,
+                            ),
+                            child: SizedBox(
+                              width: ekranGenisligi * 0.35,
+                              height: ekranGenisligi * 0.35,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
                                       ),
-                                    ],
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: _selectedGradeLevel,
-                                      hint: const Text("Sınıf"),
-                                      isExpanded: true,
-                                      items: _gradeLevels.map((level) {
-                                        return DropdownMenuItem<String>(
-                                          value: level,
-                                          child: Text("$level. Sınıf"),
-                                        );
-                                      }).toList(),
-                                      onChanged: (val) {
-                                        setState(() {
-                                          _selectedGradeLevel = val;
-                                          _updateSelectedClassId();
-                                        });
-                                      },
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
                                     ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: Lottie.asset(
+                                    'assets/animations/logo_motion.json',
+                                    fit: BoxFit.cover,
+                                    repeat: true,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 15),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 5,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: _selectedBranch,
-                                      hint: const Text("Şube"),
-                                      isExpanded: true,
-                                      items: _branchList.map((branch) {
-                                        return DropdownMenuItem<String>(
-                                          value: branch,
-                                          child: Text("$branch Şubesi"),
-                                        );
-                                      }).toList(),
-                                      onChanged: (val) {
-                                        setState(() {
-                                          _selectedBranch = val;
-                                          _updateSelectedClassId();
-                                        });
-                                      },
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+                      _buildSinifGorseli(),
+                      const SizedBox(height: 20),
+
+                      if (!_isRoleSelected) ...[
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 450),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildRoleButton(
+                                      "",
+                                      "assets/images/ogretmen2.png",
+                                      () => _normalOgretmenGiris(),
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    child: _buildRoleButton(
+                                      "",
+                                      "assets/images/veli.png",
+                                      () => setState(
+                                        () => _isRoleSelected = true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        const Text(
+                          "Öğrenci Girişi",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.indigo,
                           ),
                         ),
                         const SizedBox(height: 20),
+                        if (_savedClassId == null) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 5,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _selectedGradeLevel,
+                                        hint: const Text("Sınıf"),
+                                        isExpanded: true,
+                                        items: _gradeLevels.map((level) {
+                                          return DropdownMenuItem<String>(
+                                            value: level,
+                                            child: Text("$level. Sınıf"),
+                                          );
+                                        }).toList(),
+                                        onChanged: (val) {
+                                          setState(() {
+                                            _selectedGradeLevel = val;
+                                            _updateSelectedClassId();
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 5,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _selectedBranch,
+                                        hint: const Text("Şube"),
+                                        isExpanded: true,
+                                        items: _branchList.map((branch) {
+                                          return DropdownMenuItem<String>(
+                                            value: branch,
+                                            child: Text("$branch Şubesi"),
+                                          );
+                                        }).toList(),
+                                        onChanged: (val) {
+                                          setState(() {
+                                            _selectedBranch = val;
+                                            _updateSelectedClassId();
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                        Container(
+                          width: 300,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: _passwordController,
+                            obscureText: _sifreGizli,
+                            textAlign: TextAlign.center,
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              hintText: "Şifrenizi yazın",
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _sifreGizli
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _sifreGizli = !_sifreGizli;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        InkWell(
+                          onTap: () => _login(context),
+                          child: Container(
+                            width: 250,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              image: const DecorationImage(
+                                image: AssetImage(
+                                  'assets/images/giris_butonu.png',
+                                ),
+                                fit: BoxFit.contain,
+                              ),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        InkWell(
+                          onTap: () => setState(() {
+                            _isRoleSelected = false;
+                            _passwordController.clear();
+                            _sifreGizli = true;
+                          }),
+                          child: Container(
+                            width: 200,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              image: const DecorationImage(
+                                image: AssetImage(
+                                  'assets/images/geri_butonu.png',
+                                ),
+                                fit: BoxFit.contain,
+                              ),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                        ),
                       ],
-                      Container(
-                        width: 300,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _passwordController,
-                          obscureText: _sifreGizli,
-                          textAlign: TextAlign.center,
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: "Şifrenizi yazın",
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _sifreGizli
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: Colors.grey,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _sifreGizli = !_sifreGizli;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      InkWell(
-                        onTap: () => _login(context),
-                        child: Container(
-                          width: 250,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            image: const DecorationImage(
-                              image: AssetImage(
-                                'assets/images/giris_butonu.png',
-                              ),
-                              fit: BoxFit.contain,
-                            ),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      InkWell(
-                        onTap: () => setState(() {
-                          _isRoleSelected = false;
-                          _passwordController.clear();
-                          _sifreGizli = true;
-                        }),
-                        child: Container(
-                          width: 200,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            image: const DecorationImage(
-                              image: AssetImage(
-                                'assets/images/geri_butonu.png',
-                              ),
-                              fit: BoxFit.contain,
-                            ),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
               Positioned(

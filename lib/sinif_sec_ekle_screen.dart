@@ -22,7 +22,18 @@ class sinifseceklescreen extends StatefulWidget {
 }
 
 class _sinifseceklescreenState extends State<sinifseceklescreen> {
-  final List<String> _branches = ['A', 'B', 'C', 'D', 'E', 'F', 'H', 'I', 'J'];
+  final List<String> _branches = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+  ];
 
   final List<String> _ataturkSozleri = [
     "Eğitimdir ki bir milleti; ya özgür, bağımsız, şanlı, yüksek bir topluluk halinde yaşatır; ya da esaret ve sefalete terk eder.",
@@ -141,65 +152,73 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
             return AlertDialog(
               title: Text(baslikMetni),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (userRole != 'admin' &&
-                        userRole != 'guidance_teacher' &&
-                        userRole != 'special_education_teacher' &&
-                        userRole != 'kindergarten_teacher') ...[
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedGrade,
-                        decoration: const InputDecoration(
-                          labelText: "Sınıf Seviyesi",
-                          border: OutlineInputBorder(),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (userRole != 'admin' &&
+                            userRole != 'guidance_teacher' &&
+                            userRole != 'special_education_teacher' &&
+                            userRole != 'kindergarten_teacher') ...[
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedGrade,
+                            decoration: const InputDecoration(
+                              labelText: "Sınıf Seviyesi",
+                              border: OutlineInputBorder(),
+                            ),
+                            items: ['1', '2', '3', '4'].map((grade) {
+                              return DropdownMenuItem(
+                                value: grade,
+                                child: Text("$grade. Sınıf"),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setDialogState(() => selectedGrade = val);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedBranch,
+                            decoration: const InputDecoration(
+                              labelText: "Şube Seçimi",
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _branches.map((branch) {
+                              return DropdownMenuItem(
+                                value: branch,
+                                child: Text("$branch Şubesi"),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setDialogState(() => selectedBranch = val);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        TextField(
+                          controller: teacherController,
+                          textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            TextInputFormatter.withFunction((
+                              oldValue,
+                              newValue,
+                            ) {
+                              return TextEditingValue(
+                                text: _capitalizeWords(newValue.text),
+                                selection: newValue.selection,
+                              );
+                            }),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: "Adı Soyadı",
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                        items: ['1', '2', '3', '4'].map((grade) {
-                          return DropdownMenuItem(
-                            value: grade,
-                            child: Text("$grade. Sınıf"),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setDialogState(() => selectedGrade = val);
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedBranch,
-                        decoration: const InputDecoration(
-                          labelText: "Şube Seçimi",
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _branches.map((branch) {
-                          return DropdownMenuItem(
-                            value: branch,
-                            child: Text("$branch Şubesi"),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setDialogState(() => selectedBranch = val);
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    TextField(
-                      controller: teacherController,
-                      textCapitalization: TextCapitalization.words,
-                      inputFormatters: [
-                        TextInputFormatter.withFunction((oldValue, newValue) {
-                          return TextEditingValue(
-                            text: _capitalizeWords(newValue.text),
-                            selection: newValue.selection,
-                          );
-                        }),
                       ],
-                      decoration: const InputDecoration(
-                        labelText: "Adı Soyadı",
-                        border: OutlineInputBorder(),
-                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
               actions: [
@@ -624,269 +643,283 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
                   (sum, list) => sum + list.length,
                 );
 
-                return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 4,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: ExpansionTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.indigo.shade50,
-                      child: const Icon(Icons.school, color: Colors.indigo),
-                    ),
-                    title: const Text(
-                      "Sınıf Öğretmenleri",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.indigo,
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 700),
+                    child: Card(
+                      elevation: 3,
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 4,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ExpansionTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.indigo.shade50,
+                          child: const Icon(Icons.school, color: Colors.indigo),
+                        ),
+                        title: const Text(
+                          "Sınıf Öğretmenleri",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.indigo,
+                          ),
+                        ),
+                        subtitle: Text("$toplamSinifSayisi sınıf kayıtlı"),
+                        children: seviyeler.map((gradeVal) {
+                          List<QueryDocumentSnapshot> siniflar =
+                              groupedClasses[gradeVal] ?? [];
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.indigo.shade100),
+                            ),
+                            child: ExpansionTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.indigo.shade50,
+                                child: Text(
+                                  "$gradeVal.",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.indigo,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                "$gradeVal. Sınıflar",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: Colors.indigo,
+                                ),
+                              ),
+                              subtitle: Text("${siniflar.length} şube kayıtlı"),
+                              children: [
+                                if (siniflar.isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.all(12.0),
+                                    child: Text(
+                                      "Bu seviyede henüz kayıt yok.",
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  )
+                                else
+                                  ...siniflar.map((doc) {
+                                    var classData =
+                                        doc.data() as Map<String, dynamic>;
+                                    String classId = doc.id;
+                                    String className =
+                                        classData['className'] ?? 'Sınıf';
+                                    String teacherName =
+                                        classData['teacherName'] ??
+                                        'Belirtilmemiş';
+                                    String correctPassword =
+                                        classData['password'] ?? '';
+                                    String grade = classData['grade'] ?? '1';
+                                    String branch = classData['branch'] ?? 'A';
+                                    String userRole =
+                                        classData['userRole'] ??
+                                        'classroom_teacher';
+
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade50,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Colors.grey.shade200,
+                                        ),
+                                      ),
+                                      child: ListTile(
+                                        title: Text(
+                                          className,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        subtitle: Text("Yetkili: $teacherName"),
+                                        trailing: widget.isTeacherMaster
+                                            ? Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.edit,
+                                                      color: Colors.blue,
+                                                      size: 20,
+                                                    ),
+                                                    onPressed: () {
+                                                      _sifreDogrulaVaIslemYap(
+                                                        context,
+                                                        correctPassword,
+                                                        className,
+                                                        () {
+                                                          _sinifDuzenleDialog(
+                                                            context,
+                                                            classId,
+                                                            grade,
+                                                            branch,
+                                                            teacherName,
+                                                            userRole,
+                                                          );
+                                                        },
+                                                      );
+                                                    },
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.delete,
+                                                      color: Colors.red,
+                                                      size: 20,
+                                                    ),
+                                                    onPressed: () {
+                                                      _sifreDogrulaVaIslemYap(
+                                                        context,
+                                                        correctPassword,
+                                                        className,
+                                                        () {
+                                                          _sinifSil(
+                                                            context,
+                                                            classId,
+                                                            className,
+                                                          );
+                                                        },
+                                                      );
+                                                    },
+                                                  ),
+                                                ],
+                                              )
+                                            : null,
+                                        onTap: () {
+                                          _sifreDogrulaVeIslemYardimcisi(
+                                            context,
+                                            correctPassword,
+                                            className,
+                                            classId,
+                                            userRole,
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  }),
+                                const SizedBox(height: 6),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
-                    subtitle: Text("$toplamSinifSayisi sınıf kayıtlı"),
-                    children: seviyeler.map((gradeVal) {
-                      List<QueryDocumentSnapshot> siniflar =
-                          groupedClasses[gradeVal] ?? [];
-
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.indigo.shade100),
-                        ),
-                        child: ExpansionTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.indigo.shade50,
-                            child: Text(
-                              "$gradeVal.",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.indigo,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            "$gradeVal. Sınıflar",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: Colors.indigo,
-                            ),
-                          ),
-                          subtitle: Text("${siniflar.length} şube kayıtlı"),
-                          children: [
-                            if (siniflar.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.all(12.0),
-                                child: Text(
-                                  "Bu seviyede henüz kayıt yok.",
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              )
-                            else
-                              ...siniflar.map((doc) {
-                                var classData =
-                                    doc.data() as Map<String, dynamic>;
-                                String classId = doc.id;
-                                String className =
-                                    classData['className'] ?? 'Sınıf';
-                                String teacherName =
-                                    classData['teacherName'] ?? 'Belirtilmemiş';
-                                String correctPassword =
-                                    classData['password'] ?? '';
-                                String grade = classData['grade'] ?? '1';
-                                String branch = classData['branch'] ?? 'A';
-                                String userRole =
-                                    classData['userRole'] ??
-                                    'classroom_teacher';
-
-                                return Container(
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.grey.shade200,
-                                    ),
-                                  ),
-                                  child: ListTile(
-                                    title: Text(
-                                      className,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    subtitle: Text("Yetkili: $teacherName"),
-                                    trailing: widget.isTeacherMaster
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.edit,
-                                                  color: Colors.blue,
-                                                  size: 20,
-                                                ),
-                                                onPressed: () {
-                                                  _sifreDogrulaVaIslemYap(
-                                                    context,
-                                                    correctPassword,
-                                                    className,
-                                                    () {
-                                                      _sinifDuzenleDialog(
-                                                        context,
-                                                        classId,
-                                                        grade,
-                                                        branch,
-                                                        teacherName,
-                                                        userRole,
-                                                      );
-                                                    },
-                                                  );
-                                                },
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.delete,
-                                                  color: Colors.red,
-                                                  size: 20,
-                                                ),
-                                                onPressed: () {
-                                                  _sifreDogrulaVaIslemYap(
-                                                    context,
-                                                    correctPassword,
-                                                    className,
-                                                    () {
-                                                      _sinifSil(
-                                                        context,
-                                                        classId,
-                                                        className,
-                                                      );
-                                                    },
-                                                  );
-                                                },
-                                              ),
-                                            ],
-                                          )
-                                        : null,
-                                    onTap: () {
-                                      _sifreDogrulaVeIslemYardimcisi(
-                                        context,
-                                        correctPassword,
-                                        className,
-                                        classId,
-                                        userRole,
-                                      );
-                                    },
-                                  ),
-                                );
-                              }),
-                            const SizedBox(height: 6),
-                          ],
-                        ),
-                      );
-                    }).toList(),
                   ),
                 );
               }
 
               // 7. Atatürk Sözü ve Lottie
               if (index == totalItemCount - 1) {
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.fromLTRB(4, 12, 4, 24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                    border: Border.all(color: Colors.blue.shade100, width: 1.5),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Mustafa Kemal Atatürk",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.indigo,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "\"$_secilenSoz\"",
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontStyle: FontStyle.italic,
-                                color: Colors.black87,
-                              ),
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 700),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.fromLTRB(4, 12, 4, 24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: Colors.blue.shade100,
+                          width: 1.5,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Row(
                         children: [
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              icon: const Icon(
-                                Icons.refresh,
-                                size: 20,
-                                color: Colors.indigo,
-                              ),
-                              tooltip: "Başka Söz Getir",
-                              onPressed: _rastgeleSozSec,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Mustafa Kemal Atatürk",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.indigo,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "\"$_secilenSoz\"",
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.black87,
+                                  ),
+                                  maxLines: 4,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              width: 75,
-                              height: 75,
-                              color: Colors.grey.shade50,
-                              child: Lottie.asset(
-                                'assets/animations/ata_animasyon.json',
-                                fit: BoxFit.cover,
-                                repeat: true,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    Icons.person,
-                                    color: Colors.grey,
-                                    size: 30,
-                                  );
-                                },
+                          const SizedBox(width: 12),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    size: 20,
+                                    color: Colors.indigo,
+                                  ),
+                                  tooltip: "Başka Söz Getir",
+                                  onPressed: _rastgeleSozSec,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: 75,
+                                  height: 75,
+                                  color: Colors.grey.shade50,
+                                  child: Lottie.asset(
+                                    'assets/animations/ata_animasyon.json',
+                                    fit: BoxFit.cover,
+                                    repeat: true,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.person,
+                                        color: Colors.grey,
+                                        size: 30,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 );
               }
@@ -918,111 +951,120 @@ class _sinifseceklescreenState extends State<sinifseceklescreen> {
     required List<QueryDocumentSnapshot> belgeListesi,
     required String altAciklama,
   }) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: renk.withValues(alpha: 0.1),
-          child: Icon(ikon, color: renk),
-        ),
-        title: Text(
-          baslik,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: renk,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 700,
+        ), // Web'de aşırı genişlemeyi önler
+        child: Card(
+          elevation: 3,
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-        subtitle: Text(altAciklama),
-        children: belgeListesi.map((doc) {
-          var data = doc.data() as Map<String, dynamic>;
-          String itemId = doc.id;
-          String itemName = data['teacherName'] ?? 'Kayıt';
-          String correctPassword = data['password'] ?? '';
-          String userRole = data['userRole'] ?? '';
-
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: renk.withValues(alpha: 0.2)),
+          child: ExpansionTile(
+            leading: CircleAvatar(
+              backgroundColor: renk.withValues(alpha: 0.1),
+              child: Icon(ikon, color: renk),
             ),
-            child: ListTile(
-              title: Text(
-                itemName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            title: Text(
+              baslik,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: renk,
               ),
-              subtitle: Text(
-                baslik,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: renk,
-                  fontWeight: FontWeight.w600,
+            ),
+            subtitle: Text(altAciklama),
+            children: belgeListesi.map((doc) {
+              var data = doc.data() as Map<String, dynamic>;
+              String itemId = doc.id;
+              String itemName = data['teacherName'] ?? 'Kayıt';
+              String correctPassword = data['password'] ?? '';
+              String userRole = data['userRole'] ?? '';
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: renk.withValues(alpha: 0.2)),
                 ),
-              ),
-              trailing: widget.isTeacherMaster
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.edit,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            _sifreDogrulaVaIslemYap(
-                              context,
-                              correctPassword,
-                              itemName,
-                              () {
-                                _sinifDuzenleDialog(
+                child: ListTile(
+                  title: Text(
+                    itemName,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    baslik,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: renk,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  trailing: widget.isTeacherMaster
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                _sifreDogrulaVaIslemYap(
                                   context,
-                                  itemId,
-                                  '',
-                                  '',
+                                  correctPassword,
                                   itemName,
-                                  userRole,
+                                  () {
+                                    _sinifDuzenleDialog(
+                                      context,
+                                      itemId,
+                                      '',
+                                      '',
+                                      itemName,
+                                      userRole,
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            _sifreDogrulaVaIslemYap(
-                              context,
-                              correctPassword,
-                              itemName,
-                              () {
-                                _sinifSil(context, itemId, itemName);
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                _sifreDogrulaVaIslemYap(
+                                  context,
+                                  correctPassword,
+                                  itemName,
+                                  () {
+                                    _sinifSil(context, itemId, itemName);
+                                  },
+                                );
                               },
-                            );
-                          },
-                        ),
-                      ],
-                    )
-                  : null,
-              onTap: () {
-                _sifreDogrulaVeIslemYardimcisi(
-                  context,
-                  correctPassword,
-                  itemName,
-                  itemId,
-                  userRole,
-                );
-              },
-            ),
-          );
-        }).toList(),
+                            ),
+                          ],
+                        )
+                      : null,
+                  onTap: () {
+                    _sifreDogrulaVeIslemYardimcisi(
+                      context,
+                      correctPassword,
+                      itemName,
+                      itemId,
+                      userRole,
+                    );
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }

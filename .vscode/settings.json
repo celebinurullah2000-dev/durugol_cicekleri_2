@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "C:/Gelistirici/Flutter Projeleri/durugol_cicekleri/windows/flutter"
+    "cmake.sourceDirectory": "C:/Gelistirici/Flutter Projeleri/durugol_cicekleri/windows/flutter",
+    "java.compile.nullAnalysis.mode": "automatic"
 }

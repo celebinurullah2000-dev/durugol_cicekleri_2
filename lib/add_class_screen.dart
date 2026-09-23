@@ -28,7 +28,18 @@ class _AddClassScreenState extends State<AddClassScreen> {
     '3',
     '4',
   ];
-  final List<String> _branches = ['A', 'B', 'C', 'D', 'E', 'F', 'H', 'I', 'J'];
+  final List<String> _branches = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+  ];
 
   final Map<String, String> _roleMap = {
     'Sınıf Öğretmeni': 'classroom_teacher',
