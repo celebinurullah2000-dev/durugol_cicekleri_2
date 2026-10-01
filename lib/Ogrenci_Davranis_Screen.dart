@@ -14,7 +14,17 @@ class OgrenciDavranisScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Davranış Durumum"), centerTitle: true),
+      appBar: AppBar(
+        title: const Text("Davranış Durumum"),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: "Kart Geçmişi Detayları",
+            onPressed: () => _detayliGecmisGoster(context),
+          ),
+        ],
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('classes')
@@ -137,6 +147,18 @@ class OgrenciDavranisScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _detayliGecmisGoster(context),
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text("Tüm Kart Geçmişimi Görüntüle"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
               ],
             ),
           );
@@ -145,7 +167,101 @@ class OgrenciDavranisScreen extends StatelessWidget {
     );
   }
 
-  // Öğrenci Ekranı İçin Denge Barı Widget'ı
+  void _detayliGecmisGoster(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          height: MediaQuery.of(context).size.height * 0.75,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Kart Geçmişi ve Nedenleri",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Divider(),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('classes')
+                      .doc(classId)
+                      .collection('davranislar')
+                      .doc(studentId)
+                      .collection('history')
+                      .orderBy('timestamp', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Text("Henüz kaydedilmiş bir kart geçmişi yok."),
+                      );
+                    }
+
+                    var docs = snapshot.data!.docs;
+                    return ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        var data = docs[index].data() as Map<String, dynamic>;
+                        String type = data['cardType'] ?? 'yellow';
+                        String reason = data['reason'] ?? 'Belirtilmemiş';
+                        Timestamp? t = data['timestamp'] as Timestamp?;
+                        String tarihStr = t != null
+                            ? "${t.toDate().day}.${t.toDate().month}.${t.toDate().year} - ${t.toDate().hour.toString().padLeft(2, '0')}:${t.toDate().minute.toString().padLeft(2, '0')}"
+                            : "Tarih yok";
+
+                        bool isYellow = type == 'yellow';
+
+                        return Card(
+                          color: isYellow
+                              ? Colors.amber.shade50
+                              : Colors.green.shade50,
+                          child: ListTile(
+                            leading: Icon(
+                              isYellow ? Icons.warning : Icons.star,
+                              color: isYellow ? Colors.orange : Colors.green,
+                            ),
+                            title: Text(
+                              reason,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(tarihStr),
+                            trailing: Chip(
+                              label: Text(
+                                isYellow ? "Sarı Kart" : "Yeşil Kart",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              backgroundColor: isYellow
+                                  ? Colors.orange
+                                  : Colors.green,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildDengeBari(
     int sari,
     int kirmizi,

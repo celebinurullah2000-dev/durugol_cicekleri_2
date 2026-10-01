@@ -16,6 +16,7 @@ import 'Ogrenci_Etkinlikler_Screen.dart';
 import 'Ogrenci_Yarismalar_Screen.dart';
 import 'istatistik_servisi.dart';
 import 'package:durugol_cicekleri/Kisisel_Ingilizce_Sozluk_Ogrenci.dart';
+import 'ders_kitaplari_screen.dart'; // Ders Kitapları ekranı import edildi
 
 class OgrenciDevamsizlikScreen extends StatelessWidget {
   final String classId;
@@ -251,6 +252,11 @@ class _CesitliIslerScreenState extends State<CesitliIslerScreen> {
       "title": "Faydalı Linkler",
       "icon": Icons.link,
       "color": Colors.purpleAccent,
+    },
+    {
+      "title": "Ders Kitapları",
+      "icon": Icons.menu_book_rounded,
+      "color": Colors.blue.shade700,
     },
   ];
 
@@ -556,6 +562,18 @@ class _CesitliIslerScreenState extends State<CesitliIslerScreen> {
                   userRole: 'student',
                   currentUserName: "Öğrenci",
                   currentUserId: widget.studentId,
+                ),
+              ),
+            );
+          } else if (title == "Ders Kitapları") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DersKitaplariScreen(
+                  currentUserId: widget.studentId,
+                  currentUserName: "Öğrenci",
+                  userRole:
+                      'student', // Öğrenci rolü ile açıldığı için ekleme/silme görünmez
                 ),
               ),
             );

@@ -6,11 +6,10 @@ import 'package:flutter/material.dart';
 class ClassFeedScreen extends StatefulWidget {
   final String currentUserId;
   final String currentUserName;
-  final bool isTeacher; // Öğretmen mi öğrenci mi olduğunu anlamak için
-  final String classId; // Hangi sınıfın duvarı?
-  final String className; // Başlıkta yazacak sınıf adı (Örn: 4/C)
-  final String
-  userRole; // Kullanıcının rolü (classroom_teacher, admin vb.)[cite: 5]
+  final bool isTeacher;
+  final String classId;
+  final String className;
+  final String userRole;
 
   const ClassFeedScreen({
     super.key,
@@ -19,7 +18,7 @@ class ClassFeedScreen extends StatefulWidget {
     required this.isTeacher,
     required this.classId,
     required this.className,
-    this.userRole = 'classroom_teacher', // Varsayılan değer[cite: 5]
+    this.userRole = 'classroom_teacher',
   });
 
   @override
@@ -29,16 +28,15 @@ class ClassFeedScreen extends StatefulWidget {
 class _ClassFeedScreenState extends State<ClassFeedScreen> {
   final TextEditingController _postController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   @override
   void initState() {
     super.initState();
-    // Eğer giren kişi öğrenci ise sınıf duvarı ban kontrolünü yap
     if (!widget.isTeacher) {
       _checkStudentBanStatus();
     }
   }
 
-  // Öğrencinin sınıf duvarı ban kontrolü
   void _checkStudentBanStatus() async {
     var studentDoc = await _firestore
         .collection('students')
@@ -86,8 +84,8 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
               actions: [
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context); // Dialogu kapat
-                    Navigator.pop(context); // Sınıf duvarı ekranından çık
+                    Navigator.pop(context);
+                    Navigator.pop(context);
                   },
                   child: const Text("Tamam"),
                 ),
@@ -99,7 +97,6 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
     }
   }
 
-  // Tarih ve Saat Oluşturucu Yardımcı Fonksiyonlar
   String _getFormattedDate() {
     DateTime now = DateTime.now();
     List<String> months = [
@@ -127,11 +124,9 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
     return "$hour:$minute";
   }
 
-  // Gönderi Paylaşma Fonksiyonu
   void _createPost() async {
     if (_postController.text.trim().isEmpty) return;
 
-    // Ekstra Güvenlik: Paylaş butonuna bastığı an ceza süresi bitmiş mi kontrol et
     if (!widget.isTeacher) {
       var studentDoc = await _firestore
           .collection('students')
@@ -170,7 +165,7 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
     });
   }
 
-  // Gönderi Silme ve Sarı Kart / Ban Mekanizması
+  // Gönderi Silme ve Sarı Kart / Ban Mekanizması (Güncellendi)
   void _deletePost(String postId, String authorId, String authorName) async {
     var studentDoc = await _firestore
         .collection('students')
@@ -228,23 +223,38 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
     // 1. Öğrencinin sohbet/ban cezası verilerini güncelle
     await _firestore.collection('students').doc(authorId).update(updateData);
 
-    // 2. DAVRANIŞ MODÜLÜNE Sarı Kartı İşle
+    // 2. DAVRANIŞ MODÜLÜNE Sarı Kartı İşle ve Detaylı Geçmiş (History) Ekle
     String classId = studentData['classId'] ?? '';
     if (classId.isNotEmpty) {
-      await _firestore
+      var davranisRef = _firestore
           .collection('classes')
           .doc(classId)
           .collection('davranislar')
-          .doc(authorId)
-          .set({'sariKart': FieldValue.increment(1)}, SetOptions(merge: true));
+          .doc(authorId);
+
+      var davranisSnap = await davranisRef.get();
+      int currentSari = 0;
+      if (davranisSnap.exists) {
+        currentSari = davranisSnap.data()?['sariKart'] ?? 0;
+      }
+
+      await davranisRef.set({
+        'sariKart': currentSari + 1,
+        'guncellemeTarihi': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await davranisRef.collection('history').add({
+        'cardType': 'yellow',
+        'reason':
+            'Sohbet mesajının ${widget.currentUserName} tarafından silinmesi',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
     }
 
     // 3. Gönderiyi sil
     await _firestore.collection('class_feed').doc(postId).delete();
 
-    if (!context.mounted) {
-      if (!context.mounted) return;
-    }
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("$authorName adlı öğrenciye 1 sarı kart eklendi."),
@@ -262,7 +272,6 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
       ),
       body: Column(
         children: [
-          // Yazı Yazma Alanı
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -291,7 +300,6 @@ class _ClassFeedScreenState extends State<ClassFeedScreen> {
             ),
           ),
           const Divider(),
-          // Akış Listesi
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance

@@ -25,7 +25,7 @@ class _TopluOdevScreenState extends State<TopluOdevScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Sınıf Toplu Ödev Takibi"),
+        title: const Text("Öğrenci Bazlı Ödev Durumu Listesi"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [

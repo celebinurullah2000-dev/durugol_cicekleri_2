@@ -1103,7 +1103,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 color: Colors.transparent,
                 child: ListTile(
                   leading: const Icon(Icons.date_range, color: Colors.indigo),
-                  title: const Text("Hızlı Ödev Durumu Ekle"),
+                  title: const Text("Sınıf Toplu Ödev Durumu Ekle"),
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -1121,7 +1121,7 @@ class _OgretmenAnaSayfasiState extends State<OgretmenAnaSayfasi> {
                 color: Colors.transparent,
                 child: ListTile(
                   leading: const Icon(Icons.checklist_rtl, color: Colors.blue),
-                  title: const Text("Toplu Ödev"),
+                  title: const Text("Öğrenci Bazlı Ödev Durumu Ekle"),
                   onTap: () async {
                     String? currentHedefClassId = await _getAktifHedefClassId();
                     if (currentHedefClassId == null) return;

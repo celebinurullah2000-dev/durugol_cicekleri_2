@@ -18,12 +18,10 @@ class ChatListScreen extends StatelessWidget {
     required this.classId,
   }) : super(key: key);
 
-  // Bireysel sohbet ID'si üretme (Alfabetik sıralama ile benzersizlik)
   String _getBireyselChatId(String id1, String id2) {
     return id1.compareTo(id2) < 0 ? "${id1}_$id2" : "${id2}_$id1";
   }
 
-  // Grup Oluşturma Dialogu
   void _grupOlusturDialog(BuildContext context) {
     final TextEditingController groupNameController = TextEditingController();
     List<String> selectedMemberIds = [];
@@ -162,7 +160,6 @@ class ChatListScreen extends StatelessWidget {
     );
   }
 
-  // Yeni Sohbet veya Grup Başlatma Dialogu
   void _yeniSohbetAcDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -280,7 +277,7 @@ class ChatListScreen extends StatelessWidget {
             ? FirebaseFirestore.instance
                   .collection('chats')
                   .where('classId', isEqualTo: classId)
-                  .snapshots() // Öğretmen sınıfındaki tüm sohbetleri görür
+                  .snapshots()
             : FirebaseFirestore.instance
                   .collection('chats')
                   .where('participants', arrayContains: currentUserId)
@@ -431,7 +428,6 @@ class ChatListScreen extends StatelessWidget {
     );
   }
 
-  // Sohbet Ekleme Seçenekleri Menüsü
   void _sohbetEkleSecenekleri(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -470,7 +466,6 @@ class ChatListScreen extends StatelessWidget {
     );
   }
 
-  // Türkçe Alfabetik Sıralama Fonksiyonu
   int _turkceKarsilastir(String a, String b) {
     const String turkceAlfabe = 'aabcçdefgğhıijklmnoöprsştuüvyz';
 

@@ -8,9 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 class DersKitaplariScreen extends StatefulWidget {
   final String currentUserId;
   final String currentUserName;
-  final String userRole; // Kullanıcının rolü (classroom_teacher, admin, vb.)
-  final String?
-  ogretmenSinifSeviyesi; // Sınıf öğretmeninin kendi sınıfı (Örn: "3. Sınıf")
+  final String userRole;
+  final String? ogretmenSinifSeviyesi;
 
   const DersKitaplariScreen({
     super.key,
@@ -24,9 +23,10 @@ class DersKitaplariScreen extends StatefulWidget {
   State<DersKitaplariScreen> createState() => _DersKitaplariScreenState();
 }
 
-class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
+class _DersKitaplariScreenState extends State<DersKitaplariScreen>
+    with SingleTickerProviderStateMixin {
   bool _isMaster = false;
-  String? _secilenSinifFiltresi; // Arama/Listeleme için seçilen sınıf
+  late TabController _tabController;
 
   final List<String> _siniflar = [
     "1. Sınıf",
@@ -35,67 +35,29 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
     "4. Sınıf",
   ];
 
-  final Map<String, List<String>> _sinifDersleri = {
-    "1. Sınıf": [
-      "Türkçe",
-      "Matematik",
-      "Hayat Bilgisi",
-      "Görsel Sanatlar",
-      "Müzik",
-      "Oyun ve Fiziki Etkinlikler",
-    ],
-    "2. Sınıf": [
-      "Türkçe",
-      "Matematik",
-      "Hayat Bilgisi",
-      "İngilizce",
-      "Görsel Sanatlar",
-      "Müzik",
-    ],
-    "3. Sınıf": [
-      "Türkçe",
-      "Matematik",
-      "Hayat Bilgisi",
-      "Fen Bilimleri",
-      "İngilizce",
-      "Din Kültürü ve Ahlak Bilgisi",
-      "Görsel Sanatlar",
-      "Müzik",
-    ],
-    "4. Sınıf": [
-      "Türkçe",
-      "Matematik",
-      "Fen Bilimleri",
-      "Sosyal Bilgiler",
-      "İngilizce",
-      "Din Kültürü ve Ahlak Bilgisi",
-      "İnsan Hakları, Yurttaşlık ve Demokrasi",
-      "Görsel Sanatlar",
-      "Müzik",
-    ],
-  };
-
   @override
   void initState() {
     super.initState();
     _masterDurumunuKontrolEt();
+    _tabController = TabController(length: _siniflar.length, vsync: this);
 
-    // Sınıf öğretmeni ise sınıf seviyesini filtreye ata
-    if (widget.userRole == 'classroom_teacher') {
-      if (widget.ogretmenSinifSeviyesi != null &&
-          widget.ogretmenSinifSeviyesi!.trim().isNotEmpty) {
-        String temizSinif = widget.ogretmenSinifSeviyesi!.trim();
-        if (temizSinif.contains("Sınıf")) {
-          _secilenSinifFiltresi = temizSinif;
-        } else {
-          _secilenSinifFiltresi = "$temizSinif. Sınıf";
-        }
-      } else {
-        // Eğer ogretmenSinifSeviyesi parametresi null geldiyse,
-        // buraya kendi sınıfınızı (örneğin 1. sınıf öğretmeni için "1. Sınıf") varsayılan olarak atayabilirsiniz:
-        _secilenSinifFiltresi = "1. Sınıf";
+    // Eğer öğretmen sınıf seviyesi varsa ilgili sekmeyi aç
+    if (widget.ogretmenSinifSeviyesi != null) {
+      String temizSinif = widget.ogretmenSinifSeviyesi!.trim();
+      if (!temizSinif.contains("Sınıf")) {
+        temizSinif = "$temizSinif. Sınıf";
+      }
+      int index = _siniflar.indexOf(temizSinif);
+      if (index != -1) {
+        _tabController.index = index;
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _masterDurumunuKontrolEt() async {
@@ -105,11 +67,52 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
     });
   }
 
-  // Master Hesap için Kaynak Ekleme Penceresi (Sınıf ve Ders Seçimli)
-  void _linkEkleDialog(BuildContext context) {
-    String? dialogSecilenSinif = _secilenSinifFiltresi ?? _siniflar.first;
-    String? dialogSecilenDers = _sinifDersleri[dialogSecilenSinif]?.first;
+  // Türkçe karakter duyarlı alfabetik sıralama fonksiyonu
+  int _turkceKarsilastir(String a, String b) {
+    const String turkceAlfabe = 'aabcçdefgğhıijklmnoöprsştuüvyz';
 
+    String aKucuk = a
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    String bKucuk = b
+        .toLowerCase()
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .replaceAll('Ç', 'ç')
+        .replaceAll('Ğ', 'ğ')
+        .replaceAll('Ö', 'ö')
+        .replaceAll('Ş', 'ş')
+        .replaceAll('Ü', 'ü');
+
+    int minLength = aKucuk.length < bKucuk.length
+        ? aKucuk.length
+        : bKucuk.length;
+
+    for (int i = 0; i < minLength; i++) {
+      int indexA = turkceAlfabe.indexOf(aKucuk[i]);
+      int indexB = turkceAlfabe.indexOf(bKucuk[i]);
+
+      if (indexA == -1 || indexB == -1) {
+        int comp = aKucuk.codeUnitAt(i).compareTo(bKucuk.codeUnitAt(i));
+        if (comp != 0) return comp;
+      } else if (indexA != indexB) {
+        return indexA.compareTo(indexB);
+      }
+    }
+
+    return aKucuk.length.compareTo(bKucuk.length);
+  }
+
+  // Kitap / Link Ekleme Penceresi
+  void _linkEkleDialog(BuildContext context) {
+    String secilenSinif = _siniflar[_tabController.index];
     final TextEditingController baslikController = TextEditingController();
     final TextEditingController urlController = TextEditingController();
 
@@ -120,54 +123,34 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text("Yeni Ders Kitabı / Kaynak Ekle"),
+          title: const Text("Yeni Ders Kitabı / Link Ekle"),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  initialValue: dialogSecilenSinif,
+                  initialValue: secilenSinif,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: "Sınıf Seviyesi Seçin",
+                    labelText: "Sınıf Seviyesi",
                     border: OutlineInputBorder(),
                   ),
                   items: _siniflar
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
                   onChanged: (val) {
-                    setDialogState(() {
-                      dialogSecilenSinif = val;
-                      dialogSecilenDers = _sinifDersleri[val!]?.first;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: dialogSecilenDers,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: "Ders Seçin",
-                    border: OutlineInputBorder(),
-                  ),
-                  items: dialogSecilenSinif == null
-                      ? []
-                      : _sinifDersleri[dialogSecilenSinif]!
-                            .map(
-                              (d) => DropdownMenuItem(value: d, child: Text(d)),
-                            )
-                            .toList(),
-                  onChanged: (val) {
-                    setDialogState(() {
-                      dialogSecilenDers = val;
-                    });
+                    if (val != null) {
+                      setDialogState(() {
+                        secilenSinif = val;
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: baslikController,
                   decoration: const InputDecoration(
-                    labelText: "Kitap / Kaynak Adı (Örn: Ders Kitabı PDF)",
+                    labelText: "Ders Adı / Kitap Adı (Örn: Türkçe Ders Kitabı)",
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -196,10 +179,7 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
                 String baslik = baslikController.text.trim();
                 String url = urlController.text.trim();
 
-                if (baslik.isEmpty ||
-                    url.isEmpty ||
-                    dialogSecilenSinif == null ||
-                    dialogSecilenDers == null) {
+                if (baslik.isEmpty || url.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("Lütfen tüm alanları doldurun."),
@@ -211,8 +191,7 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
                 await FirebaseFirestore.instance
                     .collection('ders_kitaplari')
                     .add({
-                      'sinif': dialogSecilenSinif,
-                      'ders': dialogSecilenDers,
+                      'sinif': secilenSinif,
                       'baslik': baslik,
                       'url': url,
                       'authorId': widget.currentUserId,
@@ -222,7 +201,7 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("Kaynak başarıyla eklendi!"),
+                    content: Text("Kitap linki başarıyla eklendi!"),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -241,7 +220,7 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
       builder: (context) => AlertDialog(
         title: const Text("Kaydı Sil"),
         content: const Text(
-          "Bu ders kitabı bağlantısını silmek istiyor musunuz?",
+          "Bu ders kitabı bağlantısını silmek istediğinize emin misiniz?",
         ),
         actions: [
           TextButton(
@@ -271,6 +250,10 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
     final Uri url = Uri.parse(urlStr);
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Bağlantı açılamadı.")));
     }
   }
 
@@ -280,181 +263,131 @@ class _DersKitaplariScreenState extends State<DersKitaplariScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          isSinifOgretmeni && widget.ogretmenSinifSeviyesi != null
-              ? "${widget.ogretmenSinifSeviyesi} Ders Kitapları"
-              : "Ders Kitapları & Kaynaklar",
-        ),
+        title: const Text("Ders Kitapları & Kaynaklar"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.amber,
+          indicatorWeight: 3,
+          tabs: _siniflar.map((sinif) => Tab(text: sinif)).toList(),
+        ),
       ),
-      body: Column(
-        children: [
-          // Sınıf Öğretmeni DEĞİLSE üst kısımda sadece SINIF SEÇME dropdown'ı görünür
-          if (!isSinifOgretmeni)
-            Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.indigo.shade50,
-              child: DropdownButtonFormField<String>(
-                initialValue: _secilenSinifFiltresi,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: "Görüntülenecek Sınıf Seviyesini Seçin",
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                ),
-                items: _siniflar
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                    .toList(),
-                onChanged: (val) => setState(() => _secilenSinifFiltresi = val),
-              ),
-            ),
+      body: TabBarView(
+        controller: _tabController,
+        children: _siniflar.map((sinifSeviyesi) {
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('ders_kitaplari')
+                .where('sinif', isEqualTo: sinifSeviyesi)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          // LİSTELEME ALANI
-          Expanded(
-            child: _secilenSinifFiltresi == null
-                ? const Center(
-                    child: Text(
-                      "Lütfen yukarıdan bir sınıf seçimi yapın.",
-                      style: TextStyle(color: Colors.grey, fontSize: 15),
+              var docs = snapshot.hasData ? List.from(snapshot.data!.docs) : [];
+
+              if (docs.isEmpty) {
+                return Center(
+                  child: Text(
+                    "$sinifSeviyesi için henüz eklenmiş ders kitabı yok.",
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                );
+              }
+
+              // TÜRKÇE ALFABETİK SIRALAMA
+              docs.sort((a, b) {
+                var dataA = a.data() as Map<String, dynamic>;
+                var dataB = b.data() as Map<String, dynamic>;
+
+                String baslikA = dataA['baslik'] ?? '';
+                String baslikB = dataB['baslik'] ?? '';
+
+                return _turkceKarsilastir(baslikA, baslikB);
+              });
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  var doc = docs[index];
+                  var data = doc.data() as Map<String, dynamic>;
+                  String docId = doc.id;
+                  String baslik = data['baslik'] ?? '';
+                  String urlStr = data['url'] ?? '';
+
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  )
-                : StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('ders_kitaplari')
-                        .where('sinif', isEqualTo: _secilenSinifFiltresi)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      var docs = snapshot.hasData
-                          ? List.from(snapshot.data!.docs)
-                          : [];
-
-                      if (docs.isEmpty) {
-                        return Center(
-                          child: Text(
-                            "$_secilenSinifFiltresi için henüz ders kitabı eklenmemiş.",
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.indigo,
+                        child: Icon(Icons.book, color: Colors.white, size: 20),
+                      ),
+                      title: Text(
+                        baslik,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              minimumSize: const Size(0, 32),
                             ),
+                            icon: const Icon(Icons.open_in_new, size: 14),
+                            label: const Text(
+                              "Git",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: () => _linkAc(urlStr),
                           ),
-                        );
-                      }
-
-                      // TÜRKÇE ALFABETİK SIRALAMA
-                      docs.sort((a, b) {
-                        var dataA = a.data() as Map<String, dynamic>;
-                        var dataB = b.data() as Map<String, dynamic>;
-
-                        String baslikA = dataA['baslik'] ?? '';
-                        String baslikB = dataB['baslik'] ?? '';
-
-                        // Türkçe karakterleri dikkate alarak karşılaştırma
-                        return baslikA.compareTo(baslikB);
-                      });
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: docs.length,
-                        itemBuilder: (context, index) {
-                          var doc = docs[index];
-                          var data = doc.data() as Map<String, dynamic>;
-                          String docId = doc.id;
-                          String dersAdi = data['ders'] ?? 'Genel';
-                          String baslik = data['baslik'] ?? '';
-                          String urlStr = data['url'] ?? '';
-
-                          return Card(
-                            elevation: 2,
-                            margin: const EdgeInsets.only(bottom: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                          // Sınıf öğretmeni veya Master hesaplar silebilir
+                          if (isSinifOgretmeni || _isMaster) ...[
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              tooltip: "Kitabı Sil",
+                              onPressed: () => _linkSil(context, docId),
                             ),
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                backgroundColor: Colors.indigo,
-                                child: Icon(
-                                  Icons.book,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                              title: Text(
-                                baslik,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              subtitle: Text(
-                                "Ders: $dersAdi",
-                                style: TextStyle(
-                                  color: Colors.indigo.shade700,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.indigo,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      minimumSize: const Size(0, 32),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.open_in_new,
-                                      size: 14,
-                                    ),
-                                    label: const Text(
-                                      "Git",
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                    onPressed: () => _linkAc(urlStr),
-                                  ),
-                                  if (_isMaster) ...[
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                        size: 20,
-                                      ),
-                                      onPressed: () => _linkSil(context, docId),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        }).toList(),
       ),
-      // SADECE MASTER HESAPTA "KAYNAK EKLE" BUTONU ÇIKAR
-      floatingActionButton: _isMaster
+      // LİNK EKLEME BUTONU (Sınıf Öğretmeni veya Master görebilir)
+      floatingActionButton: (isSinifOgretmeni || _isMaster)
           ? FloatingActionButton.extended(
               backgroundColor: Colors.indigo,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: const Text("Kaynak Ekle"),
+              label: const Text("Kitap Linki Ekle"),
               onPressed: () => _linkEkleDialog(context),
             )
           : null,

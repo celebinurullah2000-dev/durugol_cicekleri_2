@@ -8,7 +8,7 @@ class TeacherChatAuditScreen extends StatelessWidget {
   final String classId;
   final String currentUserId;
   final String currentUserName;
-  final String userRole; // Rol parametresi
+  final String userRole;
 
   const TeacherChatAuditScreen({
     Key? key,
@@ -18,7 +18,6 @@ class TeacherChatAuditScreen extends StatelessWidget {
     this.userRole = 'admin',
   }) : super(key: key);
 
-  // Sohbeti Herkes İçin Silme Fonksiyonu
   void _deleteChat(BuildContext context, String chatId, String chatTitle) {
     showDialog(
       context: context,
@@ -40,7 +39,6 @@ class TeacherChatAuditScreen extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(context);
 
-              // Firestore'dan sohbet dokümanını tamamen sil (Herkesin ekranından kalkar)
               await FirebaseFirestore.instance
                   .collection('chats')
                   .doc(chatId)
@@ -124,7 +122,6 @@ class TeacherChatAuditScreen extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  // --- ÖĞRETMEN DENETİM EKRANI İÇİN SİLME İKONU VE OK ---
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

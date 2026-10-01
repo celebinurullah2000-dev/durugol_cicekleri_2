@@ -18,9 +18,15 @@ class SinifIsTakipScreen extends StatefulWidget {
 }
 
 class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
+  // Her iş için öğrenci verilerini saklayan havuz: { isId: { studentId: deger } }
   final Map<String, Map<String, String>> _isVeriHavuzlari = {};
+
+  // Her iş ve öğrenci için TextEditingController havuzu
   final Map<String, Map<String, TextEditingController>> _isControllerHavuzlari =
       {};
+
+  // Hangi işlerin verilerinin Firebase'den çekilip havuza yüklendiğini takip etmek için
+  final Set<String> _yuklenenIsler = {};
 
   String? _acikolanIsId;
 
@@ -66,6 +72,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
 
               _isVeriHavuzlari.remove(isId);
               _isControllerHavuzlari.remove(isId);
+              _yuklenenIsler.remove(isId);
 
               setState(() {});
 
@@ -170,6 +177,49 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
     );
   }
 
+  // Firebase'den mevcut verileri bir kez çekip yerel havuzları ve controller'ları dolduran fonksiyon
+  Future<void> _verileriFirebasedenYukle(
+    String isId,
+    List<QueryDocumentSnapshot> ogrenciler,
+  ) async {
+    if (_yuklenenIsler.contains(isId)) return;
+
+    _isVeriHavuzlari.putIfAbsent(isId, () => {});
+    _isControllerHavuzlari.putIfAbsent(isId, () => {});
+
+    var sinifVeriHavuzu = _isVeriHavuzlari[isId]!;
+    var oIsinControllerlari = _isControllerHavuzlari[isId]!;
+
+    for (var ogrDoc in ogrenciler) {
+      String ogrId = ogrDoc.id;
+      var veriDoc = await ogrDoc.reference
+          .collection('is_verileri')
+          .doc(isId)
+          .get();
+
+      String kayitliDeger = '+';
+      if (veriDoc.exists && veriDoc.data() != null) {
+        kayitliDeger = veriDoc.data()!['deger'] ?? '+';
+      }
+
+      sinifVeriHavuzu[ogrId] = kayitliDeger;
+
+      if (!oIsinControllerlari.containsKey(ogrId)) {
+        oIsinControllerlari[ogrId] = TextEditingController(
+          text: (kayitliDeger == '+' || kayitliDeger == '-')
+              ? ''
+              : kayitliDeger,
+        );
+      } else {
+        oIsinControllerlari[ogrId]!.text =
+            (kayitliDeger == '+' || kayitliDeger == '-') ? '' : kayitliDeger;
+      }
+    }
+
+    _yuklenenIsler.add(isId);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _topluDegerAta(
     String isId,
     String veriTuru,
@@ -218,9 +268,14 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
 
               _isVeriHavuzlari.putIfAbsent(isId, () => {});
               var havuz = _isVeriHavuzlari[isId]!;
+              _isControllerHavuzlari.putIfAbsent(isId, () => {});
+              var controllerHavuz = _isControllerHavuzlari[isId]!;
 
               for (var doc in studentsSnapshot.docs) {
                 havuz[doc.id] = girilenDeger;
+                if (controllerHavuz.containsKey(doc.id)) {
+                  controllerHavuz[doc.id]!.text = girilenDeger;
+                }
                 await doc.reference.collection('is_verileri').doc(isId).set({
                   'deger': girilenDeger,
                 }, SetOptions(merge: true));
@@ -285,14 +340,11 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
               String veriTuru = isData['veriTuru'] ?? 'artı_eksi';
               String isId = isDoc.id;
 
-              // Veriliş tarihini okunabilir formata çevirme
               var tarihField = isData['tarih'];
               String verilisTarihiStr = "Belirtilmemiş";
               if (tarihField is Timestamp) {
                 DateTime dt = tarihField.toDate();
                 verilisTarihiStr = "${dt.day}.${dt.month}.${dt.year}";
-              } else if (tarihField is String && tarihField.isNotEmpty) {
-                verilisTarihiStr = tarihField;
               }
 
               return Card(
@@ -390,6 +442,9 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                           return adA.compareTo(adB);
                         });
 
+                        // Verileri bir kez Firebase'den çekip hafızaya alalım
+                        _verileriFirebasedenYukle(isId, ogrenciler);
+
                         _isVeriHavuzlari.putIfAbsent(isId, () => {});
                         _isControllerHavuzlari.putIfAbsent(isId, () => {});
                         var sinifVeriHavuzu = _isVeriHavuzlari[isId]!;
@@ -410,73 +465,47 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                         .toUpperCase();
                                 String ogrId = ogrDoc.id;
 
-                                return FutureBuilder<DocumentSnapshot>(
-                                  future: ogrDoc.reference
-                                      .collection('is_verileri')
-                                      .doc(isId)
-                                      .get(
-                                        const GetOptions(
-                                          source: Source.serverAndCache,
-                                        ),
-                                      ),
-                                  builder: (context, veriSnap) {
-                                    String serverDeger = '+';
-                                    if (veriSnap.hasData &&
-                                        veriSnap.data!.exists) {
-                                      var vData =
-                                          veriSnap.data!.data()
-                                              as Map<String, dynamic>?;
-                                      if (vData != null &&
-                                          vData.containsKey('deger')) {
-                                        serverDeger = vData['deger'] ?? '+';
-                                      }
-                                    }
+                                // Havuzda varsa onu göster, yoksa varsayılan '+'
+                                String aktifDeger =
+                                    sinifVeriHavuzu[ogrId] ?? '+';
 
-                                    String aktifDeger =
-                                        sinifVeriHavuzu.containsKey(ogrId)
-                                        ? sinifVeriHavuzu[ogrId]!
-                                        : serverDeger;
+                                if (veriTuru != 'artı_eksi') {
+                                  oIsinControllerlari.putIfAbsent(
+                                    ogrId,
+                                    () => TextEditingController(
+                                      text:
+                                          (aktifDeger == '+' ||
+                                              aktifDeger == '-')
+                                          ? ''
+                                          : aktifDeger,
+                                    ),
+                                  );
+                                }
 
-                                    if (veriTuru != 'artı_eksi') {
-                                      oIsinControllerlari.putIfAbsent(
-                                        ogrId,
-                                        () {
-                                          return TextEditingController(
-                                            text:
-                                                (aktifDeger == '+' ||
-                                                    aktifDeger == '-')
-                                                ? ''
-                                                : aktifDeger,
-                                          );
-                                        },
-                                      );
-                                    }
-
-                                    return ListTile(
-                                      dense: true,
-                                      title: Text(
-                                        ogrAd,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                      trailing: SizedBox(
-                                        width: 130,
-                                        child: _buildGirisWidgeti(
-                                          veriTuru,
-                                          aktifDeger,
-                                          veriTuru == 'artı_eksi'
-                                              ? null
-                                              : oIsinControllerlari[ogrId],
-                                          (yeniDeger) {
-                                            sinifVeriHavuzu[ogrId] = yeniDeger;
-                                          },
-                                          isSinifOgretmeni,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                return ListTile(
+                                  dense: true,
+                                  title: Text(
+                                    ogrAd,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  trailing: SizedBox(
+                                    width: 130,
+                                    child: _buildGirisWidgeti(
+                                      veriTuru,
+                                      aktifDeger,
+                                      veriTuru == 'artı_eksi'
+                                          ? null
+                                          : oIsinControllerlari[ogrId],
+                                      (yeniDeger) {
+                                        // Değişiklik anında yerel havuza kaydedilir
+                                        sinifVeriHavuzu[ogrId] = yeniDeger;
+                                      },
+                                      isSinifOgretmeni,
+                                    ),
+                                  ),
                                 );
                               },
                             ),
@@ -487,6 +516,7 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
                                     onPressed: () async {
+                                      // Kaydet butonuna basıldığında havuzdaki tüm veriler Firebase'e yazılır
                                       for (var entry
                                           in sinifVeriHavuzu.entries) {
                                         await FirebaseFirestore.instance
@@ -556,66 +586,46 @@ class _SinifIsTakipScreenState extends State<SinifIsTakipScreen> {
     bool isSinifOgretmeni,
   ) {
     if (veriTuru == 'artı_eksi') {
-      return StatefulBuilder(
-        builder: (context, setLocalState) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              InkWell(
-                onTap: isSinifOgretmeni
-                    ? () {
-                        setLocalState(() => mevcutDeger = '+');
-                        onDegisti('+');
-                      }
-                    : null,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: mevcutDeger == '+'
-                        ? Colors.green.shade200
-                        : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade400),
-                  ),
-                  child: const Text(
-                    "+",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          InkWell(
+            onTap: isSinifOgretmeni ? () => onDegisti('+') : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: mevcutDeger == '+'
+                    ? Colors.green.shade200
+                    : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade400),
               ),
-              const SizedBox(width: 6),
-              InkWell(
-                onTap: isSinifOgretmeni
-                    ? () {
-                        setLocalState(() => mevcutDeger = '-');
-                        onDegisti('-');
-                      }
-                    : null,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: mevcutDeger == '-'
-                        ? Colors.red.shade200
-                        : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade400),
-                  ),
-                  child: const Text(
-                    "-",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+              child: const Text(
+                "+",
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-            ],
-          );
-        },
+            ),
+          ),
+          const SizedBox(width: 6),
+          InkWell(
+            onTap: isSinifOgretmeni ? () => onDegisti('-') : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: mevcutDeger == '-'
+                    ? Colors.red.shade200
+                    : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: const Text(
+                "-",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
       );
     } else if (veriTuru == 'rakam') {
       return SizedBox(

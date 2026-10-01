@@ -32,13 +32,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Eğer giren kişi öğrenci ise ban ve ceza kontrollerini yap
     if (!widget.isTeacher) {
       _checkStudentPenalties();
     }
   }
 
-  // Öğrencinin ban ve sarı kart ceza kontrolleri
   void _checkStudentPenalties() async {
     var studentDoc = await _firestore
         .collection('students')
@@ -48,7 +46,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     var data = studentDoc.data() as Map<String, dynamic>;
 
-    // 1. 3 Günlük Sohbet Banı Kontrolü
     if (data.containsKey('chatBanUntil') && data['chatBanUntil'] != null) {
       Timestamp banTimestamp = data['chatBanUntil'];
       DateTime banDate = banTimestamp.toDate();
@@ -87,8 +84,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               actions: [
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context); // Dialogu kapat
-                    Navigator.pop(context); // Sohbet detay ekranından çık
+                    Navigator.pop(context);
+                    Navigator.pop(context);
                   },
                   child: const Text("Tamam"),
                 ),
@@ -100,7 +97,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       }
     }
 
-    // 2. Yeni Sarı Kart Bildirim Kontrolü
     if (data['hasUnseenPenalty'] == true) {
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -115,7 +111,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context);
-                  // Uyarının tekrar gösterilmemesi için bayrağı false yap
                   await _firestore
                       .collection('students')
                       .doc(widget.currentUserId)
@@ -182,7 +177,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  // Mesaj Silme ve Sarı Kart / Ban Mekanizması
+  // Mesaj Silme ve Sarı Kart / Ban Mekanizması (Güncellendi)
   void _deleteMessage(
     String messageId,
     String senderId,
@@ -249,15 +244,34 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     // 1. Öğrencinin sohbet/ban cezası verilerini güncelle
     await _firestore.collection('students').doc(senderId).update(updateData);
 
-    // 2. DAVRANIŞ MODÜLÜNE (OgrenciDavranisScreen'e) Sarı Kartı İşle
+    // 2. DAVRANIŞ MODÜLÜNE Sarı Kartı İşle ve Detaylı Geçmiş (History) Ekle
     String classId = studentData['classId'] ?? '';
     if (classId.isNotEmpty) {
-      await _firestore
+      var davranisRef = _firestore
           .collection('classes')
           .doc(classId)
           .collection('davranislar')
-          .doc(senderId)
-          .set({'sariKart': FieldValue.increment(1)}, SetOptions(merge: true));
+          .doc(senderId);
+
+      var davranisSnap = await davranisRef.get();
+      int currentSari = 0;
+      if (davranisSnap.exists) {
+        currentSari = davranisSnap.data()?['sariKart'] ?? 0;
+      }
+
+      // Ana sayacı artır
+      await davranisRef.set({
+        'sariKart': currentSari + 1,
+        'guncellemeTarihi': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // İstediğiniz detaylı geçmiş kaydı
+      await davranisRef.collection('history').add({
+        'cardType': 'yellow',
+        'reason':
+            'Sohbet mesajının ${widget.currentUserName} tarafından silinmesi',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
     }
 
     // 3. Mesajı sohbetten sil
@@ -277,7 +291,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  // GRUPTAN AYRILMA FONKSİYONU
   void _gruptanAyril(BuildContext context) {
     showDialog(
       context: context,
@@ -347,7 +360,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
           body: Column(
             children: [
-              // --- GRUP ÜYELERİ BİLGİ ÇUBUĞU ---
               if (chatSnapshot.hasData && chatSnapshot.data!.exists)
                 (() {
                   var chatData =
@@ -511,7 +523,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
               ),
 
-              // Alt Mesaj Yazma Çubuğu
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
